@@ -2,25 +2,24 @@
  * Kiosk mode configuration
  *
  * When running as a kiosk/hub, the app can be configured to:
- * - Skip the login screen and auto-sign in with stored admin credentials
+ * - Skip the login screen and auto-sign in via the local hub server
  * - Prevent sign-out functionality
  * - Hide admin-level controls
+ *
+ * SECURITY: Admin credentials are never bundled into the frontend.
+ * Auto sign-in is handled by the local hub server (POST /api/v1/auth/kiosk-autologin),
+ * which reads credentials from a secure file on the hub machine.
  */
 
 export const kioskConfig = {
   // Enable kiosk mode. This repo IS the wall-display kiosk, so pairing mode is on
-  // by default; set REACT_APP_KIOSK_MODE="false" to run the legacy auth app shell.
-  enabled: import.meta.env.REACT_APP_KIOSK_MODE !== "false",
+  // by default; set VITE_KIOSK_MODE="false" to run the legacy auth app shell.
+  enabled: import.meta.env.VITE_KIOSK_MODE !== "false",
 
-  // Pre-stored admin email for auto-login (set via environment variable)
-  adminEmail: import.meta.env.REACT_APP_KIOSK_ADMIN_EMAIL || null,
-
-  // Pre-stored admin password for auto-login (set via environment variable)
-  adminPassword: import.meta.env.REACT_APP_KIOSK_ADMIN_PASSWORD || null,
-
-  // Whether to auto-sign in on startup (requires both email and password)
-  autoSignIn: !!(import.meta.env.REACT_APP_KIOSK_AUTO_SIGNIN === "true" && import.meta.env.REACT_APP_KIOSK_ADMIN_EMAIL && import.meta.env.REACT_APP_KIOSK_ADMIN_PASSWORD),
+  // Whether to attempt auto sign-in on startup via the local hub server.
+  // The server reads credentials from ~/.lumora/kiosk-autologin.json (never the frontend).
+  autoSignIn: import.meta.env.VITE_KIOSK_AUTO_SIGNIN === "true",
 
   // Whether to hide the sign-out button
-  hideSignOut: import.meta.env.REACT_APP_KIOSK_HIDE_SIGNOUT !== "false",
+  hideSignOut: import.meta.env.VITE_KIOSK_HIDE_SIGNOUT !== "false",
 }

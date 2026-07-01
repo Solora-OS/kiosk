@@ -37,13 +37,17 @@ kioskRouter.post("/register", (req: Request, res: Response): void => {
     "87600h", // 10 years
   )
 
-  // Store a hash of the JWT for revocation checks (not implemented yet).
+  // Store a SHA-256 hash of the JWT, not the raw token, so a DB breach
+  // doesn't expose device credentials.
+  const tokenHash = crypto.createHash("sha256").update(deviceJwt).digest("hex")
+
   db.prepare(
     `INSERT INTO kiosk_devices
      (id, device_token, device_name, pairing_code, setup_complete, is_online, last_heartbeat)
      VALUES (?, ?, ?, ?, 0, 1, datetime('now'))`,
-  ).run(id, deviceJwt, deviceName, pairingCode)
+  ).run(id, tokenHash, deviceName, pairingCode)
 
+  // Return the raw JWT to the device — it will never be stored on the server again.
   res.status(201).json({ id, device_token: deviceJwt, pairing_code: pairingCode })
 })
 

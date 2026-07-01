@@ -11,6 +11,7 @@ import { getDb } from "../db"
 import { requireAuth, type AuthRequest } from "../middleware/auth"
 import { syncHousehold } from "../services/calendar-sync"
 import { writeLog } from "./activity-logs"
+import { encryptToken, decryptToken } from "../lib/token-crypto"
 
 const GOOGLE_CLIENT_ID     = process.env.VITE_GOOGLE_CLIENT_ID ?? ""
 const GOOGLE_CLIENT_SECRET = process.env.VITE_GOOGLE_CLIENT_SECRET ?? ""
@@ -153,15 +154,18 @@ router.post("/:provider/exchange", async (req: Request, res: Response) => {
       .prepare("SELECT id FROM calendar_providers WHERE household_id=? AND provider=?")
       .get(householdId, provider) as { id: string } | undefined
 
+    const encAccessToken  = encryptToken(json.access_token)
+    const encRefreshToken = json.refresh_token ? encryptToken(json.refresh_token) : null
+
     if (existing) {
       db.prepare(
         `UPDATE calendar_providers SET access_token=?, refresh_token=?, expires_at=?, email=? WHERE id=?`,
-      ).run(json.access_token, json.refresh_token ?? null, expiresAt, email, existing.id)
+      ).run(encAccessToken, encRefreshToken, expiresAt, email, existing.id)
     } else {
       db.prepare(
         `INSERT INTO calendar_providers (id, household_id, provider, access_token, refresh_token, expires_at, email)
          VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      ).run(uuidv4(), householdId, provider, json.access_token, json.refresh_token ?? null, expiresAt, email)
+      ).run(uuidv4(), householdId, provider, encAccessToken, encRefreshToken, expiresAt, email)
     }
 
     void syncHousehold(householdId).catch(() => {})
@@ -211,12 +215,15 @@ router.post("/:provider/tokens", (req: Request, res: Response) => {
     .prepare("SELECT id FROM calendar_providers WHERE household_id=? AND provider=?")
     .get(householdId, provider) as { id: string } | undefined
 
+  const encAccessToken  = encryptToken(access_token)
+  const encRefreshToken = refresh_token ? encryptToken(refresh_token) : null
+
   if (existing) {
     db.prepare(
       `UPDATE calendar_providers
        SET access_token=?, refresh_token=?, expires_at=?, email=?
        WHERE id=?`,
-    ).run(access_token, refresh_token ?? null, expires_at ?? null, email ?? null, existing.id)
+    ).run(encAccessToken, encRefreshToken, expires_at ?? null, email ?? null, existing.id)
   } else {
     db.prepare(
       `INSERT INTO calendar_providers (id, household_id, provider, access_token, refresh_token, expires_at, email)
@@ -225,8 +232,8 @@ router.post("/:provider/tokens", (req: Request, res: Response) => {
       uuidv4(),
       householdId,
       provider,
-      access_token,
-      refresh_token ?? null,
+      encAccessToken,
+      encRefreshToken,
       expires_at ?? null,
       email ?? null,
     )
@@ -274,32 +281,36 @@ async function getValidToken(householdId: string, provider: "google" | "microsof
     .get(householdId, provider) as ProviderRow | undefined
   if (!row) return null
   const nowSec = Math.floor(Date.now() / 1000)
-  if (row.expires_at && row.expires_at > nowSec) return row.access_token
+  // Decrypt before use
+  if (row.expires_at && row.expires_at > nowSec) return decryptToken(row.access_token)
   // Refresh if needed
   try {
     if (provider === "google") {
       if (!row.refresh_token) return null
+      const refreshToken = decryptToken(row.refresh_token)
       const res = await fetch("https://oauth2.googleapis.com/token", {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams({ client_id: GOOGLE_CLIENT_ID, client_secret: GOOGLE_CLIENT_SECRET, refresh_token: row.refresh_token, grant_type: "refresh_token" }),
+        body: new URLSearchParams({ client_id: GOOGLE_CLIENT_ID, client_secret: GOOGLE_CLIENT_SECRET, refresh_token: refreshToken, grant_type: "refresh_token" }),
       })
       if (!res.ok) return null
       const json = (await res.json()) as { access_token: string; expires_in: number }
       const expiresAt = Math.floor(Date.now() / 1000) + json.expires_in - 60
-      db.prepare("UPDATE calendar_providers SET access_token=?, expires_at=? WHERE id=?").run(json.access_token, expiresAt, row.id)
+      db.prepare("UPDATE calendar_providers SET access_token=?, expires_at=? WHERE id=?").run(encryptToken(json.access_token), expiresAt, row.id)
       return json.access_token
     } else {
       if (!row.refresh_token) return null
+      const refreshToken = decryptToken(row.refresh_token)
       const res = await fetch(`https://login.microsoftonline.com/${MICROSOFT_TENANT_ID}/oauth2/v2.0/token`, {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams({ client_id: MICROSOFT_CLIENT_ID, client_secret: MICROSOFT_CLIENT_SECRET, refresh_token: row.refresh_token, grant_type: "refresh_token", scope: "Calendars.Read offline_access" }),
+        body: new URLSearchParams({ client_id: MICROSOFT_CLIENT_ID, client_secret: MICROSOFT_CLIENT_SECRET, refresh_token: refreshToken, grant_type: "refresh_token", scope: "Calendars.Read offline_access" }),
       })
       if (!res.ok) return null
       const json = (await res.json()) as { access_token: string; refresh_token?: string; expires_in: number }
       const expiresAt = Math.floor(Date.now() / 1000) + json.expires_in - 60
-      db.prepare("UPDATE calendar_providers SET access_token=?, refresh_token=COALESCE(?,refresh_token), expires_at=? WHERE id=?").run(json.access_token, json.refresh_token ?? null, expiresAt, row.id)
+      const encNewRefresh = json.refresh_token ? encryptToken(json.refresh_token) : null
+      db.prepare("UPDATE calendar_providers SET access_token=?, refresh_token=COALESCE(?,refresh_token), expires_at=? WHERE id=?").run(encryptToken(json.access_token), encNewRefresh, expiresAt, row.id)
       return json.access_token
     }
   } catch { return null }

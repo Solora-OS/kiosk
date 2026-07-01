@@ -16,10 +16,14 @@
 import { Router } from "express"
 import { v4 as uuidv4 } from "uuid"
 import crypto from "crypto"
+import fs from "fs"
+import path from "path"
+import os from "os"
 import { getDb, getOrCreateSecret } from "../db"
 import { requireAuth, type AuthRequest } from "../middleware/auth"
 import { verifySupabaseToken } from "../lib/supabase"
 import { getHubJwt } from "../lib/central-registry"
+import { signToken } from "../middleware/auth"
 import jwt from "jsonwebtoken"
 import type { Request, Response } from "express"
 
@@ -36,9 +40,10 @@ const router = Router()
 // Call this once after Supabase sign-in to bootstrap the local record.
 // ---------------------------------------------------------------------------
 router.post("/session", async (req: Request, res: Response) => {
-  const { access_token, household_name } = req.body as {
+  const { access_token, household_name, setupCode } = req.body as {
     access_token?: string
     household_name?: string
+    setupCode?: string
   }
 
   if (!access_token) {
@@ -63,7 +68,26 @@ router.post("/session", async (req: Request, res: Response) => {
     .get(supabaseId) as { id: string; household_id: string; name: string; email: string } | undefined
 
   if (!user) {
-    // First sign-in — provision local user + household
+    // First sign-in — require a one-time setup code to prevent any Supabase
+    // user from provisioning a household on this hub. The setup code is written
+    // to ~/.lumora/setup_code on first boot and printed to the hub console.
+    const setupCodePath = path.join(os.homedir(), ".lumora", "setup_code")
+    let expectedCode: string | null = null
+    try {
+      expectedCode = fs.readFileSync(setupCodePath, "utf8").trim()
+    } catch {
+      // File missing → hub was never initialized; generate and persist a code now.
+      expectedCode = crypto.randomBytes(4).toString("hex").toUpperCase()
+      fs.mkdirSync(path.dirname(setupCodePath), { recursive: true })
+      fs.writeFileSync(setupCodePath, expectedCode, { mode: 0o600 })
+      console.log(`[auth] Hub setup code: ${expectedCode}  (also saved to ${setupCodePath})`)
+    }
+    if (!setupCode || setupCode.trim().toUpperCase() !== expectedCode) {
+      res.status(403).json({ error: "Invalid or missing setupCode. Check the hub console for the setup code." })
+      return
+    }
+
+    // Provision local user + household
     const userId      = uuidv4()
     const householdId = uuidv4()
     const memberId    = uuidv4()
@@ -148,6 +172,61 @@ router.get(["/session", "/me"], requireAuth, (req: Request, res: Response) => {
 
   res.json({
     user:      { id: sub, email, name },
+    household: { id: household.id, name: household.name },
+  })
+})
+
+// ---------------------------------------------------------------------------
+// POST /auth/kiosk-autologin
+// Called by the kiosk frontend to sign in without embedding credentials in
+// the frontend bundle. The hub server reads credentials from a secure file:
+//   ~/.lumora/kiosk-autologin.json  →  { "supabase_id": "<uuid>" }
+// The file must be created manually on the hub machine during setup.
+// Returns { enabled: false } if the file doesn't exist (no auto-login configured).
+// ---------------------------------------------------------------------------
+router.post("/kiosk-autologin", async (_req: Request, res: Response) => {
+  const configPath = path.join(os.homedir(), ".lumora", "kiosk-autologin.json")
+
+  let config: { supabase_id?: string } = {}
+  try {
+    config = JSON.parse(fs.readFileSync(configPath, "utf8")) as { supabase_id?: string }
+  } catch {
+    res.json({ enabled: false })
+    return
+  }
+
+  if (!config.supabase_id) {
+    res.json({ enabled: false })
+    return
+  }
+
+  const db = getDb()
+  const user = db
+    .prepare("SELECT id, household_id, name, email FROM users WHERE supabase_id = ?")
+    .get(config.supabase_id) as { id: string; household_id: string; name: string; email: string } | undefined
+
+  if (!user) {
+    res.status(404).json({ error: "No local user found for configured supabase_id. Sign in manually first." })
+    return
+  }
+
+  const household = db
+    .prepare("SELECT id, name FROM households WHERE id = ?")
+    .get(user.household_id) as { id: string; name: string } | undefined
+
+  if (!household) {
+    res.status(404).json({ error: "Household not found." })
+    return
+  }
+
+  const token = signToken(
+    { sub: user.id, householdId: household.id, email: user.email, name: user.name, role: "member" },
+    "24h",
+  )
+
+  res.json({
+    token,
+    user:      { id: user.id, email: user.email, name: user.name },
     household: { id: household.id, name: household.name },
   })
 })

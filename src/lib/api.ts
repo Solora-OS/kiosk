@@ -122,6 +122,8 @@ export type ApiError = { error: string }
 export interface LumoraApi {
   signUp(input: SignUpInput): Promise<Session & { token: string }>
   signIn(input: SignInInput): Promise<Session & { token: string }>
+  /** Kiosk-only: ask hub server to sign in using server-side credentials. No password in frontend. */
+  kioskAutoSignIn(): Promise<(Session & { token: string }) | null>
   signOut(): Promise<void>
   getSession(): Promise<Session | null>
 

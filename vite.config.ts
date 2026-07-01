@@ -7,15 +7,13 @@ const host = process.env.TAURI_DEV_HOST
 
 // https://vite.dev/config/
 export default defineConfig(async ({ mode }) => {
-  // Load ALL env vars (no prefix filter) so LUMORA_SERVER_URL can be set
-  // without requiring the VITE_ prefix on disk.
-  const env = loadEnv(mode, process.cwd(), "")
+  // Load only VITE_-prefixed env vars to avoid bundling server secrets into
+  // the frontend. Set VITE_LUMORA_SERVER_URL in your .env for the hub address.
+  const env = loadEnv(mode, process.cwd(), "VITE_")
 
   // The local Express + Socket.IO server. Defaults to localhost:4000.
-  // Override with LUMORA_SERVER_URL (or VITE_LUMORA_SERVER_URL) if you need
-  // a non-standard address during development.
-  const serverUrl =
-    env.VITE_LUMORA_SERVER_URL || env.LUMORA_SERVER_URL || "http://localhost:4000"
+  // Override with VITE_LUMORA_SERVER_URL in .env if you need a non-standard address.
+  const serverUrl = env.VITE_LUMORA_SERVER_URL || "http://localhost:4000"
 
   // Inline plugin that suppresses EPIPE / ECONNRESET noise from Vite's own
   // internal WebSocket server (HMR). These errors fire when Tauri's WebView

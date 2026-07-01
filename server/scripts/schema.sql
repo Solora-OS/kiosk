@@ -305,3 +305,18 @@ CREATE TABLE IF NOT EXISTS calendar_excluded_events (
 );
 
 CREATE INDEX IF NOT EXISTS idx_cal_excluded_household ON calendar_excluded_events(household_id);
+
+-- ---------------------------------------------------------------------------
+-- Migration M001: hash device_token at rest (added 2026-06-30)
+-- device_token in kiosk_devices previously stored the raw JWT.
+-- It now stores SHA-256(jwt) so a DB dump doesn't expose bearer tokens.
+-- New rows are written with the hash directly (see routes/kiosk.ts).
+-- Run this once against existing databases to backfill the hash:
+--
+--   UPDATE kiosk_devices
+--   SET device_token = lower(hex(sha256(device_token)))
+--   WHERE length(device_token) != 64;
+--
+-- NOTE: SQLite does not have a built-in sha256() function. Use the Node
+-- migration script at server/scripts/migrate-token-hashes.ts instead.
+-- ---------------------------------------------------------------------------

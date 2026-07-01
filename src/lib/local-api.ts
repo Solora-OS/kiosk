@@ -420,6 +420,23 @@ export function createLocalApi(): LumoraApi {
       return { token: res.token, user: res.user, household: res.household }
     },
 
+    async kioskAutoSignIn() {
+      // Calls the hub server which reads credentials from ~/.lumora/kiosk-autologin.json.
+      // No credentials are ever sent from or stored in the frontend.
+      try {
+        const res = await req<{ token: string; user: User; household: Household } | { enabled: false }>(
+          "/auth/kiosk-autologin", "POST"
+        )
+        if (!("token" in res)) return null
+        tokenStore.set(res.token)
+        setCachedSession(res.user, res.household)
+        liveSocket.connect(res.household.id)
+        return { token: res.token, user: res.user, household: res.household }
+      } catch {
+        return null
+      }
+    },
+
     async signOut() {
       try { await req("/auth/logout", "POST") } catch { /* ignore */ }
       tokenStore.clear()
