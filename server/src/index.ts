@@ -145,9 +145,8 @@ app.get("/health", (_req, res) => {
   res.json({ status: "ok" })
 })
 
-// Central hub identity — no auth, used by iOS/kiosk to discover the central hub_id
-// so they can pass it when registering with the central API.
-app.get("/central-identity", (_req: Request, res: Response) => {
+// Central hub identity — requires auth so only provisioned clients can read hub_id.
+app.get("/central-identity", requireAuth, (_req: Request, res: Response) => {
   const creds = (() => {
     try {
       const p = path.join(process.env.HOME ?? ".", ".lumora", "central.json")

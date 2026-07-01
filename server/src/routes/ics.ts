@@ -48,12 +48,23 @@ router.get("/token/:householdId", requireAuth, (req: Request, res: Response) => 
 router.get("/:token", (req: Request, res: Response) => {
   const { token } = req.params
 
-  // Find the household whose token matches.
-  const households = getDb()
+  // Look up the household by its pre-computed ICS token.
+  // We compute the token for each candidate using HMAC — to avoid an O(n)
+  // timing oracle, we fetch all and use timingSafeEqual for every comparison,
+  // then pick the match only after checking all rows.
+  const { timingSafeEqual } = await import("crypto")
+  const tokenBuf = Buffer.from(token)
+  const rows = getDb()
     .prepare("SELECT id, name FROM households")
     .all() as { id: string; name: string }[]
 
-  const household = households.find((h) => icsToken(h.id) === token)
+  let household: { id: string; name: string } | undefined
+  for (const h of rows) {
+    const candidate = Buffer.from(icsToken(h.id))
+    if (candidate.length === tokenBuf.length && timingSafeEqual(candidate, tokenBuf)) {
+      household = h
+    }
+  }
   if (!household) { res.status(404).send("Not found."); return }
 
   type EventRow = { id: string; title: string; date: string; time: string | null; start_hour: number; end_hour: number; location: string | null }

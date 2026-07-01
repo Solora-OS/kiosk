@@ -13,11 +13,11 @@ import { syncHousehold } from "../services/calendar-sync"
 import { writeLog } from "./activity-logs"
 import { encryptToken, decryptToken } from "../lib/token-crypto"
 
-const GOOGLE_CLIENT_ID     = process.env.VITE_GOOGLE_CLIENT_ID ?? ""
-const GOOGLE_CLIENT_SECRET = process.env.VITE_GOOGLE_CLIENT_SECRET ?? ""
-const MICROSOFT_CLIENT_ID     = process.env.VITE_MICROSOFT_CLIENT_ID ?? ""
-const MICROSOFT_CLIENT_SECRET = process.env.VITE_MICROSOFT_CLIENT_SECRET ?? ""
-const MICROSOFT_TENANT_ID     = process.env.VITE_MICROSOFT_TENANT_ID ?? "common"
+const GOOGLE_CLIENT_ID     = process.env.GOOGLE_CLIENT_ID ?? ""
+const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET ?? ""
+const MICROSOFT_CLIENT_ID     = process.env.MICROSOFT_CLIENT_ID ?? ""
+const MICROSOFT_CLIENT_SECRET = process.env.MICROSOFT_CLIENT_SECRET ?? ""
+const MICROSOFT_TENANT_ID     = process.env.MICROSOFT_TENANT_ID ?? "common"
 
 const router = Router()
 router.use(requireAuth)
@@ -379,7 +379,8 @@ router.get("/microsoft/calendars/:category/events", async (req: Request, res: Re
   if (!householdId) { res.status(403).json({ error: "No household." }); return }
   const token = await getValidToken(householdId, "microsoft")
   if (!token) { res.status(404).json({ error: "Microsoft not connected." }); return }
-  const category = decodeURIComponent(req.params.category as string)
+  // Escape single quotes per OData spec ('' = escaped ') to prevent filter injection.
+  const category = decodeURIComponent(req.params.category as string).replace(/'/g, "''")
   const timeMin = new Date().toISOString()
   const filter = `categories/any(a:a eq '${category}') and end/dateTime ge '${timeMin}'`
   const select = "id,subject,start,end,isAllDay"
