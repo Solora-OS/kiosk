@@ -16,6 +16,7 @@
 import { v4 as uuidv4 } from "uuid"
 import { getDb } from "../db"
 import { broadcast } from "../broadcaster"
+import { encryptToken, decryptToken } from "../lib/token-crypto"
 
 // ----- Config ---------------------------------------------------------------
 
@@ -60,7 +61,7 @@ async function refreshGoogle(row: ProviderRow): Promise<string> {
   const body = new URLSearchParams({
     client_id: GOOGLE_CLIENT_ID,
     client_secret: GOOGLE_CLIENT_SECRET,
-    refresh_token: row.refresh_token,
+    refresh_token: decryptToken(row.refresh_token),
     grant_type: "refresh_token",
   })
   const res = await fetch("https://oauth2.googleapis.com/token", {
@@ -73,7 +74,7 @@ async function refreshGoogle(row: ProviderRow): Promise<string> {
   const expiresAt = Math.floor(Date.now() / 1000) + json.expires_in - 60
   getDb()
     .prepare("UPDATE calendar_providers SET access_token=?, expires_at=? WHERE id=?")
-    .run(json.access_token, expiresAt, row.id)
+    .run(encryptToken(json.access_token), expiresAt, row.id)
   return json.access_token
 }
 
@@ -82,7 +83,7 @@ async function refreshMicrosoft(row: ProviderRow): Promise<string> {
   const body = new URLSearchParams({
     client_id: MICROSOFT_CLIENT_ID,
     client_secret: MICROSOFT_CLIENT_SECRET,
-    refresh_token: row.refresh_token,
+    refresh_token: decryptToken(row.refresh_token),
     grant_type: "refresh_token",
     scope: "Calendars.Read offline_access",
   })
@@ -101,17 +102,19 @@ async function refreshMicrosoft(row: ProviderRow): Promise<string> {
     expires_in: number
   }
   const expiresAt = Math.floor(Date.now() / 1000) + json.expires_in - 60
+  const encNewRefresh = json.refresh_token ? encryptToken(json.refresh_token) : null
   getDb()
     .prepare(
       "UPDATE calendar_providers SET access_token=?, refresh_token=COALESCE(?,refresh_token), expires_at=? WHERE id=?",
     )
-    .run(json.access_token, json.refresh_token ?? null, expiresAt, row.id)
+    .run(encryptToken(json.access_token), encNewRefresh, expiresAt, row.id)
   return json.access_token
 }
 
 async function getValidToken(row: ProviderRow): Promise<string> {
   const nowSec = Math.floor(Date.now() / 1000)
-  if (row.expires_at && row.expires_at > nowSec) return row.access_token
+  // Decrypt before returning the token to callers
+  if (row.expires_at && row.expires_at > nowSec) return decryptToken(row.access_token)
   return row.provider === "google" ? refreshGoogle(row) : refreshMicrosoft(row)
 }
 

@@ -14,6 +14,8 @@ import express, { type Request, type Response, type NextFunction } from "express
 import { createServer } from "http"
 import { Server as SocketIOServer } from "socket.io"
 import cors from "cors"
+import helmet from "helmet"
+import rateLimit from "express-rate-limit"
 
 import { getDb, PHOTOS_DIR, ensureDataDir, getOrCreateSecret } from "./db"
 import { setBroadcaster } from "./broadcaster"
@@ -60,16 +62,34 @@ const PORT = Number(process.env.LUMORA_PORT ?? 4000)
 
 const app = express()
 
-// CORS — allow requests from any LAN origin (Tauri webview, phone browsers).
-// In production the secret + JWT provide the real security boundary.
+// Security headers
+app.use(helmet())
+
+// CORS — restrict to known local origins (Tauri webview + Vite dev server).
+// Additional origins can be added via ALLOWED_ORIGINS env var (comma-separated).
+const allowedOrigins = [
+  "http://localhost:5173",
+  "http://localhost:1420",
+  "http://localhost:1422",
+  ...(process.env.ALLOWED_ORIGINS ?? "").split(",").filter(Boolean),
+]
 app.use(
   cors({
-    origin: true,
+    origin: allowedOrigins,
     credentials: true,
     methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
   }),
 )
+
+// Auth rate limiting — 10 attempts per 15 minutes per IP
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many login attempts. Please try again later." },
+})
 
 app.use(express.json({ limit: "2mb" }))
 app.use(express.urlencoded({ extended: true }))
@@ -100,8 +120,8 @@ app.use(
   express.static(PHOTOS_DIR, { maxAge: "1d", etag: true }),
 )
 
-// API routes
-app.use("/api/v1/auth", authRouter)
+// API routes — auth endpoints are rate-limited
+app.use("/api/v1/auth", authLimiter, authRouter)
 app.use("/api/v1/members", membersRouter)
 app.use("/api/v1/invites", invitesRouter)
 app.use("/api/v1/calendars", calendarsRouter)
@@ -120,9 +140,9 @@ app.use("/api/v1/activity-logs", activityLogsRouter)
 app.use("/api/v1/hub", hubCommandRouter)
 app.use("/ics", icsRouter)
 
-// Health check
+// Health check — returns minimal info to avoid leaking version/env details
 app.get("/health", (_req, res) => {
-  res.json({ status: "ok", version: "1.0.0", ts: new Date().toISOString() })
+  res.json({ status: "ok" })
 })
 
 // Central hub identity — no auth, used by iOS/kiosk to discover the central hub_id
@@ -233,7 +253,7 @@ const httpServer = createServer(app)
 
 const io = new SocketIOServer<ClientToServerEvents, ServerToClientEvents, Record<string, never>, SocketData>(httpServer, {
   cors: {
-    origin: true,
+    origin: allowedOrigins,
     credentials: true,
     methods: ["GET", "POST"],
   },

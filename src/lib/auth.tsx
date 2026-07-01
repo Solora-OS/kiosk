@@ -67,15 +67,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     void refresh().then(async () => {
-      // If in kiosk mode and auto-signin is enabled, attempt to sign in with
-      // the configured admin credentials so the kiosk display is always authed.
+      // If in kiosk mode and auto-signin is enabled, ask the local hub server
+      // to perform sign-in using credentials stored securely on the hub machine.
+      // Credentials are NEVER bundled into the frontend — the server reads them
+      // from ~/.lumora/kiosk-autologin.json and returns a session token.
       if (kioskConfig.autoSignIn && status === "loading") {
         try {
-          const res = await api.signIn({
-            email: kioskConfig.adminEmail!,
-            password: kioskConfig.adminPassword!,
-          })
-          applySession(res.user, res.household)
+          const res = await api.kioskAutoSignIn()
+          if (res) applySession(res.user, res.household)
         } catch (err) {
           console.error("[auth] Kiosk auto sign-in failed:", err)
         }
