@@ -1,5 +1,6 @@
 import { check, type Update } from '@tauri-apps/plugin-updater';
 import { relaunch } from '@tauri-apps/plugin-process';
+import { centralSocket } from './central-socket';
 
 /**
  * Hub (kiosk device) actions and activity log.
@@ -39,6 +40,8 @@ export type UpdateInfo = {
   signed: boolean
   /** The raw Tauri Update object so we can call .downloadAndInstall() */
   _raw: Update | null
+  /** ota_push_jobs id, when this update was triggered by a central OTA push — used to report completion back */
+  jobId?: string
 }
 
 let pendingUpdate: UpdateInfo | null = null
@@ -68,8 +71,23 @@ export function dismissUpdate(): void {
 /** Download and install the pending update, then relaunch. */
 export async function installUpdate(): Promise<void> {
   if (!pendingUpdate?._raw) return
-  addLog("info", "updates", `Installing update to v${pendingUpdate.version}…`)
-  await pendingUpdate._raw.downloadAndInstall()
+  const { version, jobId } = pendingUpdate
+  addLog("info", "updates", `Installing update to v${version}…`)
+  try {
+    await pendingUpdate._raw.downloadAndInstall((event) => {
+      if (event.event === "Progress") {
+        centralSocket.emitOtaProgress(event.data.chunkLength, "downloading")
+      }
+    })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    addLog("error", "updates", `Update to v${version} failed: ${message}`)
+    void centralSocket.reportOtaResult(jobId, false, version, message)
+    throw error
+  }
+  // The process relaunches immediately after this, so report success just before —
+  // there's no later point at which we could still call back.
+  void centralSocket.reportOtaResult(jobId, true, version)
   await relaunch()
 }
 
@@ -170,12 +188,20 @@ export function reloadDisplay(): void {
  * If an update is available the result is stored in `pendingUpdate` and all
  * `subscribeUpdate` listeners are notified so the UI can react in real-time.
  * Returns `true` when an update is available, `false` when up-to-date.
+ *
+ * @param jobId  ota_push_jobs id, when this check was triggered by a central OTA
+ *   push (see `onOtaPush` in kiosk-app-shell.tsx). Used to report the outcome back
+ *   to the central API so the job doesn't sit stuck at "acknowledged" forever.
  */
-export async function checkForUpdates(): Promise<boolean> {
+export async function checkForUpdates(jobId?: string): Promise<boolean> {
   try {
     const update = await check()
     if (!update) {
       addLog("info", "updates", "No update available — already on latest version")
+      // We were told to check for a specific push but are already current — the
+      // job is effectively satisfied, so report it complete rather than leaving
+      // it stuck at "acknowledged".
+      if (jobId) void centralSocket.reportOtaResult(jobId, true)
       return false
     }
 
@@ -193,12 +219,15 @@ export async function checkForUpdates(): Promise<boolean> {
       // we have a pubkey configured and the check succeeded, the bundle is signed.
       signed: isTauri(),
       _raw: update,
+      jobId,
     }
     emitUpdate()
     addLog("success", "updates", `Update available: v${update.version}`)
     return true
   } catch (error) {
-    addLog("error", "updates", `Update check failed: ${error instanceof Error ? error.message : String(error)}`)
+    const message = error instanceof Error ? error.message : String(error)
+    addLog("error", "updates", `Update check failed: ${message}`)
+    if (jobId) void centralSocket.reportOtaResult(jobId, false, undefined, message)
     throw error
   }
 }

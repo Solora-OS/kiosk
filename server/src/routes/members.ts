@@ -27,7 +27,7 @@ function rowToMember(r: Record<string, unknown>): Member {
 
 // GET /members
 router.get("/", (req: Request, res: Response) => {
-  const { householdId } = (req as AuthRequest).user
+  const householdId = (req as AuthRequest).user.householdId!
 
   // Kiosk device tokens have no householdId until claimed — return empty list
   // rather than throwing a SQLite error from an undefined/null bind parameter.
@@ -44,7 +44,8 @@ router.get("/", (req: Request, res: Response) => {
 
 // POST /members
 router.post("/", (req: Request, res: Response) => {
-  const { householdId, sub } = (req as AuthRequest).user
+  const { sub } = (req as AuthRequest).user
+  const householdId = (req as AuthRequest).user.householdId
 
   if (householdId == null || householdId === "") {
     res.status(403).json({ error: "Device is not yet linked to a household." })
@@ -85,7 +86,7 @@ router.post("/", (req: Request, res: Response) => {
 
 // PATCH /members/:id
 router.patch("/:id", (req: Request, res: Response) => {
-  const { householdId } = (req as AuthRequest).user
+  const householdId = (req as AuthRequest).user.householdId!
   const { id } = req.params
   const db = getDb()
 
@@ -129,7 +130,7 @@ router.patch("/:id", (req: Request, res: Response) => {
 
 // DELETE /members/:id
 router.delete("/:id", (req: Request, res: Response) => {
-  const { householdId } = (req as AuthRequest).user
+  const householdId = (req as AuthRequest).user.householdId!
   const { id } = req.params
   const db = getDb()
 

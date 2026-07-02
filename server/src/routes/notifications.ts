@@ -32,7 +32,8 @@ function fetchNotification(id: string, userId: string): NotificationWithState | 
 
 // GET /notifications
 router.get("/", (req: Request, res: Response) => {
-  const { householdId, sub } = (req as AuthRequest).user
+  const { sub } = (req as AuthRequest).user
+  const householdId = (req as AuthRequest).user.householdId!
   const rows = getDb()
     .prepare(
       `SELECT n.*, COALESCE(ns.read, 0) as read_flag
@@ -60,7 +61,7 @@ router.get("/", (req: Request, res: Response) => {
 
 // POST /notifications
 router.post("/", (req: Request, res: Response) => {
-  const { householdId } = (req as AuthRequest).user
+  const householdId = (req as AuthRequest).user.householdId!
   const { title, body = "", time = "", memberId } = req.body as {
     title?: string; body?: string; time?: string; memberId?: string
   }
@@ -77,7 +78,8 @@ router.post("/", (req: Request, res: Response) => {
 
 // PATCH /notifications/:id
 router.patch("/:id", (req: Request, res: Response) => {
-  const { householdId, sub } = (req as AuthRequest).user
+  const { sub } = (req as AuthRequest).user
+  const householdId = (req as AuthRequest).user.householdId!
   const { id } = req.params
   const db = getDb()
   const existing = db.prepare("SELECT id FROM notifications WHERE id = ? AND household_id = ?").get(id, householdId)
@@ -111,7 +113,8 @@ router.patch("/:id", (req: Request, res: Response) => {
 
 // DELETE /notifications/:id — dismiss for this user only
 router.delete("/:id", (req: Request, res: Response) => {
-  const { householdId, sub } = (req as AuthRequest).user
+  const { sub } = (req as AuthRequest).user
+  const householdId = (req as AuthRequest).user.householdId!
   const { id } = req.params
   const db = getDb()
   if (!db.prepare("SELECT id FROM notifications WHERE id = ? AND household_id = ?").get(id, householdId)) {
@@ -128,7 +131,8 @@ router.delete("/:id", (req: Request, res: Response) => {
 
 // POST /notifications/read-all
 router.post("/read-all", (req: Request, res: Response) => {
-  const { householdId, sub } = (req as AuthRequest).user
+  const { sub } = (req as AuthRequest).user
+  const householdId = (req as AuthRequest).user.householdId!
   const db = getDb()
   const rows = db
     .prepare("SELECT id FROM notifications WHERE household_id = ?")
@@ -145,7 +149,8 @@ router.post("/read-all", (req: Request, res: Response) => {
 
 // DELETE /notifications — clear all (dismiss all for this user)
 router.delete("/", (req: Request, res: Response) => {
-  const { householdId, sub } = (req as AuthRequest).user
+  const { sub } = (req as AuthRequest).user
+  const householdId = (req as AuthRequest).user.householdId!
   const db = getDb()
   const rows = db
     .prepare("SELECT id FROM notifications WHERE household_id = ?")

@@ -27,7 +27,7 @@ function rowToEvent(r: Record<string, unknown>): CalendarEvent {
 }
 
 router.get("/", (req: Request, res: Response) => {
-  const { householdId } = (req as AuthRequest).user
+  const householdId = (req as AuthRequest).user.householdId!
   const rows = getDb()
     .prepare("SELECT * FROM events WHERE household_id = ? ORDER BY date, start_hour")
     .all(householdId) as Record<string, unknown>[]
@@ -35,7 +35,7 @@ router.get("/", (req: Request, res: Response) => {
 })
 
 router.post("/", (req: Request, res: Response) => {
-  const { householdId } = (req as AuthRequest).user
+  const householdId = (req as AuthRequest).user.householdId!
   const { title, date, time, startHour = 0, endHour = 0, memberIds = [], calendarId, location } = req.body as {
     title?: string; date?: string; time?: string; startHour?: number; endHour?: number
     memberIds?: string[]; calendarId?: string; location?: string
@@ -54,7 +54,7 @@ router.post("/", (req: Request, res: Response) => {
 })
 
 router.patch("/:id", (req: Request, res: Response) => {
-  const { householdId } = (req as AuthRequest).user
+  const householdId = (req as AuthRequest).user.householdId!
   const { id } = req.params
   const db = getDb()
   const existing = db.prepare("SELECT id FROM events WHERE id = ? AND household_id = ?").get(id, householdId)
@@ -79,7 +79,7 @@ router.patch("/:id", (req: Request, res: Response) => {
 })
 
 router.delete("/:id", (req: Request, res: Response) => {
-  const { householdId } = (req as AuthRequest).user
+  const householdId = (req as AuthRequest).user.householdId!
   const { id } = req.params
   const db = getDb()
   if (!db.prepare("SELECT id FROM events WHERE id = ? AND household_id = ?").get(id, householdId)) {

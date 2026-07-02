@@ -20,6 +20,10 @@ const CENTRAL_SOCKET_URL =
   import.meta.env.VITE_CENTRAL_SOCKET_URL?.replace(/\/$/, "") ??
   "http://localhost:5001"
 
+const CENTRAL_API_URL =
+  (import.meta.env.VITE_CENTRAL_API_URL as string | undefined)?.replace(/\/$/, "") ??
+  "http://localhost:4000"
+
 const CENTRAL_TOKEN_KEY = "lumora.central.token"
 const CENTRAL_DEVICE_ID_KEY = "lumora.central.device_id"
 
@@ -92,6 +96,7 @@ type DisconnectListener     = (reason: string) => void
 class CentralSocket {
   private socket: Socket | null = null
   private heartbeatTimer: ReturnType<typeof setInterval> | null = null
+  private catchUpTimer: ReturnType<typeof setInterval> | null = null
 
   private tableChangeListeners   = new Set<TableChangeListener>()
   private hubCommandListeners    = new Set<HubCommandListener>()
@@ -130,24 +135,30 @@ class CentralSocket {
     this.socket.on("connect", () => {
       console.info("[central-socket] connected")
       this.startHeartbeat()
+      this.startCatchUpPolling()
+      // Catch up immediately on (re)connect — covers both "was offline when portal
+      // pushed ota:push / device:lock" and "missed the live event during a network blip".
+      void this.checkPendingOta()
+      void this.checkLockStatus()
       for (const l of this.connectListeners) l()
     })
 
     this.socket.on("disconnect", (reason: string) => {
       console.info("[central-socket] disconnected:", reason)
       this.stopHeartbeat()
+      this.stopCatchUpPolling()
       for (const l of this.disconnectListeners) l(reason)
     })
 
     // ── Inbound events ────────────────────────────────────────────────────────
     this.socket.on("ota:push", (payload: OtaPushPayload) => {
       console.info("[central-socket] ota:push", payload.version)
-      for (const l of this.otaPushListeners) l(payload)
+      this.handleOtaPush(payload)
     })
 
     this.socket.on("device:lock", (payload: DeviceLockPayload) => {
       console.info("[central-socket] device:lock", payload.locked)
-      for (const l of this.lockListeners) l(payload)
+      this.handleDeviceLock(payload)
     })
 
     this.socket.on("notification:receive", (payload: NotificationPayload) => {
@@ -214,10 +225,91 @@ class CentralSocket {
 
   disconnect() {
     this.stopHeartbeat()
+    this.stopCatchUpPolling()
     if (this.socket) {
       this.socket.disconnect()
       this.socket = null
     }
+  }
+
+  private handleOtaPush(payload: OtaPushPayload) {
+    for (const l of this.otaPushListeners) l(payload)
+  }
+
+  private handleDeviceLock(payload: DeviceLockPayload) {
+    for (const l of this.lockListeners) l(payload)
+  }
+
+  private async fetchCentral<T>(path: string, init?: RequestInit): Promise<T | null> {
+    const t = getCentralToken()
+    if (!t) return null
+    try {
+      const res = await fetch(`${CENTRAL_API_URL}${path}`, {
+        ...init,
+        headers: { Authorization: `Bearer ${t}`, "Content-Type": "application/json", ...(init?.headers ?? {}) },
+        signal: AbortSignal.timeout(5000),
+      })
+      if (!res.ok) return null
+      return (await res.json()) as T
+    } catch {
+      return null
+    }
+  }
+
+  /**
+   * Ask the central API directly whether we have a pending OTA job.
+   * This is what makes delivery work for a device that was offline (or not yet
+   * connected) when the portal pushed the update — the live `ota:push` socket event
+   * only reaches devices connected at push time. Called on every connect/reconnect
+   * plus a 5-minute fallback interval in case a live event was dropped mid-session.
+   */
+  async checkPendingOta(): Promise<void> {
+    const data = await this.fetchCentral<{
+      pending: boolean
+      job?: { id: string; version: string; download_url: string; changelog?: string }
+    }>("/devices/ota/check")
+    if (!data?.pending || !data.job) return
+
+    await this.fetchCentral(`/devices/ota/${data.job.id}/ack`, { method: "POST" })
+    console.info("[central-socket] caught up on missed ota:push", data.job.version)
+    this.handleOtaPush({
+      job_id:  data.job.id,
+      version: data.job.version,
+      url:     data.job.download_url,
+      notes:   data.job.changelog,
+      ts:      new Date().toISOString(),
+    })
+  }
+
+  /**
+   * Ask the central API directly for our current maintenance-lock state.
+   * Complements the live `device:lock` push the same way checkPendingOta complements
+   * ota:push — a device locked (or unlocked) while offline picks up the correct state
+   * as soon as it reconnects, instead of silently ignoring a lock it never received.
+   */
+  async checkLockStatus(): Promise<void> {
+    const data = await this.fetchCentral<{ locked: boolean; reason: string | null }>("/devices/lock-status")
+    if (!data) return
+    this.handleDeviceLock({
+      device_id: getCentralDeviceId() ?? "",
+      locked:    data.locked,
+      reason:    data.reason ?? undefined,
+      ts:        new Date().toISOString(),
+    })
+  }
+
+  /**
+   * Report the outcome of applying an OTA job — both live (socket, for portal
+   * dashboards watching in real time) and durably (REST, so ota_push_jobs actually
+   * reaches 'complete'/'failed' instead of sitting at 'acknowledged' forever).
+   */
+  async reportOtaResult(jobId: string | undefined, success: boolean, version?: string, error?: string) {
+    this.emitOtaResult(success, version, error)
+    if (!jobId) return
+    await this.fetchCentral(`/devices/ota/${jobId}/complete`, {
+      method: "POST",
+      body:   JSON.stringify({ success, app_version: version, error }),
+    })
   }
 
   get connected(): boolean {
@@ -273,6 +365,22 @@ class CentralSocket {
     if (this.heartbeatTimer) {
       clearInterval(this.heartbeatTimer)
       this.heartbeatTimer = null
+    }
+  }
+
+  // ─── OTA / lock catch-up polling ───────────────────────────────────────────
+  private startCatchUpPolling() {
+    this.stopCatchUpPolling()
+    this.catchUpTimer = setInterval(() => {
+      void this.checkPendingOta()
+      void this.checkLockStatus()
+    }, 5 * 60_000) // every 5 min
+  }
+
+  private stopCatchUpPolling() {
+    if (this.catchUpTimer) {
+      clearInterval(this.catchUpTimer)
+      this.catchUpTimer = null
     }
   }
 }

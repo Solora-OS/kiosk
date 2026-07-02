@@ -85,7 +85,7 @@ export function KioskAppShell() {
   useEffect(() => {
     const unsubOta = centralSocket.onOtaPush((payload) => {
       addLog("info", "system", `OTA push received: v${payload.version} — checking updater`)
-      void checkForUpdates().catch(() => {
+      void checkForUpdates(payload.job_id).catch(() => {
         addLog("error", "system", `OTA update check failed for v${payload.version}`)
       })
     })

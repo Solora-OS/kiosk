@@ -63,13 +63,13 @@ function fetchAllLists(householdId: string): Checklist[] {
 
 // GET /lists
 router.get("/", (req: Request, res: Response) => {
-  const { householdId } = (req as AuthRequest).user
+  const householdId = (req as AuthRequest).user.householdId!
   res.json(fetchAllLists(householdId))
 })
 
 // POST /lists
 router.post("/", (req: Request, res: Response) => {
-  const { householdId } = (req as AuthRequest).user
+  const householdId = (req as AuthRequest).user.householdId!
   const { title, color = "blue" } = req.body as { title?: string; color?: string }
   if (!title?.trim()) { res.status(400).json({ error: "title is required." }); return }
   const db = getDb()
@@ -82,7 +82,7 @@ router.post("/", (req: Request, res: Response) => {
 
 // PATCH /lists/:id
 router.patch("/:id", (req: Request, res: Response) => {
-  const { householdId } = (req as AuthRequest).user
+  const householdId = (req as AuthRequest).user.householdId!
   const { id } = req.params
   const db = getDb()
   if (!db.prepare("SELECT id FROM lists WHERE id = ? AND household_id = ?").get(id, householdId)) {
@@ -102,7 +102,7 @@ router.patch("/:id", (req: Request, res: Response) => {
 
 // DELETE /lists/:id
 router.delete("/:id", (req: Request, res: Response) => {
-  const { householdId } = (req as AuthRequest).user
+  const householdId = (req as AuthRequest).user.householdId!
   const { id } = req.params
   const db = getDb()
   if (!db.prepare("SELECT id FROM lists WHERE id = ? AND household_id = ?").get(id, householdId)) {
@@ -115,7 +115,7 @@ router.delete("/:id", (req: Request, res: Response) => {
 
 // POST /lists/:id/items
 router.post("/:id/items", (req: Request, res: Response) => {
-  const { householdId } = (req as AuthRequest).user
+  const householdId = (req as AuthRequest).user.householdId!
   const { id } = req.params
   const { label } = req.body as { label?: string }
   if (!label?.trim()) { res.status(400).json({ error: "label is required." }); return }
@@ -133,7 +133,7 @@ router.post("/:id/items", (req: Request, res: Response) => {
 
 // PATCH /lists/:id/items/:itemId
 router.patch("/:id/items/:itemId", (req: Request, res: Response) => {
-  const { householdId } = (req as AuthRequest).user
+  const householdId = (req as AuthRequest).user.householdId!
   const { id, itemId } = req.params
   const db = getDb()
   if (!db.prepare("SELECT id FROM lists WHERE id = ? AND household_id = ?").get(id, householdId)) {
@@ -157,7 +157,7 @@ router.patch("/:id/items/:itemId", (req: Request, res: Response) => {
 
 // DELETE /lists/:id/items/:itemId
 router.delete("/:id/items/:itemId", (req: Request, res: Response) => {
-  const { householdId } = (req as AuthRequest).user
+  const householdId = (req as AuthRequest).user.householdId!
   const { id, itemId } = req.params
   const db = getDb()
   if (!db.prepare("SELECT id FROM lists WHERE id = ? AND household_id = ?").get(id, householdId)) {

@@ -45,7 +45,7 @@ router.get("/token/:householdId", requireAuth, (req: Request, res: Response) => 
 })
 
 // GET /ics/:token — unauthenticated ICS feed
-router.get("/:token", (req: Request, res: Response) => {
+router.get("/:token", async (req: Request, res: Response) => {
   const { token } = req.params
 
   // Look up the household by its pre-computed ICS token.

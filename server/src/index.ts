@@ -38,7 +38,6 @@ import { activityLogsRouter } from "./routes/activity-logs"
 import { icsRouter } from "./routes/ics"
 import { hubCommandRouter } from "./routes/hub-command"
 import { startCalendarSyncScheduler } from "./services/calendar-sync"
-import { startOtaPollScheduler } from "./services/ota-poll"
 import { ensureCentralRegistration } from "./lib/central-registry"
 import { connectHubToCentral, isCentralConnected } from "./lib/central-socket-client"
 
@@ -52,7 +51,12 @@ ensureDataDir()
 getOrCreateSecret() // generate HMAC secret on first boot
 getDb()             // open DB and run schema migration
 startCalendarSyncScheduler() // hourly Google / Microsoft calendar sync
-startOtaPollScheduler()      // every 5 min — relay pending OTA jobs to online kiosks
+// OTA catch-up for devices that were offline at push time is handled by the kiosk
+// frontend itself (GET /devices/ota/check on central-socket connect/reconnect) — see
+// lumora_kiosk/src/lib/central-socket.ts. A hub-side relay used to exist here but the
+// central socket server intentionally blocks hub-injected `ota:push` (security boundary
+// in lumora_central_socket_io/src/events/hub.ts), so it never delivered anything and
+// falsely marked jobs "acknowledged" before the kiosk received them.
 
 const PORT = Number(process.env.LUMORA_PORT ?? 4000)
 

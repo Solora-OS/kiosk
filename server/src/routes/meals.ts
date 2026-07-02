@@ -23,7 +23,7 @@ function rowToMeal(r: Record<string, unknown>): Meal {
 }
 
 router.get("/", (req: Request, res: Response) => {
-  const { householdId } = (req as AuthRequest).user
+  const householdId = (req as AuthRequest).user.householdId!
   const rows = getDb()
     .prepare("SELECT * FROM meals WHERE household_id = ? ORDER BY day, created_at")
     .all(householdId) as Record<string, unknown>[]
@@ -31,7 +31,7 @@ router.get("/", (req: Request, res: Response) => {
 })
 
 router.post("/", (req: Request, res: Response) => {
-  const { householdId } = (req as AuthRequest).user
+  const householdId = (req as AuthRequest).user.householdId!
   const { day, name, type = "dinner", image, memberId } = req.body as {
     day?: string; name?: string; type?: string; image?: string; memberId?: string
   }
@@ -49,7 +49,7 @@ router.post("/", (req: Request, res: Response) => {
 })
 
 router.patch("/:id", (req: Request, res: Response) => {
-  const { householdId } = (req as AuthRequest).user
+  const householdId = (req as AuthRequest).user.householdId!
   const { id } = req.params
   const db = getDb()
   if (!db.prepare("SELECT id FROM meals WHERE id = ? AND household_id = ?").get(id, householdId)) {
@@ -72,7 +72,7 @@ router.patch("/:id", (req: Request, res: Response) => {
 })
 
 router.delete("/:id", (req: Request, res: Response) => {
-  const { householdId } = (req as AuthRequest).user
+  const householdId = (req as AuthRequest).user.householdId!
   const { id } = req.params
   const db = getDb()
   const existing = db.prepare("SELECT name FROM meals WHERE id = ? AND household_id = ?").get(id, householdId) as { name: string } | undefined

@@ -44,7 +44,7 @@ function rowToPublic(r: ProviderRow) {
 // GET /api/v1/calendar-providers
 // Returns the list of connected providers (no tokens exposed).
 router.get("/", (req: Request, res: Response) => {
-  const { householdId } = (req as AuthRequest).user
+  const householdId = (req as AuthRequest).user.householdId!
   const rows = getDb()
     .prepare("SELECT * FROM calendar_providers WHERE household_id = ?")
     .all(householdId) as ProviderRow[]
@@ -58,7 +58,7 @@ router.get("/", (req: Request, res: Response) => {
 // iOS sends { code, code_verifier, redirect_uri }.
 // Server exchanges for tokens using the client secret, then stores them.
 router.post("/:provider/exchange", async (req: Request, res: Response) => {
-  const { householdId } = (req as AuthRequest).user
+  const householdId = (req as AuthRequest).user.householdId!
   const { provider } = req.params
 
   if (!["google", "microsoft"].includes(provider)) {
@@ -190,7 +190,7 @@ router.post("/:provider/exchange", async (req: Request, res: Response) => {
 })
 
 router.post("/:provider/tokens", (req: Request, res: Response) => {
-  const { householdId } = (req as AuthRequest).user
+  const householdId = (req as AuthRequest).user.householdId!
   const { provider } = req.params
 
   if (!["google", "microsoft"].includes(provider)) {
@@ -252,7 +252,7 @@ router.post("/:provider/tokens", (req: Request, res: Response) => {
 // DELETE /api/v1/calendar-providers/:provider
 // Disconnects a provider and removes its events from the events table.
 router.delete("/:provider", (req: Request, res: Response) => {
-  const { householdId } = (req as AuthRequest).user
+  const householdId = (req as AuthRequest).user.householdId!
   const { provider } = req.params
 
   const db = getDb()
@@ -264,7 +264,7 @@ router.delete("/:provider", (req: Request, res: Response) => {
 
 // POST /api/v1/calendar-providers/sync
 router.post("/sync", (req: Request, res: Response) => {
-  const { householdId } = (req as AuthRequest).user
+  const householdId = (req as AuthRequest).user.householdId!
   void syncHousehold(householdId).catch(() => {})
   res.json({ ok: true })
 })
@@ -319,7 +319,7 @@ async function getValidToken(householdId: string, provider: "google" | "microsof
 // GET /api/v1/calendar-providers/google/external-calendars
 // Returns the user's Google Calendar list for mapping.
 router.get("/google/external-calendars", async (req: Request, res: Response) => {
-  const { householdId } = (req as AuthRequest).user
+  const householdId = (req as AuthRequest).user.householdId!
   if (!householdId) { res.status(403).json({ error: "No household." }); return }
   const token = await getValidToken(householdId, "google")
   if (!token) { res.status(404).json({ error: "Google not connected." }); return }
@@ -334,7 +334,7 @@ router.get("/google/external-calendars", async (req: Request, res: Response) => 
 // GET /api/v1/calendar-providers/microsoft/external-calendars
 // Returns the user's Outlook categories for mapping.
 router.get("/microsoft/external-calendars", async (req: Request, res: Response) => {
-  const { householdId } = (req as AuthRequest).user
+  const householdId = (req as AuthRequest).user.householdId!
   if (!householdId) { res.status(403).json({ error: "No household." }); return }
   const token = await getValidToken(householdId, "microsoft")
   if (!token) { res.status(404).json({ error: "Microsoft not connected." }); return }
@@ -352,7 +352,7 @@ router.get("/microsoft/external-calendars", async (req: Request, res: Response) 
 
 // GET /api/v1/calendar-providers/google/calendars/:calendarId/events
 router.get("/google/calendars/:calendarId/events", async (req: Request, res: Response) => {
-  const { householdId } = (req as AuthRequest).user
+  const householdId = (req as AuthRequest).user.householdId!
   if (!householdId) { res.status(403).json({ error: "No household." }); return }
   const token = await getValidToken(householdId, "google")
   if (!token) { res.status(404).json({ error: "Google not connected." }); return }
@@ -375,7 +375,7 @@ router.get("/google/calendars/:calendarId/events", async (req: Request, res: Res
 // GET /api/v1/calendar-providers/microsoft/calendars/:category/events
 // :category is the Outlook category displayName (URI-encoded).
 router.get("/microsoft/calendars/:category/events", async (req: Request, res: Response) => {
-  const { householdId } = (req as AuthRequest).user
+  const householdId = (req as AuthRequest).user.householdId!
   if (!householdId) { res.status(403).json({ error: "No household." }); return }
   const token = await getValidToken(householdId, "microsoft")
   if (!token) { res.status(404).json({ error: "Microsoft not connected." }); return }
@@ -404,7 +404,7 @@ router.get("/microsoft/calendars/:category/events", async (req: Request, res: Re
 
 // GET /api/v1/calendar-providers/excluded-events
 router.get("/excluded-events", (req: Request, res: Response) => {
-  const { householdId } = (req as AuthRequest).user
+  const householdId = (req as AuthRequest).user.householdId!
   if (!householdId) { res.json([]); return }
   type Row = { provider: string; external_event_id: string }
   const rows = getDb()
@@ -416,7 +416,7 @@ router.get("/excluded-events", (req: Request, res: Response) => {
 // PUT /api/v1/calendar-providers/excluded-events
 // Replaces the full exclusion list for a provider.
 router.put("/excluded-events", (req: Request, res: Response) => {
-  const { householdId } = (req as AuthRequest).user
+  const householdId = (req as AuthRequest).user.householdId!
   if (!householdId) { res.status(403).json({ error: "No household." }); return }
   const items = req.body as Array<{ provider: string; eventId: string }>
   if (!Array.isArray(items)) { res.status(400).json({ error: "Body must be an array." }); return }
@@ -444,7 +444,7 @@ router.put("/excluded-events", (req: Request, res: Response) => {
 
 // GET /api/v1/calendar-providers/mappings
 router.get("/mappings", (req: Request, res: Response) => {
-  const { householdId } = (req as AuthRequest).user
+  const householdId = (req as AuthRequest).user.householdId!
   if (!householdId) { res.json([]); return }
   type Row = { id: string; provider: string; external_id: string; external_name: string; calendar_id: string | null }
   const rows = getDb()
@@ -455,7 +455,7 @@ router.get("/mappings", (req: Request, res: Response) => {
 
 // PUT /api/v1/calendar-providers/mappings
 router.put("/mappings", (req: Request, res: Response) => {
-  const { householdId } = (req as AuthRequest).user
+  const householdId = (req as AuthRequest).user.householdId!
   if (!householdId) { res.status(403).json({ error: "No household." }); return }
   const items = req.body as Array<{ provider: string; externalId: string; externalName: string; calendarId?: string | null }>
   if (!Array.isArray(items)) { res.status(400).json({ error: "Body must be an array." }); return }

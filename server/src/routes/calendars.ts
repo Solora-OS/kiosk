@@ -20,7 +20,7 @@ function rowToCalendar(r: Record<string, unknown>): Calendar {
 }
 
 router.get("/", (req: Request, res: Response) => {
-  const { householdId } = (req as AuthRequest).user
+  const householdId = (req as AuthRequest).user.householdId!
   const rows = getDb()
     .prepare("SELECT * FROM calendars WHERE household_id = ? ORDER BY created_at")
     .all(householdId) as Record<string, unknown>[]
@@ -28,7 +28,7 @@ router.get("/", (req: Request, res: Response) => {
 })
 
 router.post("/", (req: Request, res: Response) => {
-  const { householdId } = (req as AuthRequest).user
+  const householdId = (req as AuthRequest).user.householdId!
   const { name, color = "blue", memberIds = [] } = req.body as {
     name?: string; color?: string; memberIds?: string[]
   }
@@ -45,7 +45,7 @@ router.post("/", (req: Request, res: Response) => {
 })
 
 router.patch("/:id", (req: Request, res: Response) => {
-  const { householdId } = (req as AuthRequest).user
+  const householdId = (req as AuthRequest).user.householdId!
   const { id } = req.params
   const db = getDb()
   const existing = db.prepare("SELECT id FROM calendars WHERE id = ? AND household_id = ?").get(id, householdId)
@@ -65,7 +65,7 @@ router.patch("/:id", (req: Request, res: Response) => {
 })
 
 router.delete("/:id", (req: Request, res: Response) => {
-  const { householdId } = (req as AuthRequest).user
+  const householdId = (req as AuthRequest).user.householdId!
   const { id } = req.params
   const db = getDb()
   const existing = db.prepare("SELECT id FROM calendars WHERE id = ? AND household_id = ?").get(id, householdId)

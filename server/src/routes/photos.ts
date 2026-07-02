@@ -58,7 +58,7 @@ function rowToPhoto(r: Record<string, unknown>): Photo {
 
 // GET /photos
 router.get("/", (req: Request, res: Response) => {
-  const { householdId } = (req as AuthRequest).user
+  const householdId = (req as AuthRequest).user.householdId!
   const rows = getDb()
     .prepare("SELECT * FROM photos WHERE household_id = ? ORDER BY created_at DESC")
     .all(householdId) as Record<string, unknown>[]
@@ -71,7 +71,7 @@ router.post("/", upload.single("file"), (req: Request, res: Response) => {
     res.status(400).json({ error: "No file uploaded." })
     return
   }
-  const { householdId } = (req as AuthRequest).user
+  const householdId = (req as AuthRequest).user.householdId!
   const { caption = "" } = req.body as { caption?: string }
   const id = uuidv4()
   const filename = req.file.filename
@@ -90,7 +90,7 @@ router.post("/", upload.single("file"), (req: Request, res: Response) => {
 
 // DELETE /photos/:id
 router.delete("/:id", (req: Request, res: Response) => {
-  const { householdId } = (req as AuthRequest).user
+  const householdId = (req as AuthRequest).user.householdId!
   const { id } = req.params
   const db = getDb()
   const row = db
