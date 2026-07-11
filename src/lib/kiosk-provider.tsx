@@ -12,6 +12,7 @@ import {
 } from "react"
 import {
   ensureRegistered,
+  fetchHubInfo,
   fetchKioskState,
   getDeviceToken,
   saveSetup,
@@ -36,14 +37,29 @@ import type { SetupValues } from "@/app/kiosk/setup/setup-wizard"
  *   splash      – loading local device state on boot (brief)
  *   setup       – setup wizard: language, wifi, timezone, name (first run)
  *   registering – enrolling device with the local server to get a pairing code
- *   pairing     – QR / code shown; waiting for a household member to claim
+ *   activate    – no household exists on this hub yet; sign up/in with
+ *                 Supabase + an activation code right on this device
+ *   pairing     – QR / code shown; waiting for a household member (on an
+ *                 already-claimed hub) to claim this additional display
  *   ready       – claimed and set up; show the home dashboard
  *
  * Key design principle: the local Express server is optional during the setup
  * wizard. We only need it once the user taps "Finish setup". That way the
  * kiosk UI still loads even if the server hasn't fully started yet.
  */
-export type KioskPhase = "splash" | "setup" | "registering" | "pairing" | "ready"
+export type KioskPhase = "splash" | "setup" | "registering" | "activate" | "pairing" | "ready"
+
+/**
+ * Decide which screen to show for an unpaired device: "activate" if no
+ * household exists anywhere on this hub yet (first device/user ever), or
+ * "pairing" (QR flow) if a household already exists (this is an additional
+ * display). Fails safe toward "pairing" — the known-working flow — if the
+ * hub/info probe can't be reached.
+ */
+async function decideUnpairedPhase(): Promise<"activate" | "pairing"> {
+  const info = await fetchHubInfo()
+  return info && info.claimed === false ? "activate" : "pairing"
+}
 
 type KioskContextValue = {
   state: KioskState
@@ -170,7 +186,7 @@ export function KioskProvider({ children }: { children: ReactNode }) {
       pairedRef.current = server.paired
       setState(server)
       if (server.paired) setPhase("ready")
-      else setPhase("pairing")
+      else setPhase(await decideUnpairedPhase())
     }
   }, [doRegister, refresh, deviceState.deviceName])
 
@@ -230,7 +246,7 @@ export function KioskProvider({ children }: { children: ReactNode }) {
       // 5. Advance — paired already (e.g. dev reset) goes straight to ready.
       readyRef.current = true
       setSavingSetup(false)
-      setPhase(pairedRef.current ? "ready" : "pairing")
+      setPhase(pairedRef.current ? "ready" : await decideUnpairedPhase())
     },
     [doRegister, refresh],
   )
@@ -283,7 +299,7 @@ export function KioskProvider({ children }: { children: ReactNode }) {
         readyRef.current = true
 
         if (server.paired) setPhase("ready")
-        else setPhase("pairing")
+        else setPhase(await decideUnpairedPhase())
       } catch (err) {
         console.error("[kiosk] init error:", err)
         if (alive) setInitError(err instanceof Error ? err.message : "Failed to start.")

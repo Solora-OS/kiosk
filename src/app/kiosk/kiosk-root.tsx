@@ -4,6 +4,7 @@ import { WifiOff } from "lucide-react"
 import { KioskProvider, useKiosk } from "@/lib/kiosk-provider"
 import { StoreProvider } from "@/lib/store"
 import { PairingScreen } from "./pairing-screen"
+import { ActivateScreen } from "./activate-screen"
 import { KioskAppShell } from "./kiosk-app-shell"
 import { SplashScreen } from "./splash-screen"
 import { RegisteringScreen } from "./registering-screen"
@@ -16,7 +17,8 @@ import { SystemStatusBar } from "@/components/ui/reusables/system-status-bar"
  * Drives the full appliance startup flow as a state machine so the user never
  * sees Linux/Ubuntu, desktop, or app restarts — just smooth Lumora screens:
  *
- *   splash → registering (MDM enroll) → setup wizard → pairing → home dashboard
+ *   splash → registering (MDM enroll) → setup wizard → activate (first hub)
+ *     or pairing (additional display) → home dashboard
  */
 function KioskGate() {
   const {
@@ -86,7 +88,13 @@ function KioskGate() {
     )
   }
 
-  // Step 4 — waiting to be claimed by a household.
+  // Step 4a — no household exists on this hub yet: activate directly on-device.
+  if (phase === "activate") {
+    return <ActivateScreen />
+  }
+
+  // Step 4b — a household already exists; waiting to be claimed as an
+  // additional display via the QR pairing flow.
   if (phase === "pairing") {
     return <PairingScreen />
   }

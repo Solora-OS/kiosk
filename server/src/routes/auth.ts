@@ -87,6 +87,18 @@ router.post("/session", async (req: Request, res: Response) => {
       return
     }
 
+    // This hub already has a household — the activation screen's "claimed"
+    // check should have kept us from getting here, but guard against a race
+    // (e.g. two people activating the same hub at once) rather than silently
+    // provisioning a second household.
+    const { n: existingHouseholds } = db
+      .prepare("SELECT COUNT(*) AS n FROM households")
+      .get() as { n: number }
+    if (existingHouseholds > 0) {
+      res.status(409).json({ error: "This hub already has a household. Sign in instead of creating a new one." })
+      return
+    }
+
     // Provision local user + household
     const userId      = uuidv4()
     const householdId = uuidv4()

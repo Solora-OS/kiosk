@@ -7,11 +7,14 @@
 // to http://localhost:4000.
 //
 // Auth flow:
-//   1. signUp / signIn hit POST /auth/register or POST /auth/login.
-//   2. The server returns { token, refreshToken, user, household }.
-//   3. token is stored in localStorage under "lumora.token".
-//   4. Every subsequent request carries Authorization: Bearer <token>.
-//   5. Socket.IO handshake carries the same token in auth.token.
+//   1. signUp / signIn authenticate directly against Supabase (supabase.ts),
+//      then POST the resulting access_token to /auth/session, which
+//      provisions (first sign-in) or resolves the local user + household.
+//   2. The Supabase access_token itself is stored in localStorage under
+//      "lumora.token" and used as the Bearer token for every request —
+//      the hub server's requireAuth middleware verifies Supabase tokens
+//      directly (see server/src/middleware/auth.ts).
+//   3. Socket.IO handshake carries the same token in auth.token.
 //
 // Live updates:
 //   The exported `liveSocket` connects once a token exists and joins the
@@ -21,6 +24,7 @@
 // ---------------------------------------------------------------------------
 
 import { io, type Socket } from "socket.io-client"
+import { supabase } from "./supabase"
 import type {
   LumoraApi,
   ApiMember,
@@ -391,33 +395,43 @@ export function createLocalApi(): LumoraApi {
   return {
     // ----- auth -----
     async signUp(input: SignUpInput) {
-      const res = await req<{ token: string; refreshToken: string; user: User; household: Household }>(
-        "/auth/register", "POST", {
-          name: input.name.trim(),
-          email: input.email.trim().toLowerCase(),
-          password: input.password,
-          household_name: input.householdName?.trim() ?? `${input.name.trim()}'s Family`,
+      const email = input.email.trim().toLowerCase()
+      const { data, error } = await supabase.auth.signUp({ email, password: input.password })
+      if (error) throw new Error(error.message)
+      const accessToken = data.session?.access_token
+      if (!accessToken) {
+        throw new Error("Check your email to confirm your account, then sign in.")
+      }
+
+      const res = await req<{ user: User; household: Household }>(
+        "/auth/session", "POST", {
+          access_token: accessToken,
+          household_name: input.householdName?.trim() || `${input.name.trim()}'s Family`,
+          setupCode: input.setupCode,
         }
       )
-      tokenStore.set(res.token)
-      tokenStore.setRefresh(res.refreshToken)
+      tokenStore.set(accessToken)
+      if (data.session?.refresh_token) tokenStore.setRefresh(data.session.refresh_token)
       setCachedSession(res.user, res.household)
       liveSocket.connect(res.household.id)
-      return { token: res.token, user: res.user, household: res.household }
+      return { token: accessToken, user: res.user, household: res.household }
     },
 
     async signIn(input: SignInInput) {
-      const res = await req<{ token: string; refreshToken: string; user: User; household: Household }>(
-        "/auth/login", "POST", {
-          email: input.email.trim().toLowerCase(),
-          password: input.password,
-        }
+      const email = input.email.trim().toLowerCase()
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password: input.password })
+      if (error) throw new Error(error.message)
+      const accessToken = data.session?.access_token
+      if (!accessToken) throw new Error("Sign-in did not return a session.")
+
+      const res = await req<{ user: User; household: Household }>(
+        "/auth/session", "POST", { access_token: accessToken }
       )
-      tokenStore.set(res.token)
-      tokenStore.setRefresh(res.refreshToken)
+      tokenStore.set(accessToken)
+      if (data.session?.refresh_token) tokenStore.setRefresh(data.session.refresh_token)
       setCachedSession(res.user, res.household)
       liveSocket.connect(res.household.id)
-      return { token: res.token, user: res.user, household: res.household }
+      return { token: accessToken, user: res.user, household: res.household }
     },
 
     async kioskAutoSignIn() {
@@ -438,7 +452,7 @@ export function createLocalApi(): LumoraApi {
     },
 
     async signOut() {
-      try { await req("/auth/logout", "POST") } catch { /* ignore */ }
+      try { await supabase.auth.signOut() } catch { /* ignore */ }
       tokenStore.clear()
       setCachedSession(null, null)
       liveSocket.disconnect()

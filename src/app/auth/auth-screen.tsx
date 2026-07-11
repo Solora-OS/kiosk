@@ -21,6 +21,7 @@ export function AuthScreen() {
   const [householdName, setHouseholdName] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [activationCode, setActivationCode] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
@@ -48,7 +49,7 @@ export function AuthScreen() {
       if (mode === "signin") {
         await signIn({ email, password })
       } else {
-        await signUp({ name, email, password, householdName: householdName || undefined })
+        await signUp({ name, email, password, householdName: householdName || undefined, setupCode: activationCode })
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.")
@@ -68,7 +69,7 @@ export function AuthScreen() {
           <p className="mt-1 text-sm text-muted-foreground text-pretty">
             {mode === "signin"
               ? "Sign in to your family hub account."
-              : "Create an account to start your family hub."}
+              : "Create an account and enter the activation code shown on your hub's console to start your family hub."}
           </p>
         </div>
 
@@ -109,6 +110,13 @@ export function AuthScreen() {
                 placeholder="Family name (optional)"
                 value={householdName}
                 onChange={(e) => setHouseholdName(e.target.value)}
+              />
+              <input
+                className={cn(inputClass, "uppercase tracking-widest")}
+                placeholder="Activation code"
+                value={activationCode}
+                onChange={(e) => setActivationCode(e.target.value)}
+                required
               />
             </>
           )}

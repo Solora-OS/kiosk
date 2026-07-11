@@ -265,6 +265,49 @@ export async function unpairKiosk(): Promise<string | null> {
 }
 
 // ---------------------------------------------------------------------------
+// Hub info — unauthenticated probe used to decide first-time activation
+// vs. QR pairing for an additional display.
+// ---------------------------------------------------------------------------
+
+export type HubInfo = { hubId: string; name: string; claimed: boolean }
+
+/** GET /api/v1/hub/info — no device token required. Returns null on any failure. */
+export async function fetchHubInfo(): Promise<HubInfo | null> {
+  try {
+    const res = await fetch(`${LOCAL_API_BASE}/api/v1/hub/info`)
+    if (!res.ok) return null
+    const data = (await res.json()) as { hub_id?: string; name?: string; claimed?: boolean }
+    if (typeof data.claimed !== "boolean") return null
+    return { hubId: data.hub_id ?? "", name: data.name ?? "", claimed: data.claimed }
+  } catch {
+    return null
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Self-claim — used only by the first-time activation screen. Links THIS
+// device to the household that was just created, using the caller's own
+// Supabase access_token (not the device token) as the bearer, since
+// POST /kiosk/claim is a user-authenticated endpoint. Reuses the existing,
+// unmodified claim endpoint — no server changes required.
+// ---------------------------------------------------------------------------
+
+export async function claimThisDevice(accessToken: string, pairingCode: string): Promise<void> {
+  const res = await fetch(`${LOCAL_API_BASE}/api/v1/kiosk/claim`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({ pairing_code: pairingCode }),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` })) as { error?: string }
+    throw new Error(err.error ?? `HTTP ${res.status}`)
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Pairing payload
 // ---------------------------------------------------------------------------
 
