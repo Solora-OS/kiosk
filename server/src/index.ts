@@ -37,9 +37,11 @@ import { calendarProvidersRouter } from "./routes/calendar-providers"
 import { activityLogsRouter } from "./routes/activity-logs"
 import { icsRouter } from "./routes/ics"
 import { hubCommandRouter } from "./routes/hub-command"
+import { hubInfoRouter } from "./routes/hub"
 import { startCalendarSyncScheduler } from "./services/calendar-sync"
 import { ensureCentralRegistration } from "./lib/central-registry"
 import { connectHubToCentral, isCentralConnected } from "./lib/central-socket-client"
+import { startMdnsAdvertisement, stopMdnsAdvertisement } from "./lib/mdns-advertise"
 
 import type { ServerToClientEvents, ClientToServerEvents, SocketData } from "./types"
 
@@ -142,6 +144,7 @@ app.use("/api/v1/kiosk-devices", kioskRouter)
 app.use("/api/v1/calendar-providers", calendarProvidersRouter)
 app.use("/api/v1/activity-logs", activityLogsRouter)
 app.use("/api/v1/hub", hubCommandRouter)
+app.use("/api/v1/hub", hubInfoRouter)
 app.use("/ics", icsRouter)
 
 // Health check — returns minimal info to avoid leaking version/env details
@@ -302,11 +305,13 @@ ensureCentralRegistration()
 httpServer.listen(PORT, "0.0.0.0", () => {
   console.log(`[lumora] Server listening on http://0.0.0.0:${PORT}`)
   console.log(`[lumora] API base: http://0.0.0.0:${PORT}/api/v1`)
+  startMdnsAdvertisement(PORT)
 })
 
 // Graceful shutdown
 process.on("SIGTERM", () => {
   console.log("[lumora] SIGTERM received — shutting down")
+  stopMdnsAdvertisement()
   httpServer.close(() => {
     getDb().close()
     process.exit(0)
@@ -315,6 +320,7 @@ process.on("SIGTERM", () => {
 
 process.on("SIGINT", () => {
   console.log("[lumora] SIGINT received — shutting down")
+  stopMdnsAdvertisement()
   httpServer.close(() => {
     getDb().close()
     process.exit(0)

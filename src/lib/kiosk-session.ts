@@ -111,6 +111,7 @@ async function kioskReq<T>(path: string, method: string, body?: unknown): Promis
   })
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` })) as { error?: string }
+    console.log('tauri win loc', window.location.href)
     throw new Error(err.error ?? `HTTP ${res.status}`)
   }
   return res.json() as Promise<T>

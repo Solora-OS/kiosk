@@ -1,0 +1,16 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "app": {
+    "windows": [
+      {
+        "title": "lumora_kiosk (dev)",
+        "width": 1024,
+        "height": 700,
+        "fullscreen": false,
+        "decorations": true,
+        "alwaysOnTop": false,
+        "resizable": true
+      }
+    ]
+  }
+}
