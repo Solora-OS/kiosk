@@ -268,6 +268,9 @@ export async function unpairKiosk(): Promise<string | null> {
 // Pairing payload
 // ---------------------------------------------------------------------------
 
+// JSON, not a deep link — the mobile app's QR scanner (pair-kiosk-sheet.tsx)
+// JSON.parse()s the scanned text and reads .pairing_code; there is no
+// registered URL scheme handler for a lumora://claim-kiosk link.
 export function buildPairingPayload(pairingCode: string): string {
-  return `lumora://claim-kiosk?code=${encodeURIComponent(pairingCode)}`
+  return JSON.stringify({ pairing_code: pairingCode })
 }

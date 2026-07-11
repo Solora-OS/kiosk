@@ -55,12 +55,3 @@ export async function registerOrClaimKiosk(
     claimed_at: null,
   }
 }
-
-/** Generate a QR code URL for claiming this kiosk from the mobile app. */
-export function generateKioskClaimQRCode(
-  _householdId: string,
-  deviceName = "Kiosk Display",
-): string {
-  const data = `kiosk://claim/${encodeURIComponent(deviceName)}`
-  return `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(data)}`
-}
