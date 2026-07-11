@@ -73,18 +73,29 @@ app.use(helmet())
 
 // CORS — restrict to known local origins (Tauri webview + Vite dev server).
 // Additional origins can be added via ALLOWED_ORIGINS env var (comma-separated).
+//
+// Exception: the unauthenticated hub-discovery probe (GET /hub/info) and the
+// pairing endpoint (POST /auth/session) are reached by mobile devices directly
+// over the LAN right after mDNS discovery, before any allowlisted origin
+// applies — a phone's Tauri webview origin isn't (and can't be) in the dev
+// allowlist. Both routes are Bearer-token/body-token only (no cookies), so
+// opening CORS on them carries no CSRF risk; auth is still enforced server-side.
 const allowedOrigins = [
   "http://localhost:5173",
   "http://localhost:1420",
   "http://localhost:1422",
   ...(process.env.ALLOWED_ORIGINS ?? "").split(",").filter(Boolean),
 ]
+const openCorsPaths = ["/api/v1/hub/info", "/api/v1/auth/session"]
 app.use(
-  cors({
-    origin: allowedOrigins,
-    credentials: true,
-    methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
+  cors((req, callback) => {
+    const isOpenPath = openCorsPaths.includes(req.path)
+    callback(null, {
+      origin: isOpenPath ? true : allowedOrigins,
+      credentials: true,
+      methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+      allowedHeaders: ["Content-Type", "Authorization"],
+    })
   }),
 )
 
