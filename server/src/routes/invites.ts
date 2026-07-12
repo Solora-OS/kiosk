@@ -1,9 +1,10 @@
 import { Router, type Request, type Response } from "express"
 import { v4 as uuidv4 } from "uuid"
 import crypto from "crypto"
-import bcrypt from "bcryptjs"
 import { getDb } from "../db"
-import { requireAuth, signToken, signRefreshToken, type AuthRequest } from "../middleware/auth"
+import { requireAuth, type AuthRequest } from "../middleware/auth"
+import { verifySupabaseToken } from "../lib/supabase"
+import { getRemoteKey } from "./auth"
 import type { Invite } from "../types"
 
 const router = Router()
@@ -112,19 +113,26 @@ router.get("/:tokenOrCode", (req: Request, res: Response) => {
   })
 })
 
-// POST /invites/claim — create an account + claim the invite slot
+// POST /invites/claim — link a Supabase-authenticated account to a pending member slot.
+// The client must have already completed supabase.auth.signUp()/signInWithPassword()
+// and passes the resulting access_token here; the hub never sees the password.
 router.post("/claim", async (req: Request, res: Response) => {
-  const { token, name, email, password, dob, color } = req.body as {
+  const { token, access_token, name, dob, color } = req.body as {
     token?: string
+    access_token?: string
     name?: string
-    email?: string
-    password?: string
     dob?: string
     color?: string
   }
 
-  if (!token || !name?.trim() || !email?.trim() || !password) {
-    res.status(400).json({ error: "token, name, email and password are required." })
+  if (!token || !access_token || !name?.trim()) {
+    res.status(400).json({ error: "token, access_token and name are required." })
+    return
+  }
+
+  const payload = await verifySupabaseToken(access_token)
+  if (!payload) {
+    res.status(401).json({ error: "Invalid or expired Supabase token." })
     return
   }
 
@@ -142,26 +150,47 @@ router.post("/claim", async (req: Request, res: Response) => {
     return
   }
 
-  const emailLower = email.trim().toLowerCase()
-  const existingUser = db.prepare("SELECT id FROM users WHERE email = ?").get(emailLower)
-  if (existingUser) {
-    res.status(409).json({ error: "An account with this email already exists." })
+  const supabaseId = payload.sub
+  const email = (payload.email ?? "").toLowerCase()
+  const householdId = invite.household_id as string
+
+  // Reuse the existing local user if this Supabase account is already provisioned
+  // here (e.g. re-claiming an invite for a second member slot, or a retry).
+  const bySupabaseId = db
+    .prepare("SELECT id, household_id FROM users WHERE supabase_id = ?")
+    .get(supabaseId) as { id: string; household_id: string } | undefined
+
+  // Legacy row from before invite claiming used Supabase (hub-local password
+  // account, never linked to Supabase) — upgrade it in place instead of
+  // inserting, since `email` is UNIQUE and would otherwise collide.
+  const legacy = !bySupabaseId
+    ? (db
+        .prepare("SELECT id, household_id FROM users WHERE email = ? AND supabase_id IS NULL")
+        .get(email) as { id: string; household_id: string } | undefined)
+    : undefined
+
+  const existing = bySupabaseId ?? legacy
+
+  if (existing && existing.household_id !== householdId) {
+    res.status(409).json({ error: "This account is already linked to a different household." })
     return
   }
 
-  const passwordHash = await bcrypt.hash(password, 12)
-  const userId = uuidv4()
-  const householdId = invite.household_id as string
+  const userId = existing?.id ?? uuidv4()
 
   db.transaction(() => {
-    db.prepare(
-      "INSERT INTO users (id, household_id, email, name, password_hash) VALUES (?, ?, ?, ?, ?)",
-    ).run(userId, householdId, emailLower, name.trim(), passwordHash)
+    if (legacy) {
+      db.prepare("UPDATE users SET supabase_id = ?, password_hash = NULL WHERE id = ?").run(supabaseId, legacy.id)
+    } else if (!bySupabaseId) {
+      db.prepare(
+        "INSERT INTO users (id, household_id, email, name, supabase_id) VALUES (?, ?, ?, ?, ?)",
+      ).run(userId, householdId, email, name.trim(), supabaseId)
+    }
 
     // Claim the member slot
     db.prepare(
       "UPDATE members SET user_id = ?, name = ?, initial = ?, dob = ?, color = ?, account = ?, pending = 0 WHERE id = ?",
-    ).run(userId, name.trim(), name.trim().charAt(0).toUpperCase(), dob ?? null, color ?? invite.color, emailLower, invite.member_id)
+    ).run(userId, name.trim(), name.trim().charAt(0).toUpperCase(), dob ?? null, color ?? invite.color, email, invite.member_id)
 
     // Consume the invite
     db.prepare("DELETE FROM invites WHERE id = ?").run(invite.id)
@@ -171,15 +200,10 @@ router.post("/claim", async (req: Request, res: Response) => {
     .prepare("SELECT id, name FROM households WHERE id = ?")
     .get(householdId) as { id: string; name: string }
 
-  const payload = { sub: userId, householdId, email: emailLower, name: name.trim() }
-  const accessToken = signToken(payload)
-  const refreshToken = signRefreshToken(payload)
-
   res.status(201).json({
-    token: accessToken,
-    refreshToken,
-    user: { id: userId, email: emailLower, name: name.trim() },
+    user: { id: userId, email, name: name.trim() },
     household,
+    remoteKey: getRemoteKey().toString("hex"),
   })
 })
 
