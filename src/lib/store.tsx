@@ -24,6 +24,10 @@ import {
   type PermissionArea,
   type Photo,
   memberCan,
+  choreDone,
+  choreSchedule,
+  eventRangeLabel,
+  toISODate,
 } from "./data"
 import { api, syncGuard, type ApiMember, type CreateMemberInput, type Invite } from "./api"
 import { tokenStore } from "./local-api"
@@ -33,8 +37,10 @@ import { useOptionalAuth } from "./auth"
 import { notify } from "./push"
 import { type KioskDeviceStatus } from "./kiosk-status"
 import { fetchKioskSnapshot } from "./kiosk-data"
+import { loadHouseholdSeasons } from "./local-api"
+import { getDisplayPrefs } from "./display-prefs"
 
-export type TabKey = "calendar" | "chores" | "lists" | "meals" | "photos" | "settings"
+export type TabKey = "home" | "calendar" | "chores" | "rewards" | "lists" | "meals" | "photos" | "settings"
 
 export type SearchResult = {
   key: string
@@ -192,6 +198,8 @@ type Store = {
   addItem: (listId: string, label: string) => void
   updateItem: (listId: string, itemId: string, label: string) => void
   deleteItem: (listId: string, itemId: string) => void
+  /** Remove every ticked item from a list. */
+  clearDone: (listId: string) => void
   toggleItem: (listId: string, itemId: string) => void
 
   // meals
@@ -219,7 +227,7 @@ const StoreContext = createContext<Store | null>(null)
 export function StoreProvider({ children, kioskMode = false }: { children: ReactNode; kioskMode?: boolean }) {
   const auth = useOptionalAuth()
   const user = auth?.user ?? null
-  const [tab, setTab] = useState<TabKey>("calendar")
+  const [tab, setTab] = useState<TabKey>(() => getDisplayPrefs().startTab)
   const [activeMember, setActiveMember] = useState<string | null>(null)
   const [highlight, setHighlight] = useState<HighlightTarget>(null)
 
@@ -303,6 +311,7 @@ export function StoreProvider({ children, kioskMode = false }: { children: React
         }
       }
 
+      void loadHouseholdSeasons()
       const [m, cals, e, c, l, me, n, p] = await Promise.all([
         api.listMembers(),
         api.listCalendars(),
@@ -569,8 +578,9 @@ export function StoreProvider({ children, kioskMode = false }: { children: React
   const toggleChore = useCallback((id: string) => {
     const c = choresRef.current.find((x) => x.id === id)
     if (!c) return
-    const done = !c.done
-    setChores((prev) => prev.map((x) => (x.id === id ? { ...x, done } : x)))
+    const done = !choreDone(c, toISODate(new Date()))
+    const doneOn = done ? toISODate(new Date()) : undefined
+    setChores((prev) => prev.map((x) => (x.id === id ? { ...x, done, doneOn } : x)))
     api.updateChore(id, { done }).catch(() => {})
   }, [])
 
@@ -614,6 +624,10 @@ export function StoreProvider({ children, kioskMode = false }: { children: React
       prev.map((l) => (l.id === listId ? { ...l, items: l.items.filter((i) => i.id !== itemId) } : l)),
     )
     api.deleteListItem(listId, itemId).then(replaceList).catch(() => {})
+  }, [replaceList])
+  const clearDone = useCallback((listId: string) => {
+    setLists((prev) => prev.map((l) => (l.id === listId ? { ...l, items: l.items.filter((i) => !i.done) } : l)))
+    api.clearDoneItems(listId).then(replaceList).catch(() => {})
   }, [replaceList])
   const toggleItem = useCallback((listId: string, itemId: string) => {
     const list = listsRef.current.find((l) => l.id === listId)
@@ -684,7 +698,7 @@ export function StoreProvider({ children, kioskMode = false }: { children: React
             id: e.id,
             category: "Event",
             title: e.title,
-            detail: `${e.time}${e.location ? ` · ${e.location}` : ""}`,
+            detail: `${eventRangeLabel(e)}${e.location ? ` · ${e.location}` : ""}`,
             memberId: e.memberIds[0] ?? "",
             tab: "calendar",
           })
@@ -697,7 +711,7 @@ export function StoreProvider({ children, kioskMode = false }: { children: React
             id: c.id,
             category: "Chore",
             title: c.title,
-            detail: `${c.due} · ${c.points} pts`,
+            detail: `${choreSchedule(c)} · ${c.points} pts`,
             memberId: c.memberId,
             tab: "chores",
           })
@@ -780,6 +794,7 @@ export function StoreProvider({ children, kioskMode = false }: { children: React
       addItem,
       updateItem,
       deleteItem,
+      clearDone,
       toggleItem,
       addMeal: mealCrud.add,
       updateMeal: mealCrud.update,
@@ -832,6 +847,7 @@ export function StoreProvider({ children, kioskMode = false }: { children: React
       addItem,
       updateItem,
       deleteItem,
+      clearDone,
       toggleItem,
       unreadCount,
       addNotification,

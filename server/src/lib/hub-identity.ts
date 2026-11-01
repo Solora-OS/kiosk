@@ -36,7 +36,7 @@ export function getOrCreateHubIdentity(): HubIdentity {
   fs.mkdirSync(LUMORA_DIR, { recursive: true })
   const identity: HubIdentity = {
     id: crypto.randomUUID(),
-    name: process.env.HUB_NAME ?? "Lumora Hub",
+    name: process.env.HUB_NAME ?? "Solora Hub",
     created_at: new Date().toISOString(),
   }
   fs.writeFileSync(IDENTITY_PATH, JSON.stringify(identity, null, 2), "utf-8")

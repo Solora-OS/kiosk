@@ -35,10 +35,21 @@ import { snapshotRouter } from "./routes/snapshot"
 import { kioskRouter } from "./routes/kiosk"
 import { calendarProvidersRouter } from "./routes/calendar-providers"
 import { activityLogsRouter } from "./routes/activity-logs"
-import { icsRouter } from "./routes/ics"
+import { icsLinkRouter, icsRouter } from "./routes/ics"
 import { hubCommandRouter } from "./routes/hub-command"
 import { hubInfoRouter } from "./routes/hub"
+import { transferRouter } from "./routes/transfer"
+import { rewardsRouter } from "./routes/rewards"
+import { awayRouter } from "./routes/away"
+import { homeRouter } from "./routes/home"
+import { getOrCreateSetupCode } from "./lib/setup-code"
 import { startCalendarSyncScheduler } from "./services/calendar-sync"
+import { fromThisHub } from "./lib/loopback"
+import { startReminderScheduler } from "./services/reminders"
+import { startCalendarLinkScheduler } from "./services/calendar-links"
+import { calendarLinksRouter } from "./routes/calendar-links"
+import { seasonsRouter } from "./routes/seasons"
+import { summerRouter } from "./routes/summer"
 import { ensureCentralRegistration } from "./lib/central-registry"
 import { connectHubToCentral, isCentralConnected } from "./lib/central-socket-client"
 import { startMdnsAdvertisement, stopMdnsAdvertisement } from "./lib/mdns-advertise"
@@ -53,6 +64,8 @@ ensureDataDir()
 getOrCreateSecret() // generate HMAC secret on first boot
 getDb()             // open DB and run schema migration
 startCalendarSyncScheduler() // hourly Google / Microsoft calendar sync
+startReminderScheduler() // event reminders, checked every minute
+startCalendarLinkScheduler() // iCal links (school, league), re-read hourly
 // OTA catch-up for devices that were offline at push time is handled by the kiosk
 // frontend itself (GET /devices/ota/check on central-socket connect/reconnect) — see
 // lumora_kiosk/src/lib/central-socket.ts. A hub-side relay used to exist here but the
@@ -68,8 +81,11 @@ const PORT = Number(process.env.LUMORA_PORT ?? 4000)
 
 const app = express()
 
-// Security headers
-app.use(helmet())
+// Security headers. CORP is relaxed to cross-origin because every client is a
+// webview on another origin (tauri://localhost, a dev port, a phone) loading
+// <img src="/photo-files/…">; the default same-origin policy makes WebKit drop
+// those images. Photo files are still gated by the token check below.
+app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }))
 
 // CORS — this API is reached by kiosk/mobile Tauri webviews over the LAN,
 // whose origin (a custom scheme like tauri://localhost, or a bare LAN IP)
@@ -83,46 +99,45 @@ app.use(
   cors({
     origin: true,
     credentials: true,
-    methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
   }),
 )
 
-// Auth rate limiting — 10 attempts per 15 minutes per IP
+// Auth rate limiting — 10 sign-in attempts per 15 minutes per IP. Only attempts
+// count: checking an existing session (GET /auth/me) needs a valid signed token
+// already, and the hub's own screen (same machine) reloads freely. Counting
+// those let a few wall reloads lock the wall out on "Loading".
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 10,
   standardHeaders: true,
   legacyHeaders: false,
+  skip: (req) => req.method === "GET" || fromThisHub(req),
   message: { error: "Too many login attempts. Please try again later." },
 })
 
+// The photo relay upload (POST /photos/base64) carries an image as base64,
+// which is ~33% larger than the raw bytes. The route caps the decoded image at
+// 3 MB, so this parser must admit the ~4 MB of JSON that produces — the global
+// 2 MB limit below would reject a valid photo first. express.json marks the
+// body parsed, so the global parser skips it for this path.
+app.use(["/api/v1/photos", "/api/v1/photos/base64"], express.json({ limit: "5mb" }))
 app.use(express.json({ limit: "2mb" }))
 app.use(express.urlencoded({ extended: true }))
 
-// Serve photo files as authenticated static files.
-// We handle auth manually here so we can validate the Bearer token.
+// Serve photo files as authenticated static files. Same check as the API
+// (hub device tokens and central account tokens alike); a ?token= query is
+// promoted to the header for <img> tags that can't set one.
 app.use(
   "/photo-files",
-  (req: Request, res: Response, next: NextFunction) => {
-    // Allow token in query string for <img> tags that can't set headers.
-    const token =
-      (req.headers.authorization?.startsWith("Bearer ")
-        ? req.headers.authorization.slice(7)
-        : undefined) ??
-      (typeof req.query.token === "string" ? req.query.token : undefined)
-    if (!token) {
-      res.status(401).json({ error: "Unauthorized." })
-      return
+  (req: Request, _res: Response, next: NextFunction) => {
+    if (!req.headers.authorization && typeof req.query.token === "string") {
+      req.headers.authorization = `Bearer ${req.query.token}`
     }
-    try {
-      const { verifyToken } = require("./middleware/auth") as typeof import("./middleware/auth")
-      verifyToken(token)
-      next()
-    } catch {
-      res.status(401).json({ error: "Invalid or expired token." })
-    }
+    next()
   },
+  requireAuth,
   express.static(PHOTOS_DIR, { maxAge: "1d", etag: true }),
 )
 
@@ -145,7 +160,15 @@ app.use("/api/v1/calendar-providers", calendarProvidersRouter)
 app.use("/api/v1/activity-logs", activityLogsRouter)
 app.use("/api/v1/hub", hubCommandRouter)
 app.use("/api/v1/hub", hubInfoRouter)
+app.use("/api/v1/transfer", transferRouter)
+app.use("/api/v1/rewards", rewardsRouter)
+app.use("/api/v1/away", awayRouter)
+app.use("/api/v1/home", homeRouter)
+app.use("/api/v1/calendar-links", calendarLinksRouter)
+app.use("/api/v1/seasons", seasonsRouter)
+app.use("/api/v1/summer", summerRouter)
 app.use("/ics", icsRouter)
+app.use("/api/v1/ics-link", icsLinkRouter)
 
 // Health check — returns minimal info to avoid leaking version/env details
 app.get("/health", (_req, res) => {
@@ -251,6 +274,24 @@ app.use((_req: Request, res: Response) => {
   res.status(404).json({ error: "Not found." })
 })
 
+// Error handler — keeps body-parser failures (and anything a route throws) in
+// the app's JSON error shape instead of Express's default HTML page. An
+// oversize upload becomes a friendly 413 rather than a PayloadTooLargeError
+// page the apps can't read.
+app.use((err: Error & { status?: number; type?: string }, _req: Request, res: Response, _next: NextFunction) => {
+  if (res.headersSent) return
+  if (err?.type === "entity.too.large" || err?.status === 413) {
+    res.status(413).json({ error: "That upload is too large." })
+    return
+  }
+  if (err?.type === "entity.parse.failed" || err?.status === 400) {
+    res.status(400).json({ error: "That request wasn't valid JSON." })
+    return
+  }
+  console.error("[lumora] Unhandled error:", err)
+  res.status(500).json({ error: "Something went wrong." })
+})
+
 // ---------------------------------------------------------------------------
 // HTTP server + Socket.IO
 // ---------------------------------------------------------------------------
@@ -308,6 +349,9 @@ httpServer.listen(PORT, "0.0.0.0", () => {
   console.log(`[lumora] Server listening on http://0.0.0.0:${PORT}`)
   console.log(`[lumora] API base: http://0.0.0.0:${PORT}/api/v1`)
   startMdnsAdvertisement(PORT)
+  // A new hub shows its setup code on screen from first boot.
+  const { n } = getDb().prepare("SELECT COUNT(*) AS n FROM households").get() as { n: number }
+  if (n === 0) getOrCreateSetupCode()
 })
 
 // Graceful shutdown

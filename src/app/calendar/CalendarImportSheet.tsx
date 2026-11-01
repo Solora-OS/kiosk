@@ -136,7 +136,7 @@ export function CalendarImportSheet({
           type="button"
           onClick={() => void handleSave()}
           disabled={saving}
-          className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3 text-sm font-semibold text-primary-foreground disabled:opacity-50"
+          className="flex w-full items-center justify-center gap-2 rounded-md bg-primary py-3 text-sm font-semibold text-primary-foreground disabled:opacity-50"
         >
           {saving ? <Loader2 className="size-4 animate-spin" /> : null}
           {saving ? "Saving…" : "Save mapping"}
@@ -144,7 +144,7 @@ export function CalendarImportSheet({
       }
     >
       <p className="text-sm text-muted-foreground">
-        Map each {provider === "google" ? "Google calendar" : "Outlook category"} to a Lumora calendar.
+        Map each {provider === "google" ? "Google calendar" : "Outlook category"} to a Solora calendar.
         Leave blank to import into <span className="font-medium">General</span>.
       </p>
 
@@ -179,14 +179,14 @@ export function CalendarImportSheet({
                   <button
                     type="button"
                     onClick={() => void handleCreateCalendar(ext.id)}
-                    className="rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground"
+                    className="rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground"
                   >
                     Create
                   </button>
                   <button
                     type="button"
                     onClick={() => { setCreatingFor(null); setNewCalName("") }}
-                    className="rounded-xl border border-border px-3 py-2 text-xs font-semibold"
+                    className="rounded-md border border-border px-3 py-2 text-xs font-semibold"
                   >
                     Cancel
                   </button>

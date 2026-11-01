@@ -1,17 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import {
-  Sparkles,
-  Languages,
-  Wifi,
-  Clock,
-  Tag,
-  Check,
-  ChevronLeft,
-  Loader2,
-  RotateCcw,
-} from "lucide-react"
+import { Check, ChevronLeft, Loader2 } from "lucide-react"
 import { WifiStep } from "./wifi-step"
 import { applyLocaleSettings, type ScreenOrientation } from "@/lib/locale-service"
 import { currentNetwork } from "@/lib/wifi-service"
@@ -26,19 +16,21 @@ export type SetupValues = {
 
 type StepId = "language" | "wifi" | "timezone" | "orientation" | "name"
 
-const STEPS: { id: StepId; title: string; subtitle: string; icon: typeof Wifi }[] = [
-  { id: "language", title: "Choose your language", subtitle: "Select the language for this hub.", icon: Languages },
-  { id: "wifi", title: "Connect to WiFi", subtitle: "Get your hub online.", icon: Wifi },
-  { id: "timezone", title: "Set your time zone", subtitle: "So schedules show the right time.", icon: Clock },
-  { id: "orientation", title: "Screen orientation", subtitle: "Choose how this screen is mounted.", icon: RotateCcw },
-  { id: "name", title: "Name this hub", subtitle: "Pick a name your family will recognize.", icon: Tag },
+const STEPS: { id: StepId; short: string; title: string; subtitle: string }[] = [
+  { id: "language", short: "Language", title: "Hello.", subtitle: "Pick the language this hub speaks." },
+  { id: "wifi", short: "Network", title: "Get online.", subtitle: "Choose your home Wi‑Fi. Solora only needs it once." },
+  { id: "timezone", short: "Time zone", title: "Where is home?", subtitle: "So every schedule lands on the right hour." },
+  { id: "orientation", short: "Mounting", title: "Which way is up?", subtitle: "Tell us how the screen hangs on the wall." },
+  { id: "name", short: "Name", title: "Name this hub.", subtitle: "Something the whole family will recognize." },
 ]
 
-const ORIENTATIONS: { value: ScreenOrientation; label: string; description: string; rotate: string }[] = [
-  { value: "normal",   label: "Landscape",         description: "Standard horizontal mount",  rotate: "rotate-0"    },
-  { value: "left",     label: "Portrait (left)",   description: "Rotated 90° counter-clockwise", rotate: "-rotate-90" },
-  { value: "right",    label: "Portrait (right)",  description: "Rotated 90° clockwise",      rotate: "rotate-90"  },
-  { value: "inverted", label: "Landscape (flipped)", description: "Upside-down horizontal mount", rotate: "rotate-180" },
+const HELLOS = ["Hello.", "Hola.", "Bonjour.", "Hallo.", "Olá.", "こんにちは。", "你好。"]
+
+const ORIENTATIONS: { value: ScreenOrientation; label: string; description: string; deg: number }[] = [
+  { value: "normal",   label: "Landscape",         description: "Standard horizontal mount",     deg: 0   },
+  { value: "left",     label: "Portrait, left",    description: "Rotated 90° counter‑clockwise", deg: -90 },
+  { value: "right",    label: "Portrait, right",   description: "Rotated 90° clockwise",         deg: 90  },
+  { value: "inverted", label: "Landscape, flipped", description: "Upside‑down horizontal mount",  deg: 180 },
 ]
 
 const LANGUAGES = [
@@ -82,34 +74,43 @@ function useTimezones() {
   }, [])
 }
 
-function StepShell({
-  index,
-  title,
-  subtitle,
-  icon: Icon,
-  children,
-}: {
-  index: number
-  title: string
-  subtitle: string
-  icon: typeof Wifi
-  children: React.ReactNode
-}) {
+/** Cycles through greetings on the language step — a quiet nod to the choice. */
+function useHello(active: boolean) {
+  const [i, setI] = useState(0)
+  useEffect(() => {
+    if (!active) return
+    const t = setInterval(() => setI((n) => (n + 1) % HELLOS.length), 2200)
+    return () => clearInterval(t)
+  }, [active])
+  return HELLOS[i]
+}
+
+/** Live local time for a zone, refreshed each minute. */
+function useZoneClock() {
+  const [now, setNow] = useState(() => new Date())
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 30_000)
+    return () => clearInterval(t)
+  }, [])
+  return (tz: string) => {
+    try {
+      return now.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", timeZone: tz })
+    } catch {
+      return ""
+    }
+  }
+}
+
+/** A tiny drawing of the panel, rotated, with its "top" edge marked. */
+function ScreenGlyph({ deg, active }: { deg: number; active: boolean }) {
   return (
-    <div className="flex flex-1 flex-col">
-      <div className="mb-7 flex items-start gap-4">
-        <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-          <Icon className="size-6" />
-        </div>
-        <div>
-          <p className="text-sm font-medium uppercase tracking-widest text-primary">
-            Step {index + 1} of {STEPS.length}
-          </p>
-          <h2 className="mt-1 text-balance text-3xl font-bold tracking-tight">{title}</h2>
-          <p className="mt-1 text-base text-muted-foreground">{subtitle}</p>
-        </div>
+    <div className="flex size-28 items-center justify-center">
+      <div
+        className={`relative h-16 w-24 rounded-[4px] border-2 transition-colors ${active ? "border-foreground" : "border-muted-foreground/50"}`}
+        style={{ transform: `rotate(${deg}deg)` }}
+      >
+        <span className={`absolute inset-x-2 top-1.5 h-[3px] rounded-full ${active ? "bg-season" : "bg-muted-foreground/40"}`} />
       </div>
-      {children}
     </div>
   )
 }
@@ -164,183 +165,150 @@ export function SetupWizard({
   }
   const back = () => setStepIdx((i) => Math.max(i - 1, 0))
 
+  const hello = useHello(step.id === "language")
+  const zoneTime = useZoneClock()
+  const title = step.id === "language" ? hello : step.title
+
   return (
-    <main className="flex min-h-dvh flex-col bg-background text-foreground">
-      {/* System status bar — always-visible WiFi / clock strip */}
-      <SystemStatusBar />
+    <main className="flex h-dvh flex-col bg-background text-foreground">
+      <SystemStatusBar label="Setup" />
 
-      {/* Header */}
-      <header className="flex items-center justify-between px-10 py-7">
-        <div className="flex items-center gap-3">
-          <div className="flex size-10 items-center justify-center rounded-2xl bg-primary text-primary-foreground">
-            <Sparkles className="size-5" />
+      <div className="grid min-h-0 flex-1 grid-rows-[auto_1fr] lg:landscape:grid-cols-[minmax(21rem,36%)_1fr] lg:landscape:grid-rows-1">
+        {/* ── Left: where you are ─────────────────────────────── */}
+        <aside className="relative flex flex-col justify-between gap-8 overflow-hidden border-b border-hairline px-10 py-9 lg:landscape:border-b-0 lg:landscape:border-r">
+          <ol className="hidden flex-col gap-3 lg:landscape:flex">
+            {STEPS.map((s, i) => (
+              <li
+                key={s.id}
+                className={`flex items-center gap-4 font-mono text-[0.85rem] tracking-wide transition-colors ${
+                  i === stepIdx ? "text-foreground" : i < stepIdx ? "text-muted-foreground" : "text-muted-foreground/45"
+                }`}
+              >
+                <span className="tabular w-6">{String(i + 1).padStart(2, "0")}</span>
+                <span className="uppercase">{s.short}</span>
+                {i < stepIdx ? <Check className="size-3.5" /> : null}
+                {i === stepIdx ? <span className="size-1.5 rounded-full bg-season" /> : null}
+              </li>
+            ))}
+          </ol>
+
+          <div>
+            <p className="font-display text-[7rem] leading-none text-muted-foreground/25 tabular lg:text-[9rem]">
+              {String(stepIdx + 1).padStart(2, "0")}
+            </p>
+            <h1 key={title} className={`rise-in mt-2 whitespace-nowrap font-display leading-[0.95] ${step.id === "language" ? "text-5xl lg:text-6xl" : "text-6xl lg:text-7xl"}`}>{title}</h1>
+            <p className="mt-5 max-w-sm text-pretty text-lg text-muted-foreground">{step.subtitle}</p>
           </div>
-          <span className="text-lg font-bold tracking-tight">Lumora</span>
-        </div>
-        {/* Progress dots */}
-        <div className="flex items-center gap-2">
-          {STEPS.map((s, i) => (
-            <span
-              key={s.id}
-              className={`h-2 rounded-full transition-all ${
-                i === stepIdx ? "w-8 bg-primary" : i < stepIdx ? "w-2 bg-primary" : "w-2 bg-border"
-              }`}
-            />
-          ))}
-        </div>
-      </header>
+        </aside>
 
-      {/* Body */}
-      <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col px-8 pb-8">
-        <StepShell index={stepIdx} title={step.title} subtitle={step.subtitle} icon={step.icon}>
-          {step.id === "language" ? (
-            <div className="grid flex-1 grid-cols-2 content-start gap-3">
-              {LANGUAGES.map((l) => {
-                const active = l.code === language
-                return (
-                  <button
-                    key={l.code}
-                    type="button"
-                    onClick={() => setLanguage(l.code)}
-                    aria-pressed={active}
-                    className={`flex items-center justify-between rounded-2xl border px-5 py-4 text-left transition-colors ${
-                      active
-                        ? "border-primary bg-primary/5"
-                        : "border-border bg-card hover:bg-muted"
-                    }`}
-                  >
-                    <span>
-                      <span className="block text-lg font-semibold">{l.label}</span>
-                      <span className="block text-sm text-muted-foreground">{l.region}</span>
-                    </span>
-                    {active ? <Check className="size-5 text-primary" /> : null}
-                  </button>
-                )
-              })}
-            </div>
-          ) : null}
-
-          {step.id === "wifi" ? (
-            <WifiStep
-              connectedSsid={connectedSsid}
-              onConnected={(ssid) => setConnectedSsid(ssid)}
-              onSkip={next}
-            />
-          ) : null}
-
-          {step.id === "timezone" ? (
-            <div className="grid flex-1 grid-cols-1 content-start gap-2 overflow-auto sm:grid-cols-2">
-              {timezones.map((tz) => {
-                const active = tz === timezone
-                const city = tz.split("/").pop()?.replace(/_/g, " ") ?? tz
-                return (
-                  <button
-                    key={tz}
-                    type="button"
-                    onClick={() => setTimezone(tz)}
-                    aria-pressed={active}
-                    className={`flex items-center justify-between rounded-2xl border px-5 py-4 text-left transition-colors ${
-                      active
-                        ? "border-primary bg-primary/5"
-                        : "border-border bg-card hover:bg-muted"
-                    }`}
-                  >
-                    <span>
-                      <span className="block text-lg font-semibold">{city}</span>
-                      <span className="block text-sm text-muted-foreground">
-                        {tz === detected ? "Detected · " : ""}
-                        {tz}
-                      </span>
-                    </span>
-                    {active ? <Check className="size-5 shrink-0 text-primary" /> : null}
-                  </button>
-                )
-              })}
-            </div>
-          ) : null}
-
-          {step.id === "orientation" ? (
-            <div className="grid flex-1 grid-cols-2 content-start gap-3">
-              {ORIENTATIONS.map((o) => {
-                const active = o.value === orientation
-                return (
-                  <button
-                    key={o.value}
-                    type="button"
-                    onClick={() => setOrientation(o.value)}
-                    aria-pressed={active}
-                    className={`flex items-center justify-between rounded-2xl border px-5 py-4 text-left transition-colors ${
-                      active
-                        ? "border-primary bg-primary/5"
-                        : "border-border bg-card hover:bg-muted"
-                    }`}
-                  >
-                    <span>
-                      <span className="block text-lg font-semibold">{o.label}</span>
-                      <span className="block text-sm text-muted-foreground">{o.description}</span>
-                    </span>
-                    <span className={`flex size-9 shrink-0 items-center justify-center rounded-xl ${active ? "text-primary" : "text-muted-foreground"}`}>
-                      <RotateCcw className={`size-5 ${o.rotate}`} />
-                    </span>
-                  </button>
-                )
-              })}
-            </div>
-          ) : null}
-
-          {step.id === "name" ? (
-            <div className="flex flex-1 flex-col">
-              <input
-                autoFocus
-                value={deviceName}
-                onChange={(e) => setDeviceName(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && canAdvance && !saving) void next()
-                }}
-                maxLength={40}
-                placeholder="e.g. Kitchen Hub"
-                className="w-full rounded-2xl border border-input bg-background px-5 py-4 text-2xl font-semibold outline-none focus:border-ring focus:ring-3 focus:ring-ring/30"
-              />
-              <div className="mt-4 flex flex-wrap gap-2">
-                {NAME_SUGGESTIONS.map((s) => (
-                  <button
-                    key={s}
-                    type="button"
-                    onClick={() => setDeviceName(s)}
-                    className="rounded-full border border-border bg-card px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-muted"
-                  >
-                    {s}
-                  </button>
-                ))}
+        {/* ── Right: the choice ───────────────────────────────── */}
+        <section className="flex min-h-0 flex-col">
+          <div key={step.id} className="rise-in min-h-0 flex-1 overflow-y-auto px-10 py-9 lg:px-14">
+            {step.id === "language" ? (
+              <div className="grid gap-x-10 sm:grid-cols-2">
+                {LANGUAGES.map((l) => {
+                  const active = l.code === language
+                  return (
+                    <button key={l.code} type="button" onClick={() => setLanguage(l.code)} aria-pressed={active} className="os-option">
+                      <span className="text-xl font-medium">{l.label}</span>
+                      <span className="os-label">{l.region}</span>
+                    </button>
+                  )
+                })}
               </div>
-              {saveError ? (
-                <p className="mt-5 text-sm text-destructive">{saveError}</p>
-              ) : null}
-            </div>
-          ) : null}
-        </StepShell>
+            ) : null}
 
-        {/* Footer nav */}
-        <div className="mt-8 flex items-center justify-between">
-          <button
-            type="button"
-            onClick={back}
-            disabled={stepIdx === 0 || saving}
-            className="inline-flex items-center gap-1.5 rounded-xl px-4 py-3 text-base font-semibold text-muted-foreground hover:bg-muted disabled:pointer-events-none disabled:opacity-0"
-          >
-            <ChevronLeft className="size-5" />
-            Back
-          </button>
-          <button
-            type="button"
-            onClick={() => void next()}
-            disabled={!canAdvance || saving}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-8 py-3.5 text-base font-semibold text-primary-foreground disabled:opacity-50"
-          >
-            {saving ? <Loader2 className="size-5 animate-spin" /> : null}
-            {isLast ? (saving ? "Finishing…" : "Finish setup") : "Continue"}
-          </button>
-        </div>
+            {step.id === "wifi" ? (
+              <WifiStep connectedSsid={connectedSsid} onConnected={(ssid) => setConnectedSsid(ssid)} onSkip={next} />
+            ) : null}
+
+            {step.id === "timezone" ? (
+              <div className="grid gap-x-10 sm:grid-cols-2">
+                {timezones.map((tz) => {
+                  const active = tz === timezone
+                  const city = tz.split("/").pop()?.replace(/_/g, " ") ?? tz
+                  return (
+                    <button key={tz} type="button" onClick={() => setTimezone(tz)} aria-pressed={active} className="os-option">
+                      <span className="min-w-0">
+                        <span className="block truncate text-xl font-medium">{city}</span>
+                        <span className="os-label mt-1.5 block truncate">
+                          {tz === detected ? "Detected · " : ""}
+                          {tz.split("/")[0]}
+                        </span>
+                      </span>
+                      <span className="shrink-0 font-mono text-sm tabular text-muted-foreground">{zoneTime(tz)}</span>
+                    </button>
+                  )
+                })}
+              </div>
+            ) : null}
+
+            {step.id === "orientation" ? (
+              <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
+                {ORIENTATIONS.map((o) => {
+                  const active = o.value === orientation
+                  return (
+                    <button
+                      key={o.value}
+                      type="button"
+                      onClick={() => setOrientation(o.value)}
+                      aria-pressed={active}
+                      className={`flex flex-col items-start gap-4 rounded-md border p-5 text-left transition-colors ${
+                        active ? "border-foreground bg-card" : "border-border hover:bg-secondary"
+                      }`}
+                    >
+                      <ScreenGlyph deg={o.deg} active={active} />
+                      <span>
+                        <span className="block text-lg font-medium">{o.label}</span>
+                        <span className="mt-1 block text-sm text-muted-foreground">{o.description}</span>
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+            ) : null}
+
+            {step.id === "name" ? (
+              <div className="flex max-w-2xl flex-col pt-6">
+                <input
+                  autoFocus
+                  value={deviceName}
+                  onChange={(e) => setDeviceName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && canAdvance && !saving) void next()
+                  }}
+                  maxLength={40}
+                  placeholder="Kitchen Hub"
+                  className="os-field font-display !text-6xl"
+                />
+                <div className="mt-6 flex flex-wrap gap-x-6 gap-y-3">
+                  {NAME_SUGGESTIONS.map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => setDeviceName(s)}
+                      className="text-base text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+                {saveError ? <p className="mt-6 text-sm text-destructive">{saveError}</p> : null}
+              </div>
+            ) : null}
+          </div>
+
+          <footer className="flex h-20 shrink-0 items-center justify-between border-t border-hairline px-10 lg:px-14">
+            <button type="button" onClick={back} disabled={stepIdx === 0 || saving} className="os-button-quiet">
+              <ChevronLeft className="size-5" />
+              Back
+            </button>
+            <button type="button" onClick={() => void next()} disabled={!canAdvance || saving} className="os-button">
+              {saving ? <Loader2 className="size-4 animate-spin" /> : null}
+              {isLast ? (saving ? "Finishing" : "Finish setup") : "Continue"}
+            </button>
+          </footer>
+        </section>
       </div>
     </main>
   )

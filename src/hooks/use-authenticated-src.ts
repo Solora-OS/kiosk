@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { tokenStore, LOCAL_API_BASE } from "@/lib/local-api"
+import { tokenStore, getDeviceToken, LOCAL_API_BASE } from "@/lib/local-api"
 
 /**
  * Resolves a `/photo-files/…` path (or any server-relative path) into a
@@ -7,8 +7,9 @@ import { tokenStore, LOCAL_API_BASE } from "@/lib/local-api"
  *
  * - Returns `null` while loading so callers can show a placeholder.
  * - Revokes the blob URL when the component unmounts or the src changes.
- * - Falls back gracefully: if the src is already an http(s) URL it is returned
- *   as-is without an extra fetch (those URLs are already public or presigned).
+ * - Hub URLs (relative, or absolute under LOCAL_API_BASE — which is how
+ *   toPhoto stores them) are fetched with the token. Any other http(s) URL is
+ *   returned as-is (those are already public or presigned).
  */
 export function useAuthenticatedSrc(src: string | undefined | null): string | null {
   const [blobUrl, setBlobUrl] = useState<string | null>(null)
@@ -19,8 +20,9 @@ export function useAuthenticatedSrc(src: string | undefined | null): string | nu
       return
     }
 
-    // Absolute http(s) URLs are served publicly — no token needed.
-    if (src.startsWith("http://") || src.startsWith("https://")) {
+    const isHub = LOCAL_API_BASE !== "" && src.startsWith(LOCAL_API_BASE)
+    // Absolute http(s) URLs elsewhere are served publicly — no token needed.
+    if (!isHub && (src.startsWith("http://") || src.startsWith("https://"))) {
       setBlobUrl(src)
       return
     }
@@ -28,8 +30,9 @@ export function useAuthenticatedSrc(src: string | undefined | null): string | nu
     let revoked = false
     let objectUrl: string | null = null
 
-    const fullUrl = `${LOCAL_API_BASE}${src.startsWith("/") ? "" : "/"}${src}`
-    const token = tokenStore.get()
+    const fullUrl = isHub ? src : `${LOCAL_API_BASE}${src.startsWith("/") ? "" : "/"}${src}`
+    // Same fallback as the API client: a wall may only hold its device token.
+    const token = tokenStore.get() ?? getDeviceToken()
 
     fetch(fullUrl, {
       headers: token ? { Authorization: `Bearer ${token}` } : {},

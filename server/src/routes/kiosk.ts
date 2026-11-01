@@ -14,6 +14,9 @@ import crypto from "crypto"
 import { getDb } from "../db"
 import { requireAuth, type AuthRequest } from "../middleware/auth"
 import { signToken } from "../middleware/auth"
+import { fromThisHub } from "../lib/loopback"
+import { broadcast } from "../broadcaster"
+import type { DisplayState } from "../types"
 
 export const kioskRouter = Router()
 
@@ -41,14 +44,21 @@ kioskRouter.post("/register", (req: Request, res: Response): void => {
   // doesn't expose device credentials.
   const tokenHash = crypto.createHash("sha256").update(deviceJwt).digest("hex")
 
+  // The hub's own screen never needs a display code: it's linked when setup
+  // finishes on a phone, or straight away if the family already exists here
+  // (a reinstalled or reset screen). Being at the hub is the proof.
+  const onHub = fromThisHub(req)
+  const family = onHub
+    ? (db.prepare("SELECT id FROM households ORDER BY created_at LIMIT 1").get() as { id: string } | undefined)
+    : undefined
   db.prepare(
     `INSERT INTO kiosk_devices
-     (id, device_token, device_name, pairing_code, setup_complete, is_online, last_heartbeat)
-     VALUES (?, ?, ?, ?, 0, 1, datetime('now'))`,
-  ).run(id, tokenHash, deviceName, pairingCode)
+     (id, device_token, device_name, pairing_code, setup_complete, is_online, last_heartbeat, on_hub, household_id)
+     VALUES (?, ?, ?, ?, 0, 1, datetime('now'), ?, ?)`,
+  ).run(id, tokenHash, deviceName, family ? null : pairingCode, onHub ? 1 : 0, family?.id ?? null)
 
   // Return the raw JWT to the device — it will never be stored on the server again.
-  res.status(201).json({ id, device_token: deviceJwt, pairing_code: pairingCode })
+  res.status(201).json({ id, device_token: deviceJwt, pairing_code: family ? null : pairingCode })
 })
 
 // ---------------------------------------------------------------------------
@@ -175,7 +185,7 @@ kioskRouter.get("/devices", requireAuth, (req: Request, res: Response): void => 
   res.json(
     rows.map((r) => ({
       device_id: r.id as string,
-      device_name: (r.device_name as string | null) ?? "Lumora Kiosk",
+      device_name: (r.device_name as string | null) ?? "Solora Display",
       household_id: r.household_id as string,
       ping_ms: r.ping_ms != null ? Number(r.ping_ms) : null,
       battery_pct: r.battery_pct != null ? Number(r.battery_pct) : null,
@@ -223,7 +233,7 @@ kioskRouter.delete("/devices/:deviceId", requireAuth, (req: Request, res: Respon
 // POST /claim — household member claims a device by pairing code
 //
 // Called by a member (user JWT in Authorization header), not the device.
-// Body: { pairing_code: "SQJ-PT3" }
+// Body: { pairing_code: "482913" }
 // ---------------------------------------------------------------------------
 kioskRouter.post("/claim", requireAuth, (req: Request, res: Response): void => {
   const db = getDb()
@@ -234,21 +244,19 @@ kioskRouter.post("/claim", requireAuth, (req: Request, res: Response): void => {
     return
   }
 
-  const raw: string = ((req.body as Record<string, unknown>)?.pairing_code as string | undefined)?.trim().toUpperCase() ?? ""
+  // Typed codes arrive as "482 913" or "482-913"; older codes look like "SQJ-PT3".
+  const raw: string = ((req.body as Record<string, unknown>)?.pairing_code as string | undefined)?.toUpperCase().replace(/[^A-Z0-9]/g, "") ?? ""
   if (!raw) {
     res.status(400).json({ error: "pairing_code is required." })
     return
   }
 
-  // Normalise: accept with or without the dash (e.g. "SQJPT3" or "SQJ-PT3")
-  const pairingCode = raw.includes("-") ? raw : `${raw.slice(0, 3)}-${raw.slice(3)}`
-
   const device = db
-    .prepare("SELECT id, household_id, device_name FROM kiosk_devices WHERE pairing_code = ?")
-    .get(pairingCode) as { id: string; household_id: string | null; device_name: string } | undefined
+    .prepare("SELECT id, household_id, device_name FROM kiosk_devices WHERE REPLACE(pairing_code, '-', '') = ?")
+    .get(raw) as { id: string; household_id: string | null; device_name: string } | undefined
 
   if (!device) {
-    res.status(404).json({ error: "Pairing code not found. Check the code shown on the hub screen." })
+    res.status(404).json({ error: "Display code not found. Check the code shown on the screen you're adding." })
     return
   }
 
@@ -326,14 +334,45 @@ kioskRouter.post("/kiosk-devices/heartbeat", requireAuth, (req: Request, res: Re
 })
 
 // ---------------------------------------------------------------------------
+// POST /display-state — the wall reports its current display settings
+// (brightness, volume, theme, season…) so phones can show and change them.
+// Auth: the kiosk's own device token. Broadcast as "display:state".
+// ---------------------------------------------------------------------------
+kioskRouter.post("/display-state", requireAuth, (req: Request, res: Response): void => {
+  const user = req.user!
+  if (user.role !== "kiosk" || !user.householdId) {
+    res.status(403).json({ error: "Only a paired display can report its state." })
+    return
+  }
+  const body = req.body as { state?: unknown }
+  if (!body.state || typeof body.state !== "object" || Array.isArray(body.state)) {
+    res.status(400).json({ error: "state must be an object." })
+    return
+  }
+  const json = JSON.stringify(body.state)
+  if (json.length > 8_000) {
+    res.status(413).json({ error: "state is too large." })
+    return
+  }
+  const updatedAt = new Date().toISOString()
+  getDb()
+    .prepare("UPDATE kiosk_devices SET display_state = ?, display_state_at = ? WHERE id = ? AND household_id = ?")
+    .run(json, updatedAt, user.userId, user.householdId)
+  broadcast(user.householdId, "display:state", {
+    deviceId: user.userId,
+    state: body.state as DisplayState,
+    updatedAt,
+  })
+  res.json({ ok: true })
+})
+
+// ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
+/** Six digits, so a display code can't be mistaken for an invite code (ABC-123). */
 function genPairingCode(): string {
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
-  const bytes = require("crypto").randomBytes(6) as Buffer
-  const code = Array.from(bytes, (b: number) => chars[b % chars.length]).join("")
-  return `${code.slice(0, 3)}-${code.slice(3, 6)}`
+  return String(require("crypto").randomInt(0, 1_000_000)).padStart(6, "0")
 }
 
 // ---------------------------------------------------------------------------

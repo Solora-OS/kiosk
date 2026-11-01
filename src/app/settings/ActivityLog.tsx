@@ -112,12 +112,12 @@ export function ActivityLog({ onClose }: { onClose: () => void }) {
         ) : entries.length === 0 ? (
           <div className="py-8 text-center text-sm text-muted-foreground">No activity yet.</div>
         ) : (
-          <ul className="divide-y divide-border rounded-2xl border border-border">
+          <ul className="divide-y divide-border rounded-md border border-border">
             {entries.map((e) => {
               const meta = ACTION_META[e.action] ?? { label: e.action, color: "text-foreground" }
               return (
                 <li key={e.id} className="flex items-start gap-3 px-4 py-3.5">
-                  <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-xl bg-secondary text-muted-foreground">
+                  <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-md bg-secondary text-muted-foreground">
                     <ResourceIcon type={e.resourceType} />
                   </span>
                   <div className="min-w-0 flex-1">

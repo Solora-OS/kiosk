@@ -72,13 +72,32 @@ export type CalendarEvent = {
   calendarId?: string
   title: string
   date: string
+  /** Last day of an overnight or multi-day event; absent when it ends on `date`. */
+  endDate?: string
+  allDay: boolean
+  /** Weekdays a repeating event recurs on (0 = Sunday); absent for one-off events. */
+  repeatDays?: number[]
+  /** Last date an occurrence can start on; absent = repeats indefinitely. */
+  repeatUntil?: string
+  /** Occurrence start dates removed from the series. */
+  skipDates: string[]
+  /** Shown as a countdown tile ("9 sleeps until Christmas"). */
+  countdown: boolean
   time?: string
+  /** Hours since midnight, e.g. 17.5 = 5:30 PM. */
+  start: number
+  end: number
+  /** @deprecated Same as start/end; kept for older clients. */
   startHour: number
   endHour: number
   memberIds: string[]
   location?: string
   createdAt: string
   source?: string
+  /** Minutes before the start to remind; all-day events count from 9 AM. Null: no reminder. */
+  reminderMinutes: number | null
+  /** Member who added the event; null for imported events and older ones. */
+  createdBy: string | null
 }
 
 export type Chore = {
@@ -89,6 +108,17 @@ export type Chore = {
   done: boolean
   points: number
   due: string
+  /** Weekdays the chore repeats on (0 = Sunday). Absent for one-off chores. */
+  repeatDays?: number[]
+  /** Hub-local date (yyyy-mm-dd) the chore was last completed. */
+  doneOn?: string
+  /** Picture key shown for the chore (the apps' chore-icons list). */
+  icon?: string
+  /** A repeating chore that keeps going in away mode (the dog still eats). */
+  keepWhileAway: boolean
+  /** During summer break: same days, off, only then, or different days (summerDays). */
+  summerMode: "same" | "off" | "only" | "days"
+  summerDays?: number[]
   createdAt: string
 }
 
@@ -98,6 +128,8 @@ export type ListItem = {
   label: string
   done: boolean
   position: number
+  /** Member who added it; null when added at the wall. */
+  addedBy: string | null
   createdAt: string
 }
 
@@ -112,6 +144,10 @@ export type ChecklistRow = {
 export type Checklist = ChecklistRow & { items: ListItem[] }
 
 export type Meal = {
+  /** yyyy-mm-dd for a one-day menu; absent = every week on `day`. */
+  date?: string
+  /** Grocery lines to send to a list. */
+  ingredients: string[]
   id: string
   householdId: string
   memberId?: string
@@ -129,6 +165,8 @@ export type Notification = {
   title: string
   body: string
   time: string
+  /** What it's about: "reminder:<event>:<date>", "redemption:<id>", "member:<id>". */
+  ref?: string
   createdAt: string
 }
 
@@ -163,6 +201,8 @@ export type JwtPayload = {
   email?: string        // absent for kiosk tokens
   name?: string         // absent for kiosk tokens
   role?: "kiosk" | "member" | "admin"
+  /** "refresh" marks a refresh token, which is never accepted as an access token. */
+  typ?: "refresh"
   iat?: number
   exp?: number
 }
@@ -177,6 +217,33 @@ export type HubCommand =
   | { type: "clear_cache" }
   | { type: "set_orientation"; orientation: "normal" | "left" | "right" | "inverted" | "portrait" }
   | { type: "set_idle_mins"; minutes: number | null }
+  | { type: "set_brightness"; level: number }
+  | { type: "set_volume"; level: number }
+  | { type: "set_muted"; muted: boolean }
+  | { type: "set_theme"; theme: "light" | "dark" | "system" }
+  | { type: "set_season"; mode: string }
+  | { type: "set_season_effects"; on: boolean }
+  | { type: "display_sleep" }
+  | { type: "display_wake" }
+
+/**
+ * What a wall display reports about itself so a phone can show (and change)
+ * its current settings. Every field is optional: a display only sends what
+ * its hardware can actually do (no backlight → no brightness).
+ */
+export type DisplayState = {
+  brightness?: number | null
+  volume?: number | null
+  muted?: boolean
+  theme?: "light" | "dark" | "system"
+  seasonMode?: string
+  seasonEffects?: boolean
+  /** Seasons this display can show, built-in and imported. */
+  seasons?: { id: string; label: string }[]
+  orientation?: string | null
+  slideshowIdleMins?: number | null
+  asleep?: boolean
+}
 
 // ---------------------------------------------------------------------------
 // Socket.IO event map
@@ -215,8 +282,11 @@ export type ServerToClientEvents = {
 
   "photos:created": (row: Photo) => void
   "photos:deleted": (id: string) => void
+  /** Household-wide settings changed (seasons); clients re-read the snapshot. */
+  "households:updated": (row: Record<string, never>) => void
 
   "hub:command": (cmd: HubCommand) => void
+  "display:state": (payload: { deviceId: string; state: DisplayState; updatedAt: string }) => void
 }
 
 /** Events emitted FROM clients TO the server (currently none needed server-side). */

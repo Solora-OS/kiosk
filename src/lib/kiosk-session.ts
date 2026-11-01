@@ -228,6 +228,12 @@ export async function saveSetup(input: {
   return true
 }
 
+/** Tell the hub the wall's new time zone, so phones elsewhere convert to it. */
+export async function saveTimezone(timezone: string): Promise<void> {
+  if (!getDeviceToken()) return
+  await kioskReq("/kiosk/setup", "POST", { timezone })
+}
+
 // ---------------------------------------------------------------------------
 // Heartbeat
 // ---------------------------------------------------------------------------
@@ -284,6 +290,61 @@ export async function fetchHubInfo(): Promise<HubInfo | null> {
   }
 }
 
+/** What a hub that isn't set up yet shows on its own screen (GET /api/v1/hub/setup). */
+export type HubSetup = { setupCode: string; hubUrl: string | null; name: string }
+
+/**
+ * The setup code and LAN address, for the activation screen. The hub only
+ * answers requests from itself, so this is null on a display running anywhere
+ * else, or once the hub is set up.
+ */
+export async function fetchHubSetup(): Promise<HubSetup | null> {
+  try {
+    const res = await fetch(`${LOCAL_API_BASE}/api/v1/hub/setup`)
+    if (!res.ok) return null
+    return (await res.json()) as HubSetup
+  } catch {
+    return null
+  }
+}
+
+/**
+ * What the setup QR code holds: the hub's address and setup code, so a phone
+ * can scan it instead of searching the network and typing the code.
+ * Contract source: mobile/src/app/auth/find-hub-flow.tsx (parseSetupQr).
+ */
+export function setupQrPayload(setup: HubSetup): string {
+  return JSON.stringify({ lumora: "setup", hub: setup.hubUrl, code: setup.setupCode })
+}
+
+/** What came across when this hub took over a household from an old one. */
+export type MoveSummary = {
+  householdName: string
+  members: number
+  events: number
+  chores: number
+  lists: number
+  meals: number
+  photos: number
+  calendarsLinked: number
+}
+
+/**
+ * Moves a household from an old hub onto this one (POST /api/v1/transfer/pull).
+ * The hub only accepts this from its own screen, before setup. `from` is the
+ * old hub's address, for when it can't be found on the network.
+ */
+export async function moveFromOldHub(code: string, from?: string): Promise<MoveSummary> {
+  const res = await fetch(`${LOCAL_API_BASE}/api/v1/transfer/pull`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ code, from: from || undefined }),
+  })
+  const data = (await res.json().catch(() => ({}))) as Partial<MoveSummary> & { error?: string }
+  if (!res.ok) throw new Error(data.error ?? "The move didn't finish. Try again.")
+  return data as MoveSummary
+}
+
 // ---------------------------------------------------------------------------
 // Self-claim — used only by the first-time activation screen. Links THIS
 // device to the household that was just created, using the caller's own
@@ -311,9 +372,9 @@ export async function claimThisDevice(accessToken: string, pairingCode: string):
 // Pairing payload
 // ---------------------------------------------------------------------------
 
-// JSON, not a deep link — the mobile app's QR scanner (pair-kiosk-sheet.tsx)
-// JSON.parse()s the scanned text and reads .pairing_code; there is no
-// registered URL scheme handler for a lumora://claim-kiosk link.
-export function buildPairingPayload(pairingCode: string): string {
-  return JSON.stringify({ pairing_code: pairingCode })
+// JSON, not a deep link. The phone reads .pairing_code in Settings › Displays
+// (pair-kiosk-sheet.tsx); `lumora` and `hub` let its first-run scanner
+// (find-hub-flow.tsx) recognise a display code and find the hub from it.
+export function buildPairingPayload(pairingCode: string, hubUrl?: string): string {
+  return JSON.stringify({ lumora: "display", hub: hubUrl ?? null, pairing_code: pairingCode })
 }

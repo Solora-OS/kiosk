@@ -21,7 +21,7 @@ export function MemberAvatar({
   return (
     <span
       className={cn(
-        "inline-flex shrink-0 items-center justify-center rounded-full font-semibold text-white shadow-sm",
+        "inline-flex shrink-0 items-center justify-center rounded-full font-semibold text-white",
         memberBg[member.color],
         sizes[size],
         ring && "ring-2 ring-card ring-offset-0",

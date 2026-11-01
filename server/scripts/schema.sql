@@ -11,6 +11,13 @@ PRAGMA foreign_keys = ON;
 CREATE TABLE IF NOT EXISTS households (
   id         TEXT PRIMARY KEY,
   name       TEXT NOT NULL,
+  away_from  TEXT,   -- yyyy-mm-dd: the family is away (repeating chores pause)
+  away_until TEXT,   -- yyyy-mm-dd, inclusive
+  away_label TEXT,   -- e.g. "San Antonio"
+  home_layout TEXT,  -- JSON: the wall's widget home screen, arranged by the family (NULL = default)
+  season_settings TEXT, -- JSON: holidays the family celebrates and shared themes
+  summer_from  TEXT, -- yyyy-mm-dd: summer break (chores switch to their summer days)
+  summer_until TEXT, -- yyyy-mm-dd, inclusive
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
 );
 
@@ -24,6 +31,7 @@ CREATE TABLE IF NOT EXISTS users (
   name          TEXT NOT NULL,
   supabase_id   TEXT UNIQUE,   -- Supabase auth.users.id (uuid)
   password_hash TEXT,          -- kept nullable for legacy rows during migration
+  device_only   INTEGER NOT NULL DEFAULT 0, -- 1 = no account: signs in with a hub-issued token (kids' phones)
   created_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
 );
 
@@ -97,12 +105,20 @@ CREATE TABLE IF NOT EXISTS events (
   calendar_id     TEXT REFERENCES calendars(id) ON DELETE SET NULL,
   title           TEXT NOT NULL,
   date            TEXT NOT NULL,   -- ISO date yyyy-mm-dd
+  end_date        TEXT,            -- yyyy-mm-dd when the event ends on a later day; NULL = same day
+  all_day         INTEGER NOT NULL DEFAULT 0,
+  repeat_days     TEXT,            -- "2,4" weekly on those weekdays (0 = Sunday); NULL = one-off
+  repeat_until    TEXT,            -- last date a repeating event can start on; NULL = no end
+  skip_dates      TEXT NOT NULL DEFAULT '[]', -- occurrence start dates removed from the series
+  countdown       INTEGER NOT NULL DEFAULT 0, -- 1 = show "N sleeps until …" on the calendar
+  remind_minutes  INTEGER,         -- minutes before the start to remind (all-day: from 9 AM); NULL = none
+  created_by      TEXT,            -- member who added it; people without the Calendar permission can change only their own
   time            TEXT,            -- HH:MM or empty
-  start_hour      REAL NOT NULL DEFAULT 0,
+  start_hour      REAL NOT NULL DEFAULT 0, -- hours since midnight; 17.5 = 5:30 PM
   end_hour        REAL NOT NULL DEFAULT 0,
   member_ids      TEXT NOT NULL DEFAULT '[]',
   location        TEXT,
-  source          TEXT,            -- 'google' | 'microsoft' | NULL for manual
+  source          TEXT,            -- 'google' | 'microsoft' | 'ics' (a calendar link) | NULL for manual
   source_event_id TEXT,            -- provider event id for deduplication
   created_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
 );
@@ -123,6 +139,12 @@ CREATE TABLE IF NOT EXISTS chores (
   done         INTEGER NOT NULL DEFAULT 0,
   points       INTEGER NOT NULL DEFAULT 0,
   due          TEXT NOT NULL DEFAULT '',
+  repeat_days  TEXT,              -- "1,3,5" (0 = Sunday); NULL = one-off chore
+  done_on      TEXT,              -- hub-local yyyy-mm-dd of the last completion
+  icon         TEXT,              -- picture key (see app lib/chore-icons.ts), for kids who can't read yet
+  keep_while_away INTEGER NOT NULL DEFAULT 0,  -- repeating chore that doesn't pause in away mode (pets, plants)
+  summer_mode  TEXT NOT NULL DEFAULT 'same',  -- during summer break: same | off | only | days
+  summer_days  TEXT,              -- "1,3" when summer_mode is 'days'
   created_at   TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
 );
 
@@ -150,6 +172,7 @@ CREATE TABLE IF NOT EXISTS list_items (
   label      TEXT NOT NULL,
   done       INTEGER NOT NULL DEFAULT 0,
   position   INTEGER NOT NULL DEFAULT 0,
+  added_by   TEXT,  -- member who added it (null from the wall); they can rename or delete it
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
 );
 
@@ -166,6 +189,8 @@ CREATE TABLE IF NOT EXISTS meals (
   name         TEXT NOT NULL,
   type         TEXT NOT NULL DEFAULT 'dinner',
   image        TEXT,
+  date         TEXT,              -- yyyy-mm-dd for a one-day menu (Christmas Eve); NULL = every week on `day`
+  ingredients  TEXT NOT NULL DEFAULT '[]', -- JSON array of grocery lines
   created_at   TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
 );
 
@@ -181,10 +206,34 @@ CREATE TABLE IF NOT EXISTS notifications (
   title        TEXT NOT NULL,
   body         TEXT NOT NULL DEFAULT '',
   time         TEXT NOT NULL DEFAULT '',
+  ref          TEXT,  -- what it's about: "reminder:<event>:<date>", "redemption:<id>", "member:<id>"
   created_at   TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
 );
 
 CREATE INDEX IF NOT EXISTS idx_notifications_household ON notifications(household_id);
+
+-- Calendars the family subscribes to by iCal link (school, league, shift schedule).
+-- Their events live in events with source 'ics' and source_event_id '<link id>:<uid>'.
+CREATE TABLE IF NOT EXISTS calendar_links (
+  id             TEXT PRIMARY KEY,
+  household_id   TEXT NOT NULL REFERENCES households(id) ON DELETE CASCADE,
+  url            TEXT NOT NULL,
+  name           TEXT NOT NULL,
+  calendar_id    TEXT REFERENCES calendars(id) ON DELETE SET NULL,
+  last_synced_at TEXT,
+  last_error     TEXT,
+  event_count    INTEGER NOT NULL DEFAULT 0,
+  created_at     TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+);
+
+-- Event reminders already sent, so a restart or a second hub tick never repeats one.
+CREATE TABLE IF NOT EXISTS reminders_sent (
+  event_id        TEXT NOT NULL,
+  occurrence_date TEXT NOT NULL,
+  member_id       TEXT NOT NULL,
+  sent_at         TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  PRIMARY KEY (event_id, occurrence_date, member_id)
+);
 
 -- ---------------------------------------------------------------------------
 -- notification_states  (per-user read/dismiss state)
@@ -231,6 +280,7 @@ CREATE TABLE IF NOT EXISTS kiosk_devices (
   device_info      TEXT,
   language         TEXT,
   timezone         TEXT,
+  on_hub           INTEGER NOT NULL DEFAULT 0,  -- registered from the hub machine: its own screen
   created_at       TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
 );
 
@@ -320,3 +370,48 @@ CREATE INDEX IF NOT EXISTS idx_cal_excluded_household ON calendar_excluded_event
 -- NOTE: SQLite does not have a built-in sha256() function. Use the Node
 -- migration script at server/scripts/migrate-token-hashes.ts instead.
 -- ---------------------------------------------------------------------------
+
+-- ---------------------------------------------------------------------------
+-- chore_completions  (one row per chore checked off: points history and streaks)
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS chore_completions (
+  id           TEXT PRIMARY KEY,
+  household_id TEXT NOT NULL REFERENCES households(id) ON DELETE CASCADE,
+  chore_id     TEXT REFERENCES chores(id) ON DELETE SET NULL,
+  member_id    TEXT REFERENCES members(id) ON DELETE CASCADE,
+  title        TEXT NOT NULL,     -- kept so history reads right after the chore is deleted
+  points       INTEGER NOT NULL DEFAULT 0,
+  date         TEXT NOT NULL,     -- hub-local yyyy-mm-dd
+  created_at   TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_chore_completions_member ON chore_completions(household_id, member_id, date);
+
+-- ---------------------------------------------------------------------------
+-- rewards  (what points buy, set by parents)
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS rewards (
+  id           TEXT PRIMARY KEY,
+  household_id TEXT NOT NULL REFERENCES households(id) ON DELETE CASCADE,
+  title        TEXT NOT NULL,
+  cost         INTEGER NOT NULL,
+  icon         TEXT,
+  created_at   TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+);
+
+-- ---------------------------------------------------------------------------
+-- redemptions  (a kid spending points; held until a parent approves or declines)
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS redemptions (
+  id           TEXT PRIMARY KEY,
+  household_id TEXT NOT NULL REFERENCES households(id) ON DELETE CASCADE,
+  reward_id    TEXT REFERENCES rewards(id) ON DELETE SET NULL,
+  member_id    TEXT NOT NULL REFERENCES members(id) ON DELETE CASCADE,
+  title        TEXT NOT NULL,
+  cost         INTEGER NOT NULL,
+  status       TEXT NOT NULL DEFAULT 'requested', -- requested | approved | declined
+  created_at   TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  decided_at   TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_redemptions_household ON redemptions(household_id, status);

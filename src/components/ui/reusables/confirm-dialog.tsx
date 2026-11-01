@@ -10,6 +10,8 @@ export function ConfirmDialog({
   confirmLabel = "Delete",
   onConfirm,
   onCancel,
+  secondaryLabel,
+  onSecondary,
 }: {
   open: boolean
   title: string
@@ -17,6 +19,9 @@ export function ConfirmDialog({
   confirmLabel?: string
   onConfirm: () => void
   onCancel: () => void
+  /** Optional second destructive choice, e.g. "This one" beside "All events". */
+  secondaryLabel?: string
+  onSecondary?: () => void
 }) {
   const [visible, setVisible] = useState(false)
   const [animating, setAnimating] = useState(false)
@@ -57,7 +62,7 @@ export function ConfirmDialog({
     >
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
+        className="absolute inset-0 bg-black/35"
         onClick={onCancel}
         aria-hidden
       />
@@ -67,29 +72,38 @@ export function ConfirmDialog({
         role="alertdialog"
         aria-modal="true"
         aria-label={title}
-        className="relative z-10 w-full max-w-xs rounded-3xl bg-card shadow-2xl overflow-hidden"
+        className="relative z-10 w-full max-w-sm overflow-hidden rounded-md border border-border bg-popover"
         style={{
           transform: animating ? "scale(1) translateY(0)" : "scale(0.95) translateY(8px)",
           transition: "transform 280ms cubic-bezier(0.34, 1.56, 0.64, 1)",
         }}
       >
-        <div className="p-6">
-          <h2 className="text-base font-bold text-foreground">{title}</h2>
+        <div className="px-6 pb-5 pt-7">
+          <h2 className="font-display text-3xl leading-tight text-foreground">{title}</h2>
           <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{message}</p>
         </div>
 
-        <div className="flex flex-col gap-2 border-t border-border/60 px-5 pb-5 pt-4">
+        <div className="flex flex-row-reverse gap-2 border-t border-hairline px-6 py-4">
           <button
             type="button"
             onClick={onConfirm}
-            className="w-full rounded-xl bg-destructive py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90 active:opacity-80"
+            className="h-12 flex-1 rounded-md bg-destructive text-sm font-medium text-white transition-opacity hover:opacity-90 active:opacity-80"
           >
             {confirmLabel}
           </button>
+          {onSecondary ? (
+            <button
+              type="button"
+              onClick={onSecondary}
+              className="h-12 flex-1 rounded-md border border-destructive/40 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10"
+            >
+              {secondaryLabel}
+            </button>
+          ) : null}
           <button
             type="button"
             onClick={onCancel}
-            className="w-full rounded-xl bg-secondary py-3 text-sm font-semibold text-secondary-foreground transition-colors hover:bg-accent"
+            className="h-12 flex-1 rounded-md text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
           >
             Cancel
           </button>

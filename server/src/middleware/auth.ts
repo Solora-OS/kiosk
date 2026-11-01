@@ -3,10 +3,10 @@
  *
  * Two token kinds are accepted:
  *  - Device tokens (kiosk/hub):  HS256, signed with on-disk secret at ~/.lumora/.secret
- *  - User tokens (Supabase):     HS256, signed by Supabase with SUPABASE_JWT_SECRET
+ *  - User tokens (central):      ES256, signed by Lumora central (see lib/account-tokens.ts)
  *
- * Detection: Supabase JWTs have iss="https://<ref>.supabase.co/auth/v1".
- * Device tokens have no iss field (or iss set to our own server).
+ * Detection: account tokens have iss="lumora-central", aud="lumora-users".
+ * Device tokens have no iss field.
  */
 
 import type { Request, Response, NextFunction } from "express"
@@ -14,7 +14,7 @@ import jwt from "jsonwebtoken"
 import type { Socket } from "socket.io"
 import { getOrCreateSecret, getDb } from "../db"
 import type { JwtPayload, ServerToClientEvents, ClientToServerEvents, SocketData } from "../types"
-import { verifySupabaseToken } from "../lib/supabase"
+import { isAccountToken, verifyAccountToken } from "../lib/account-tokens"
 
 export type AuthRequest = Request & {
   user: JwtPayload & { userId: string }
@@ -35,33 +35,55 @@ export function signToken(
   } as jwt.SignOptions)
 }
 
-/** Sign a device refresh token (30d expiry). */
-export function signRefreshToken(payload: Omit<JwtPayload, "iat" | "exp">): string {
-  return jwt.sign(payload, getOrCreateSecret(), {
+/** Sign a device refresh token (30d expiry by default). It only works at the refresh endpoint. */
+export function signRefreshToken(payload: Omit<JwtPayload, "iat" | "exp">, expiresIn: string = "30d"): string {
+  return jwt.sign({ ...payload, typ: "refresh" }, getOrCreateSecret(), {
     algorithm: "HS256",
-    expiresIn: "30d",
+    expiresIn,
   } as jwt.SignOptions)
 }
 
-/** Verify and decode a device token. Throws on invalid/expired tokens. */
+/** Verify and decode a device access token. Throws on invalid/expired tokens and on refresh tokens. */
 export function verifyToken(token: string): JwtPayload {
-  return jwt.verify(token, getOrCreateSecret(), {
+  const payload = jwt.verify(token, getOrCreateSecret(), {
     algorithms: ["HS256"],
   }) as JwtPayload
+  if (payload.typ === "refresh") throw new jwt.JsonWebTokenError("Refresh tokens can't be used for access.")
+  return payload
 }
 
-// ---------------------------------------------------------------------------
-// Token kind detection
-// ---------------------------------------------------------------------------
+/**
+ * Access + refresh tokens for a phone signed in without an account (a kid's
+ * phone). The refresh token rolls forward on every use, so a phone that's
+ * opened at least once a year never has to be set up again.
+ */
+export function signMemberDeviceTokens(user: { id: string; householdId: string; name: string }): {
+  token: string
+  refreshToken: string
+} {
+  const payload = { sub: user.id, householdId: user.householdId, name: user.name, role: "member" as const }
+  return { token: signToken(payload, "24h"), refreshToken: signRefreshToken(payload, "365d") }
+}
 
-function isSupabaseToken(token: string): boolean {
-  try {
-    const raw = jwt.decode(token) as Record<string, unknown> | null
-    const iss = raw?.iss as string | undefined
-    return typeof iss === "string" && iss.includes("supabase")
-  } catch {
-    return false
-  }
+/** Verify and decode a device refresh token. Throws unless it is one. */
+export function verifyRefreshToken(token: string): JwtPayload {
+  const payload = jwt.verify(token, getOrCreateSecret(), {
+    algorithms: ["HS256"],
+  }) as JwtPayload
+  if (payload.typ !== "refresh") throw new jwt.JsonWebTokenError("Not a refresh token.")
+  return payload
+}
+
+/**
+ * A hub-issued member token (a kid's phone, the relay acting for a user, kiosk
+ * auto-login) is only good while its local user still exists. Removing a kid
+ * from the family deletes their account-less user, which signs their phone out.
+ */
+function memberStillLinked(payload: JwtPayload): boolean {
+  if (payload.role !== "member") return true
+  return !!getDb()
+    .prepare("SELECT 1 FROM users WHERE id = ? AND household_id = ?")
+    .get(payload.sub, payload.householdId ?? "")
 }
 
 // ---------------------------------------------------------------------------
@@ -69,7 +91,7 @@ function isSupabaseToken(token: string): boolean {
 // ---------------------------------------------------------------------------
 
 /**
- * requireAuth — resolves req.user from either a Supabase user token or a
+ * requireAuth — resolves req.user from either a central account token or a
  * device (kiosk/hub) token. Responds 401 on missing/invalid tokens.
  */
 export function requireAuth(req: Request, res: Response, next: NextFunction): void {
@@ -80,17 +102,17 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
   }
   const token = header.slice(7).trim()
 
-  if (isSupabaseToken(token)) {
-    // Async path — verify Supabase JWT
-    void verifySupabaseToken(token).then((payload) => {
+  if (isAccountToken(token)) {
+    // Async path — verify central account JWT
+    void verifyAccountToken(token).then((payload) => {
       if (!payload) {
-        res.status(401).json({ error: "Invalid or expired Supabase token." })
+        res.status(401).json({ error: "Invalid or expired token." })
         return
       }
-      // Look up local user record by supabase_id to get householdId
+      // Look up local user record by account_id to get householdId
       const db = getDb()
       const row = db
-        .prepare("SELECT id, household_id, name, email FROM users WHERE supabase_id = ?")
+        .prepare("SELECT id, household_id, name, email FROM users WHERE account_id = ?")
         .get(payload.sub) as { id: string; household_id: string; name: string; email: string } | undefined
 
       ;(req as AuthRequest).user = {
@@ -98,7 +120,7 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
         userId:      row?.id ?? payload.sub,
         householdId: row?.household_id,
         email:       row?.email ?? payload.email,
-        name:        row?.name ?? payload.user_metadata?.name ?? payload.user_metadata?.full_name,
+        name:        row?.name ?? payload.name,
         role:        "member",
       }
       next()
@@ -115,6 +137,10 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
         .prepare("SELECT household_id FROM kiosk_devices WHERE id = ?")
         .get(payload.sub) as { household_id: string | null } | undefined
       if (row?.household_id) payload.householdId = row.household_id
+    }
+    if (!memberStillLinked(payload)) {
+      res.status(401).json({ error: "This phone has been signed out of the household." })
+      return
     }
 
     ;(req as AuthRequest).user = { ...payload, userId: payload.sub }
@@ -155,18 +181,18 @@ export function socketAuth(
     return
   }
 
-  if (isSupabaseToken(token)) {
-    void verifySupabaseToken(token).then((payload) => {
-      if (!payload) { next(new Error("UNAUTHORIZED: Invalid Supabase token.")); return }
+  if (isAccountToken(token)) {
+    void verifyAccountToken(token).then((payload) => {
+      if (!payload) { next(new Error("UNAUTHORIZED: Invalid account token.")); return }
       const db = getDb()
       const row = db
-        .prepare("SELECT id, household_id, name, email FROM users WHERE supabase_id = ?")
+        .prepare("SELECT id, household_id, name, email FROM users WHERE account_id = ?")
         .get(payload.sub) as { id: string; household_id: string; name: string; email: string } | undefined
 
       socket.data.userId      = row?.id ?? payload.sub
       socket.data.householdId = row?.household_id ?? ""
-      socket.data.email       = row?.email ?? payload.email ?? ""
-      socket.data.name        = row?.name ?? payload.user_metadata?.name ?? ""
+      socket.data.email       = row?.email ?? payload.email
+      socket.data.name        = row?.name ?? payload.name
       next()
     })
     return
@@ -181,6 +207,7 @@ export function socketAuth(
         .get(payload.sub) as { household_id: string | null } | undefined
       householdId = row?.household_id ?? ""
     }
+    if (!memberStillLinked(payload)) { next(new Error("UNAUTHORIZED: Signed out of the household.")); return }
     socket.data.userId      = payload.sub
     socket.data.householdId = householdId
     socket.data.email       = payload.email ?? ""

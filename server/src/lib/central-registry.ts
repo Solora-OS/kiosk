@@ -14,7 +14,7 @@ import path from "path"
 import { getDb } from "../db"
 
 const CENTRAL_API_URL   = process.env.CENTRAL_API_URL   ?? "http://localhost:4000"
-const HUB_NAME          = process.env.HUB_NAME          ?? "Lumora Hub"
+const HUB_NAME          = process.env.HUB_NAME          ?? "Solora Hub"
 const HUB_OWNER_EMAIL   = process.env.HUB_OWNER_EMAIL   ?? "admin@lumora.local"
 const LUMORA_DIR        = path.join(process.env.HOME ?? ".", ".lumora")
 const CREDENTIALS_PATH  = path.join(LUMORA_DIR, "central.json")

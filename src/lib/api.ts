@@ -18,6 +18,11 @@ import type {
   Meal,
   Notification,
   Photo,
+  Reward,
+  Redemption,
+  RewardsSummary,
+  Away,
+  HomeLayout,
 } from "./data"
 
 // ----- Contract types (shared with server/src/types.ts) --------------------
@@ -160,6 +165,21 @@ export interface LumoraApi {
   createChore(input: Omit<Chore, "id">): Promise<Chore>
   updateChore(id: string, patch: Partial<Omit<Chore, "id">>): Promise<Chore>
   deleteChore(id: string): Promise<void>
+  // rewards (kiosk/server/src/routes/rewards.ts)
+  getRewards(): Promise<RewardsSummary>
+  createReward(input: { title: string; cost: number; icon?: string | null }): Promise<Reward>
+  updateReward(id: string, patch: { title?: string; cost?: number; icon?: string | null }): Promise<Reward>
+  deleteReward(id: string): Promise<void>
+  /** Spend points; `memberId` only when a parent or the wall spends for someone. */
+  redeemReward(id: string, memberId?: string): Promise<Redemption>
+  decideRedemption(id: string, decision: "approve" | "decline"): Promise<Redemption>
+  // away (kiosk/server/src/routes/away.ts)
+  getAway(): Promise<Away | null>
+  setAway(input: Away): Promise<Away | null>
+  endAway(): Promise<void>
+  // the wall's home screen (kiosk/server/src/routes/home.ts)
+  getHomeLayout(): Promise<HomeLayout | null>
+  setHomeLayout(layout: HomeLayout): Promise<HomeLayout>
 
   // lists (items are nested; item mutations return the updated list)
   listLists(): Promise<Checklist[]>
@@ -169,6 +189,8 @@ export interface LumoraApi {
   addListItem(listId: string, label: string): Promise<Checklist>
   updateListItem(listId: string, itemId: string, patch: { label?: string; done?: boolean }): Promise<Checklist>
   deleteListItem(listId: string, itemId: string): Promise<Checklist>
+  /** Remove every ticked item from a list. */
+  clearDoneItems(listId: string): Promise<Checklist>
 
   // meals
   listMeals(): Promise<Meal[]>
@@ -216,8 +238,10 @@ const MUTATING_METHODS = new Set<keyof LumoraApi>([
   "createCalendar", "updateCalendar", "deleteCalendar",
   "createEvent", "updateEvent", "deleteEvent",
   "createChore", "updateChore", "deleteChore",
+  "createReward", "updateReward", "deleteReward", "redeemReward", "decideRedemption",
+  "setAway", "endAway", "setHomeLayout",
   "createList", "updateList", "deleteList",
-  "addListItem", "updateListItem", "deleteListItem",
+  "addListItem", "updateListItem", "deleteListItem", "clearDoneItems",
   "createMeal", "updateMeal", "deleteMeal",
   "createNotification", "updateNotification", "deleteNotification",
   "markAllNotificationsRead", "clearNotifications",

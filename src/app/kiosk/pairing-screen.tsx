@@ -2,16 +2,16 @@
 
 import { useEffect, useState } from "react"
 import QRCode from "qrcode"
-import { Sparkles, Loader2, ScanLine, RefreshCw, MonitorSmartphone } from "lucide-react"
+import { RefreshCw } from "lucide-react"
 import { useKiosk } from "@/lib/kiosk-provider"
 import { buildPairingPayload } from "@/lib/kiosk-session"
-import { SystemStatusBar } from "@/components/ui/reusables/system-status-bar"
+import { SystemHeading, SystemScreen } from "@/components/os/system-screen"
 import { LOCAL_API_BASE } from "@/lib/local-api"
 
 /**
  * Full-screen pairing experience shown on the wall display while the kiosk
  * is unclaimed. A household member visits the Lumora web app on the same
- * network and enters the pairing code (or scans the QR) to claim this hub.
+ * network and enters the display code (or scans the QR) to add this screen.
  *
  * The pairing code is issued by the local lumora-server after device
  * registration. Once a member claims it, the polling loop in kiosk-provider
@@ -21,13 +21,6 @@ export function PairingScreen() {
   const { state, loading, refresh } = useKiosk()
   const [qrDataUrl, setQrDataUrl]   = useState<string | null>(null)
   const [qrError, setQrError]       = useState(false)
-  const [clock, setClock]           = useState(() => new Date())
-
-  // Live clock — update every minute (seconds not needed here).
-  useEffect(() => {
-    const t = setInterval(() => setClock(new Date()), 60_000)
-    return () => clearInterval(t)
-  }, [])
 
   // Render QR whenever the pairing code changes.
   useEffect(() => {
@@ -37,7 +30,9 @@ export function PairingScreen() {
       return
     }
     setQrError(false)
-    const payload = buildPairingPayload(state.pairingCode)
+    // A phone can only reach the hub at a LAN address, never at loopback.
+    const hub = /\/\/(localhost|127\.0\.0\.1)(:|\/|$)/.test(LOCAL_API_BASE) ? undefined : `${LOCAL_API_BASE}/api/v1`
+    const payload = buildPairingPayload(state.pairingCode, hub)
     QRCode.toDataURL(payload, {
       width: 480,
       margin: 1,
@@ -48,125 +43,65 @@ export function PairingScreen() {
       .catch(() => setQrError(true))
   }, [state.pairingCode])
 
-  const dateLabel = clock.toLocaleDateString(undefined, {
-    weekday: "long", month: "long", day: "numeric",
-  })
-  const timeLabel = clock.toLocaleTimeString(undefined, {
-    hour: "numeric", minute: "2-digit",
-  })
-
   // Derive the LAN address the companion app / admin UI should visit.
   // Strip the localhost fallback so it reads as a real hostname if set.
   const serverOrigin = LOCAL_API_BASE.replace("localhost", window.location.hostname)
 
+  const corners = ["left-0 top-0 border-l-2 border-t-2", "right-0 top-0 border-r-2 border-t-2", "left-0 bottom-0 border-l-2 border-b-2", "right-0 bottom-0 border-r-2 border-b-2"]
+
   return (
-    <main className="flex min-h-dvh flex-col bg-background text-foreground">
-      <SystemStatusBar />
+    <SystemScreen
+      footerRight={<span className="font-mono normal-case tracking-normal">{serverOrigin}</span>}
+      className="grid items-center gap-12 overflow-y-auto px-10 py-10 lg:landscape:grid-cols-[1.2fr_1fr] lg:landscape:gap-20"
+    >
+      <div className="flex flex-col gap-12">
+        <SystemHeading eyebrow="Add this screen" title="Pair this display.">
+          <p>This hub already has a family. A parent adds this screen from their phone with the display code.</p>
+        </SystemHeading>
 
-      {/* Top bar */}
-      <header className="flex items-center justify-between px-10 py-8">
-        <div className="flex items-center gap-3">
-          <div className="flex size-11 items-center justify-center rounded-2xl bg-primary text-primary-foreground">
-            <Sparkles className="size-6" />
-          </div>
-          <span className="text-xl font-bold tracking-tight">Lumora</span>
-        </div>
-        <div className="flex flex-col items-end">
-          <span className="text-lg font-semibold tabular-nums">{timeLabel}</span>
-          <span className="text-sm text-muted-foreground">{dateLabel}</span>
-        </div>
-      </header>
+        <ol className="grid max-w-xl gap-6">
+          {[
+            "On your phone, open Solora and sign in to the family.",
+            "Go to Settings › Hub & wall display › Displays › Pair a display.",
+            "Scan this code, or type the display code under it.",
+          ].map((text, i) => (
+            <li key={i} className="flex items-baseline gap-5 border-t border-hairline pt-4">
+              <span className="font-display text-3xl leading-none text-season tabular">{i + 1}</span>
+              <span className="text-lg">{text}</span>
+            </li>
+          ))}
+        </ol>
+      </div>
 
-      {/* Body */}
-      <div className="flex flex-1 flex-col items-center justify-center gap-12 px-10 pb-16 lg:flex-row lg:gap-20">
-
-        {/* Left: instructions */}
-        <div className="max-w-lg text-center lg:text-left">
-          <p className="text-base font-medium uppercase tracking-widest text-primary">
-            Almost there
-          </p>
-          <h1 className="mt-4 text-balance text-5xl font-bold leading-tight tracking-tight lg:text-6xl">
-            Claim your family hub
-          </h1>
-          <p className="mt-6 text-pretty text-xl leading-relaxed text-muted-foreground">
-            A household member needs to claim this display. Open the Lumora
-            app on a phone connected to the same Wi-Fi, or visit the web
-            admin on your laptop and enter the code below.
-          </p>
-
-          <ol className="mx-auto mt-8 max-w-md space-y-3 text-left lg:mx-0">
-            {[
-              "Connect a device to the same Wi-Fi as this hub",
-              "Open the Lumora app or visit the admin web UI",
-              "Enter the code shown here (or scan the QR)",
-            ].map((step, i) => (
-              <li key={i} className="flex items-center gap-3 text-lg">
-                <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-base font-semibold text-primary">
-                  {i + 1}
-                </span>
-                <span className="text-foreground/90">{step}</span>
-              </li>
-            ))}
-          </ol>
-
-          {/* Server address hint */}
-          <div className="mt-8 flex items-start gap-2 rounded-2xl border border-border bg-muted/50 px-5 py-4">
-            <MonitorSmartphone className="mt-0.5 size-5 shrink-0 text-muted-foreground" />
-            <div className="text-sm text-muted-foreground">
-              <p className="font-medium text-foreground">Hub server address</p>
-              <p className="mt-0.5 break-all font-mono">{serverOrigin}</p>
-              <p className="mt-1 text-xs">
-                Reachable by any device on your local network.
-              </p>
+      <div className="flex flex-col items-center gap-8 lg:landscape:items-end">
+        {/* QR in a viewfinder — crop marks instead of a card */}
+        <div className="relative p-6">
+          {corners.map((c) => (
+            <span key={c} aria-hidden className={`absolute size-7 border-foreground ${c}`} />
+          ))}
+          {qrError ? (
+            <div className="flex size-[19rem] flex-col items-start justify-end gap-4 p-2">
+              <p className="text-sm text-muted-foreground">Couldn&apos;t draw the code.</p>
+              <button type="button" onClick={() => void refresh()} className="os-button">
+                <RefreshCw className="size-4" />
+                Retry
+              </button>
             </div>
-          </div>
+          ) : loading || !qrDataUrl ? (
+            <div className="flex size-[19rem] flex-col justify-end gap-4 p-2">
+              <p className="os-label">{!loading && !state.pairingCode ? "Waiting for a display code" : "Preparing"}</p>
+              <div className="boot-line h-[2px] bg-hairline" />
+            </div>
+          ) : (
+            <img src={qrDataUrl} alt="Display code for pairing this screen" className="size-[19rem] rounded-sm bg-white p-3" />
+          )}
         </div>
 
-        {/* Right: QR card */}
-        <div className="flex flex-col items-center">
-          <div className="rounded-3xl border border-border bg-card p-6 shadow-sm">
-            {qrError ? (
-              <div className="flex size-[320px] flex-col items-center justify-center gap-4">
-                <p className="max-w-[180px] text-center text-sm font-medium text-muted-foreground text-pretty">
-                  Could not generate the QR code.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => void refresh()}
-                  className="flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"
-                >
-                  <RefreshCw className="size-4" />
-                  Retry
-                </button>
-              </div>
-            ) : loading || !qrDataUrl ? (
-              <div className="flex size-[320px] flex-col items-center justify-center gap-3">
-                <Loader2 className="size-10 animate-spin text-muted-foreground" />
-                {!loading && !state.pairingCode ? (
-                  <p className="text-xs text-muted-foreground">Waiting for pairing code…</p>
-                ) : null}
-              </div>
-            ) : (
-              <img
-                src={qrDataUrl}
-                alt="Scan with the Lumora app to claim this hub"
-                className="size-[320px] rounded-xl"
-              />
-            )}
-          </div>
-
-          {/* Manual code fallback */}
-          <div className="mt-6 flex flex-col items-center gap-2">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <ScanLine className="size-4" />
-              <span>Can&apos;t scan? Enter this code in the app</span>
-            </div>
-            <p className="font-mono text-3xl font-bold tracking-[0.3em] text-foreground">
-              {state.pairingCode ?? "••••••••"}
-            </p>
-          </div>
+        <div className="text-center lg:landscape:text-right">
+          <p className="os-label mb-3">Display code</p>
+          <p className="font-mono text-4xl font-medium tracking-[0.35em] tabular">{state.pairingCode ? state.pairingCode.replace(/^(\d{3})(\d{3})$/, "$1 $2") : "··· ···"}</p>
         </div>
       </div>
-    </main>
+    </SystemScreen>
   )
 }

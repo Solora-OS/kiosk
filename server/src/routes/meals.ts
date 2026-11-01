@@ -1,16 +1,28 @@
 import { Router, type Request, type Response } from "express"
 import { v4 as uuidv4 } from "uuid"
-import { getDb } from "../db"
+import { getDb, parseJson } from "../db"
 import { requireAuth, type AuthRequest } from "../middleware/auth"
 import { broadcast } from "../broadcaster"
 import { writeLog } from "./activity-logs"
+import { manages } from "../lib/household-member"
 import type { Meal } from "../types"
 
 const router = Router()
 router.use(requireAuth)
 
-function rowToMeal(r: Record<string, unknown>): Meal {
+const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+const isISODate = (v: unknown): v is string => typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v)
+
+/** Up to 60 trimmed, non-empty grocery lines. */
+function ingredientsColumn(value: unknown): string {
+  const lines = Array.isArray(value) ? value : typeof value === "string" ? value.split("\n") : []
+  return JSON.stringify(lines.map((l) => String(l).trim().slice(0, 80)).filter(Boolean).slice(0, 60))
+}
+
+export function rowToMeal(r: Record<string, unknown>): Meal {
   return {
+    date: (r.date as string) ?? undefined,
+    ingredients: parseJson<string[]>(r.ingredients, []),
     id: r.id as string,
     householdId: r.household_id as string,
     memberId: (r.member_id as string) ?? undefined,
@@ -31,16 +43,19 @@ router.get("/", (req: Request, res: Response) => {
 })
 
 router.post("/", (req: Request, res: Response) => {
+  if (!manages((req as AuthRequest).user, "meals")) { res.status(403).json({ error: "Ask a parent to change the meal plan." }); return }
   const householdId = (req as AuthRequest).user.householdId!
-  const { day, name, type = "dinner", image, memberId } = req.body as {
-    day?: string; name?: string; type?: string; image?: string; memberId?: string
+  const { name, type = "dinner", image, memberId, date, ingredients } = req.body as {
+    day?: string; name?: string; type?: string; image?: string; memberId?: string; date?: string; ingredients?: unknown
   }
-  if (!day || !name?.trim()) { res.status(400).json({ error: "day and name are required." }); return }
+  // A dated menu also records its weekday, so older apps still place it.
+  const day = isISODate(date) ? DAYS[new Date(`${date}T00:00:00`).getDay()] : (req.body as { day?: string }).day
+  if (!day || !name?.trim()) { res.status(400).json({ error: "day (or date) and name are required." }); return }
   const db = getDb()
   const id = uuidv4()
   db.prepare(
-    "INSERT INTO meals (id, household_id, member_id, day, name, type, image) VALUES (?, ?, ?, ?, ?, ?, ?)",
-  ).run(id, householdId, memberId ?? null, day, name.trim(), type, image ?? null)
+    "INSERT INTO meals (id, household_id, member_id, day, name, type, image, date, ingredients) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+  ).run(id, householdId, memberId ?? null, day, name.trim(), type, image ?? null, isISODate(date) ? date : null, ingredientsColumn(ingredients))
   const row = db.prepare("SELECT * FROM meals WHERE id = ?").get(id) as Record<string, unknown>
   const meal = rowToMeal(row)
   broadcast(householdId, "meals:created", meal)
@@ -49,6 +64,7 @@ router.post("/", (req: Request, res: Response) => {
 })
 
 router.patch("/:id", (req: Request, res: Response) => {
+  if (!manages((req as AuthRequest).user, "meals")) { res.status(403).json({ error: "Ask a parent to change the meal plan." }); return }
   const householdId = (req as AuthRequest).user.householdId!
   const { id } = req.params
   const db = getDb()
@@ -62,6 +78,12 @@ router.patch("/:id", (req: Request, res: Response) => {
   if (body.type !== undefined) { sets.push("type = ?"); vals.push(body.type) }
   if ("image" in body) { sets.push("image = ?"); vals.push(body.image ?? null) }
   if ("memberId" in body) { sets.push("member_id = ?"); vals.push(body.memberId ?? null) }
+  if ("date" in body) {
+    const date = isISODate(body.date) ? body.date : null
+    sets.push("date = ?"); vals.push(date)
+    if (date) { sets.push("day = ?"); vals.push(DAYS[new Date(`${date}T00:00:00`).getDay()]) }
+  }
+  if ("ingredients" in body) { sets.push("ingredients = ?"); vals.push(ingredientsColumn(body.ingredients)) }
   if (sets.length === 0) { res.status(400).json({ error: "No fields to update." }); return }
   vals.push(id, householdId)
   db.prepare(`UPDATE meals SET ${sets.join(", ")} WHERE id = ? AND household_id = ?`).run(...vals)
@@ -72,6 +94,7 @@ router.patch("/:id", (req: Request, res: Response) => {
 })
 
 router.delete("/:id", (req: Request, res: Response) => {
+  if (!manages((req as AuthRequest).user, "meals")) { res.status(403).json({ error: "Ask a parent to change the meal plan." }); return }
   const householdId = (req as AuthRequest).user.householdId!
   const { id } = req.params
   const db = getDb()

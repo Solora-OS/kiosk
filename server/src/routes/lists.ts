@@ -2,11 +2,33 @@ import { Router, type Request, type Response } from "express"
 import { v4 as uuidv4 } from "uuid"
 import { getDb, toBool } from "../db"
 import { requireAuth, type AuthRequest } from "../middleware/auth"
+import { callerMember, managesLists } from "../lib/household-member"
 import { broadcast } from "../broadcaster"
 import type { Checklist, ChecklistRow, ListItem } from "../types"
 
 const router = Router()
 router.use(requireAuth)
+
+const NOT_MANAGER = "Ask a parent to change the lists."
+
+/** List managers can change any item; everyone else only the ones they added. */
+function mayChangeItem(user: AuthRequest["user"], addedBy: string | null): boolean {
+  if (managesLists(user)) return true
+  const me = callerMember(user)
+  return !!me && !!addedBy && addedBy === me.id
+}
+
+export function rowToItem(i: Record<string, unknown>): ListItem {
+  return {
+    id: i.id as string,
+    listId: i.list_id as string,
+    label: i.label as string,
+    done: toBool(i.done),
+    position: i.position as number,
+    addedBy: (i.added_by as string | null) ?? null,
+    createdAt: i.created_at as string,
+  }
+}
 
 function fetchChecklist(id: string, householdId: string): Checklist | undefined {
   const db = getDb()
@@ -23,14 +45,7 @@ function fetchChecklist(id: string, householdId: string): Checklist | undefined 
     title: list.title as string,
     color: list.color as ChecklistRow["color"],
     createdAt: list.created_at as string,
-    items: items.map((i) => ({
-      id: i.id as string,
-      listId: i.list_id as string,
-      label: i.label as string,
-      done: toBool(i.done),
-      position: i.position as number,
-      createdAt: i.created_at as string,
-    })),
+    items: items.map(rowToItem),
   }
 }
 
@@ -49,14 +64,7 @@ function fetchAllLists(householdId: string): Checklist[] {
       title: l.title as string,
       color: l.color as ChecklistRow["color"],
       createdAt: l.created_at as string,
-      items: items.map((i) => ({
-        id: i.id as string,
-        listId: i.list_id as string,
-        label: i.label as string,
-        done: toBool(i.done),
-        position: i.position as number,
-        createdAt: i.created_at as string,
-      })),
+      items: items.map(rowToItem),
     }
   })
 }
@@ -70,6 +78,7 @@ router.get("/", (req: Request, res: Response) => {
 // POST /lists
 router.post("/", (req: Request, res: Response) => {
   const householdId = (req as AuthRequest).user.householdId!
+  if (!managesLists((req as AuthRequest).user)) { res.status(403).json({ error: NOT_MANAGER }); return }
   const { title, color = "blue" } = req.body as { title?: string; color?: string }
   if (!title?.trim()) { res.status(400).json({ error: "title is required." }); return }
   const db = getDb()
@@ -83,6 +92,7 @@ router.post("/", (req: Request, res: Response) => {
 // PATCH /lists/:id
 router.patch("/:id", (req: Request, res: Response) => {
   const householdId = (req as AuthRequest).user.householdId!
+  if (!managesLists((req as AuthRequest).user)) { res.status(403).json({ error: NOT_MANAGER }); return }
   const { id } = req.params
   const db = getDb()
   if (!db.prepare("SELECT id FROM lists WHERE id = ? AND household_id = ?").get(id, householdId)) {
@@ -103,6 +113,7 @@ router.patch("/:id", (req: Request, res: Response) => {
 // DELETE /lists/:id
 router.delete("/:id", (req: Request, res: Response) => {
   const householdId = (req as AuthRequest).user.householdId!
+  if (!managesLists((req as AuthRequest).user)) { res.status(403).json({ error: NOT_MANAGER }); return }
   const { id } = req.params
   const db = getDb()
   if (!db.prepare("SELECT id FROM lists WHERE id = ? AND household_id = ?").get(id, householdId)) {
@@ -125,7 +136,8 @@ router.post("/:id/items", (req: Request, res: Response) => {
   }
   const maxPos = (db.prepare("SELECT MAX(position) as m FROM list_items WHERE list_id = ?").get(id) as { m: number | null }).m ?? -1
   const itemId = uuidv4()
-  db.prepare("INSERT INTO list_items (id, list_id, label, done, position) VALUES (?, ?, ?, 0, ?)").run(itemId, id, label.trim(), maxPos + 1)
+  const addedBy = callerMember((req as AuthRequest).user)?.id ?? null
+  db.prepare("INSERT INTO list_items (id, list_id, label, done, position, added_by) VALUES (?, ?, ?, 0, ?, ?)").run(itemId, id, label.trim(), maxPos + 1, addedBy)
   const updated = fetchChecklist(id, householdId)!
   broadcast(householdId, "lists:updated", updated)
   res.status(201).json(updated)
@@ -139,11 +151,14 @@ router.patch("/:id/items/:itemId", (req: Request, res: Response) => {
   if (!db.prepare("SELECT id FROM lists WHERE id = ? AND household_id = ?").get(id, householdId)) {
     res.status(404).json({ error: "List not found." }); return
   }
-  if (!db.prepare("SELECT id FROM list_items WHERE id = ? AND list_id = ?").get(itemId, id)) {
-    res.status(404).json({ error: "Item not found." }); return
-  }
+  const item = db.prepare("SELECT added_by FROM list_items WHERE id = ? AND list_id = ?").get(itemId, id) as { added_by: string | null } | undefined
+  if (!item) { res.status(404).json({ error: "Item not found." }); return }
   const sets: string[] = []; const vals: unknown[] = []
   const body = req.body as Record<string, unknown>
+  // Anyone can tick an item; renaming and reordering are for its owner or a list manager.
+  if ((body.label !== undefined || body.position !== undefined) && !mayChangeItem((req as AuthRequest).user, item.added_by)) {
+    res.status(403).json({ error: "Only whoever added it, or a parent, can change this item." }); return
+  }
   if (body.label !== undefined) { sets.push("label = ?"); vals.push(String(body.label).trim()) }
   if (body.done !== undefined) { sets.push("done = ?"); vals.push(body.done ? 1 : 0) }
   if (body.position !== undefined) { sets.push("position = ?"); vals.push(body.position) }
@@ -163,7 +178,26 @@ router.delete("/:id/items/:itemId", (req: Request, res: Response) => {
   if (!db.prepare("SELECT id FROM lists WHERE id = ? AND household_id = ?").get(id, householdId)) {
     res.status(404).json({ error: "List not found." }); return
   }
+  const item = db.prepare("SELECT added_by FROM list_items WHERE id = ? AND list_id = ?").get(itemId, id) as { added_by: string | null } | undefined
+  if (item && !mayChangeItem((req as AuthRequest).user, item.added_by)) {
+    res.status(403).json({ error: "Only whoever added it, or a parent, can remove this item." }); return
+  }
   db.prepare("DELETE FROM list_items WHERE id = ? AND list_id = ?").run(itemId, id)
+  const updated = fetchChecklist(id, householdId)!
+  broadcast(householdId, "lists:updated", updated)
+  res.json(updated)
+})
+
+// POST /lists/:id/clear-done — remove every ticked item, e.g. after the shopping is done.
+router.post("/:id/clear-done", (req: Request, res: Response) => {
+  const householdId = (req as AuthRequest).user.householdId!
+  if (!managesLists((req as AuthRequest).user)) { res.status(403).json({ error: NOT_MANAGER }); return }
+  const { id } = req.params
+  const db = getDb()
+  if (!db.prepare("SELECT id FROM lists WHERE id = ? AND household_id = ?").get(id, householdId)) {
+    res.status(404).json({ error: "List not found." }); return
+  }
+  db.prepare("DELETE FROM list_items WHERE list_id = ? AND done = 1").run(id)
   const updated = fetchChecklist(id, householdId)!
   broadcast(householdId, "lists:updated", updated)
   res.json(updated)

@@ -10,7 +10,9 @@
 
 import { Router, type Request, type Response } from "express"
 import crypto from "crypto"
-import { getDb } from "../db"
+import { homeInstant } from "../lib/home-time"
+import { lanBaseUrl } from "../services/invite-relay"
+import { getDb, parseJson } from "../db"
 import { getOrCreateSecret } from "../db"
 import { requireAuth, type AuthRequest } from "../middleware/auth"
 
@@ -24,12 +26,33 @@ function escapeIcs(s: string): string {
   return s.replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\n/g, "\\n")
 }
 
-function toIcsDate(dateStr: string, timeStr: string | null): string {
-  if (!timeStr) return `DTSTART;VALUE=DATE:${dateStr.replace(/-/g, "")}`
-  const dt = new Date(`${dateStr}T${timeStr}:00`)
-  if (isNaN(dt.getTime())) return `DTSTART;VALUE=DATE:${dateStr.replace(/-/g, "")}`
-  const pad = (n: number) => String(n).padStart(2, "0")
-  return `DTSTART:${dt.getUTCFullYear()}${pad(dt.getUTCMonth() + 1)}${pad(dt.getUTCDate())}T${pad(dt.getUTCHours())}${pad(dt.getUTCMinutes())}00Z`
+const pad = (n: number) => String(n).padStart(2, "0")
+const ICS_DAYS = ["SU", "MO", "TU", "WE", "TH", "FR", "SA"]
+
+/** DTSTART/DTEND value for a home date plus hours since midnight, written in UTC. */
+function icsDateTime(dateStr: string, hour: number): string {
+  // Home time, not the hub machine's clock zone: the two can differ.
+  const dt = new Date(homeInstant(dateStr, hour))
+  return `${dt.getUTCFullYear()}${pad(dt.getUTCMonth() + 1)}${pad(dt.getUTCDate())}T${pad(dt.getUTCHours())}${pad(dt.getUTCMinutes())}00Z`
+}
+
+/**
+ * The feed's address on the home network. Calendar apps on phones and
+ * computers at home can subscribe to it; services on the internet (Google
+ * Calendar's servers) can't reach a home network.
+ */
+function feedLink(householdId: string): { url: string; webcalUrl: string } | null {
+  const lan = lanBaseUrl()
+  if (!lan) return null
+  const url = `${lan.replace(/\/api\/v1$/, "")}/ics/${icsToken(householdId)}`
+  return { url, webcalUrl: url.replace(/^https?:/, "webcal:") }
+}
+
+/** All-day DTEND is exclusive: the day after the event's last day. */
+function icsDayAfter(dateStr: string): string {
+  const dt = new Date(`${dateStr}T00:00:00`)
+  dt.setDate(dt.getDate() + 1)
+  return `${dt.getFullYear()}${pad(dt.getMonth() + 1)}${pad(dt.getDate())}`
 }
 
 // GET /ics/token/:householdId — returns the ICS subscription URL token
@@ -41,7 +64,7 @@ router.get("/token/:householdId", requireAuth, (req: Request, res: Response) => 
   }
   const exists = getDb().prepare("SELECT id FROM households WHERE id=?").get(householdId)
   if (!exists) { res.status(404).json({ error: "Not found." }); return }
-  res.json({ token: icsToken(householdId), householdId })
+  res.json({ token: icsToken(householdId), householdId, ...feedLink(householdId) })
 })
 
 // GET /ics/:token — unauthenticated ICS feed
@@ -67,9 +90,9 @@ router.get("/:token", async (req: Request, res: Response) => {
   }
   if (!household) { res.status(404).send("Not found."); return }
 
-  type EventRow = { id: string; title: string; date: string; time: string | null; start_hour: number; end_hour: number; location: string | null }
+  type EventRow = { id: string; title: string; date: string; end_date: string | null; all_day: number; repeat_days: string | null; repeat_until: string | null; skip_dates: string; start_hour: number; end_hour: number; location: string | null }
   const events = getDb()
-    .prepare("SELECT id, title, date, time, start_hour, end_hour, location FROM events WHERE household_id=? ORDER BY date, start_hour")
+    .prepare("SELECT id, title, date, end_date, all_day, repeat_days, repeat_until, skip_dates, start_hour, end_hour, location FROM events WHERE household_id=? ORDER BY date, start_hour")
     .all(household.id) as EventRow[]
 
   const now = new Date()
@@ -78,27 +101,20 @@ router.get("/:token", async (req: Request, res: Response) => {
   const lines: string[] = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
-    "PRODID:-//Lumora//Lumora Hub//EN",
+    "PRODID:-//Solora//Solora Hub//EN",
     `X-WR-CALNAME:${escapeIcs(household.name)}`,
     "CALSCALE:GREGORIAN",
     "METHOD:PUBLISH",
   ]
 
   for (const e of events) {
-    const dtStart = toIcsDate(e.date, e.time)
-    // Compute end from end_hour; if same as start or 0, make it 1 hour later.
-    const endHour = e.end_hour > e.start_hour ? e.end_hour : e.start_hour + 1
-    const endMin = Math.round((endHour % 1) * 60)
-    const endHourInt = Math.floor(endHour)
-    let dtEnd: string
-    if (!e.time) {
-      dtEnd = `DTEND;VALUE=DATE:${e.date.replace(/-/g, "")}`
-    } else {
-      const dt = new Date(`${e.date}T${e.time}:00`)
-      dt.setUTCHours(endHourInt, endMin, 0, 0)
-      const pad = (n: number) => String(n).padStart(2, "0")
-      dtEnd = `DTEND:${dt.getUTCFullYear()}${pad(dt.getUTCMonth() + 1)}${pad(dt.getUTCDate())}T${pad(dt.getUTCHours())}${pad(dt.getUTCMinutes())}00Z`
-    }
+    const lastDay = e.end_date ?? e.date
+    const dtStart = e.all_day
+      ? `DTSTART;VALUE=DATE:${e.date.replace(/-/g, "")}`
+      : `DTSTART:${icsDateTime(e.date, e.start_hour)}`
+    const dtEnd = e.all_day
+      ? `DTEND;VALUE=DATE:${icsDayAfter(lastDay)}`
+      : `DTEND:${icsDateTime(lastDay, e.end_hour)}`
 
     lines.push(
       "BEGIN:VEVENT",
@@ -108,6 +124,15 @@ router.get("/:token", async (req: Request, res: Response) => {
       dtEnd,
       `SUMMARY:${escapeIcs(e.title)}`,
     )
+    if (e.repeat_days) {
+      const byDay = e.repeat_days.split(",").map((d) => ICS_DAYS[Number(d)]).join(",")
+      // UNTIL is inclusive: the end of the last allowed start day.
+      const until = e.repeat_until ? `;UNTIL=${e.all_day ? e.repeat_until.replace(/-/g, "") : icsDateTime(e.repeat_until, 24)}` : ""
+      lines.push(`RRULE:FREQ=WEEKLY;BYDAY=${byDay}${until}`)
+      for (const skip of parseJson<string[]>(e.skip_dates, [])) {
+        lines.push(e.all_day ? `EXDATE;VALUE=DATE:${skip.replace(/-/g, "")}` : `EXDATE:${icsDateTime(skip, e.start_hour)}`)
+      }
+    }
     if (e.location) lines.push(`LOCATION:${escapeIcs(e.location)}`)
     lines.push("END:VEVENT")
   }
@@ -119,4 +144,12 @@ router.get("/:token", async (req: Request, res: Response) => {
   res.send(lines.join("\r\n"))
 })
 
-export { router as icsRouter, icsToken }
+// GET /api/v1/ics-link — this household's feed link, for the phone's Settings.
+const linkRouter = Router()
+linkRouter.get("/", requireAuth, (req: Request, res: Response) => {
+  const link = feedLink((req as AuthRequest).user.householdId!)
+  if (!link) { res.status(503).json({ error: "The hub isn't on a network right now." }); return }
+  res.json({ ...link, homeNetworkOnly: true })
+})
+
+export { router as icsRouter, linkRouter as icsLinkRouter, icsToken }

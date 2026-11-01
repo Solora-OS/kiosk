@@ -89,6 +89,73 @@ router.post("/", upload.single("file"), (req: Request, res: Response) => {
 })
 
 // DELETE /photos/:id
+// ---------------------------------------------------------------------------
+// Photos for the phones, at home or away. /photo-files only takes device
+// tokens and a URL the phone can't build, so the apps use these instead.
+// Away from home everything goes through the encrypted relay, which carries
+// JSON, so photos travel as base64 in pieces small enough for it.
+// ---------------------------------------------------------------------------
+
+const CHUNK_BYTES = 512 * 1024
+const MIME: Record<string, string> = { ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".webp": "image/webp", ".gif": "image/gif", ".heic": "image/heic" }
+
+function photoFile(householdId: string, id: string): { file: string; mime: string } | null {
+  const row = getDb().prepare("SELECT filename FROM photos WHERE id = ? AND household_id = ?").get(id, householdId) as
+    | { filename: string }
+    | undefined
+  if (!row) return null
+  const file = path.join(PHOTOS_DIR, path.basename(row.filename))
+  if (!fs.existsSync(file)) return null
+  return { file, mime: MIME[path.extname(file).toLowerCase()] ?? "application/octet-stream" }
+}
+
+// GET /photos/:id/file — the image, for any household sign-in (phone, kid's phone, wall).
+router.get("/:id/file", (req: Request, res: Response) => {
+  const found = photoFile((req as AuthRequest).user.householdId!, req.params.id)
+  if (!found) { res.status(404).json({ error: "Photo not found." }); return }
+  res.type(found.mime).sendFile(found.file, { maxAge: "1d" })
+})
+
+// GET /photos/:id/chunk?part=0 — the image as base64, 512 KB at a time, for the relay.
+router.get("/:id/chunk", (req: Request, res: Response) => {
+  const found = photoFile((req as AuthRequest).user.householdId!, req.params.id)
+  if (!found) { res.status(404).json({ error: "Photo not found." }); return }
+  const size = fs.statSync(found.file).size
+  const parts = Math.max(1, Math.ceil(size / CHUNK_BYTES))
+  const part = Number(req.query.part ?? 0)
+  if (!Number.isInteger(part) || part < 0 || part >= parts) { res.status(404).json({ error: "No such part." }); return }
+  const fd = fs.openSync(found.file, "r")
+  try {
+    const length = Math.min(CHUNK_BYTES, size - part * CHUNK_BYTES)
+    const buf = Buffer.alloc(length)
+    fs.readSync(fd, buf, 0, length, part * CHUNK_BYTES)
+    res.json({ mime: found.mime, part, parts, data: buf.toString("base64") })
+  } finally {
+    fs.closeSync(fd)
+  }
+})
+
+// POST /photos/base64 { data, mime, caption } — an upload that fits the relay
+// (the apps shrink photos first, so this stays well under the body limit).
+router.post("/base64", (req: Request, res: Response) => {
+  const householdId = (req as AuthRequest).user.householdId!
+  const { data, mime, caption = "" } = req.body as { data?: string; mime?: string; caption?: string }
+  const ext = Object.entries(MIME).find(([, m]) => m === mime)?.[0]
+  if (!data || !ext) { res.status(400).json({ error: "Send a JPEG, PNG, WebP, GIF or HEIC image." }); return }
+  const bytes = Buffer.from(data, "base64")
+  if (bytes.length === 0 || bytes.length > 3 * 1024 * 1024) { res.status(413).json({ error: "That photo is too large." }); return }
+  const id = uuidv4()
+  const filename = `${uuidv4()}${ext === ".jpeg" ? ".jpg" : ext}`
+  fs.mkdirSync(PHOTOS_DIR, { recursive: true })
+  fs.writeFileSync(path.join(PHOTOS_DIR, filename), bytes)
+  getDb()
+    .prepare("INSERT INTO photos (id, household_id, filename, src, caption) VALUES (?, ?, ?, ?, ?)")
+    .run(id, householdId, filename, `/photo-files/${filename}`, String(caption).trim().slice(0, 200))
+  const photo = rowToPhoto(getDb().prepare("SELECT * FROM photos WHERE id = ?").get(id) as Record<string, unknown>)
+  broadcast(householdId, "photos:created", photo)
+  res.status(201).json(photo)
+})
+
 router.delete("/:id", (req: Request, res: Response) => {
   const householdId = (req as AuthRequest).user.householdId!
   const { id } = req.params

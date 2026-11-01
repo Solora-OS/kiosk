@@ -64,7 +64,7 @@ export function PhotosView() {
   if (photos.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center gap-4 px-4 py-20 text-center">
-        <span className="flex size-16 items-center justify-center rounded-3xl bg-secondary text-muted-foreground">
+        <span className="flex size-16 items-center justify-center rounded-lg bg-secondary text-muted-foreground">
           <ImageIcon className="size-7" />
         </span>
         <div className="space-y-1">
@@ -79,7 +79,7 @@ export function PhotosView() {
               type="button"
               disabled={uploading}
               onClick={() => fileRef.current?.click()}
-              className="flex items-center justify-center gap-2 rounded-2xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
+              className="flex items-center justify-center gap-2 rounded-md bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
             >
               {uploading ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />}
               {uploading ? "Uploading…" : "Upload photos"}
@@ -103,7 +103,7 @@ export function PhotosView() {
   return (
     <div className="space-y-4 px-4 py-4">
       {/* Featured / slideshow card */}
-      <div className="group relative overflow-hidden rounded-3xl shadow-md">
+      <div className="group relative overflow-hidden rounded-lg">
         <AuthImg
           src={featured.src}
           alt={featured.caption}
@@ -115,7 +115,7 @@ export function PhotosView() {
           <p className="text-sm font-semibold text-white">{featured.caption}</p>
           <p className="text-xs text-white/80">Now showing on your hub</p>
         </div>
-        <span className="absolute right-3 top-3 rounded-full bg-black/30 px-2 py-1 text-[11px] font-medium text-white">
+        <span className="absolute right-3 top-3 rounded-full bg-black/30 px-2 py-1 text-[0.75rem] font-medium text-white">
           Slideshow
         </span>
         {canManage ? (
@@ -123,9 +123,9 @@ export function PhotosView() {
             type="button"
             aria-label="Delete photo"
             onClick={() => setDeleteTarget(featured.id)}
-            className="absolute left-3 top-3 flex size-7 items-center justify-center rounded-full bg-black/40 text-white opacity-0 transition-opacity group-hover:opacity-100 hover:bg-destructive"
+            className="absolute left-3 top-3 hit flex size-10 items-center justify-center rounded-full bg-black/45 text-white transition-opacity pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100 hover:bg-destructive"
           >
-            <Trash2 className="size-3.5" />
+            <Trash2 className="size-4" />
           </button>
         ) : null}
       </div>
@@ -134,7 +134,7 @@ export function PhotosView() {
       {rest.length > 0 ? (
         <div className="grid grid-cols-2 gap-3">
           {rest.map((photo) => (
-            <div key={photo.id} className="group relative overflow-hidden rounded-2xl shadow-sm">
+            <div key={photo.id} className="group relative overflow-hidden rounded-md">
               <AuthImg
                 src={photo.src}
                 alt={photo.caption}
@@ -145,18 +145,18 @@ export function PhotosView() {
               <button
                 type="button"
                 aria-label="Favorite photo"
-                className="absolute right-2 top-2 flex size-7 items-center justify-center rounded-full bg-black/30 text-white transition-colors hover:text-primary"
+                className="absolute right-2 top-2 hit flex size-10 items-center justify-center rounded-full bg-black/35 text-white transition-colors hover:text-primary"
               >
-                <Heart className="size-3.5" />
+                <Heart className="size-4" />
               </button>
               {canManage ? (
                 <button
                   type="button"
                   aria-label="Delete photo"
                   onClick={() => setDeleteTarget(photo.id)}
-                  className="absolute left-2 top-2 flex size-7 items-center justify-center rounded-full bg-black/40 text-white opacity-0 transition-opacity group-hover:opacity-100 hover:bg-destructive"
+                  className="absolute left-2 top-2 hit flex size-10 items-center justify-center rounded-full bg-black/45 text-white transition-opacity pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100 hover:bg-destructive"
                 >
-                  <Trash2 className="size-3.5" />
+                  <Trash2 className="size-4" />
                 </button>
               ) : null}
               <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/50 to-transparent p-2">
@@ -175,7 +175,7 @@ export function PhotosView() {
             disabled={uploading}
             onClick={() => fileRef.current?.click()}
             className={cn(
-              "flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-border py-3 text-sm font-semibold text-muted-foreground transition-colors hover:border-primary hover:text-primary",
+              "flex w-full items-center justify-center gap-2 rounded-md border border-dashed border-border py-3 text-sm font-semibold text-muted-foreground transition-colors hover:border-primary hover:text-primary",
               uploading && "cursor-not-allowed opacity-50",
             )}
           >

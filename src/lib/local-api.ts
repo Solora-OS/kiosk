@@ -7,13 +7,14 @@
 // to http://localhost:4000.
 //
 // Auth flow:
-//   1. signUp / signIn authenticate directly against Supabase (supabase.ts),
+//   1. signUp / signIn authenticate against Lumora central (account.ts),
 //      then POST the resulting access_token to /auth/session, which
 //      provisions (first sign-in) or resolves the local user + household.
-//   2. The Supabase access_token itself is stored in localStorage under
-//      "lumora.token" and used as the Bearer token for every request —
-//      the hub server's requireAuth middleware verifies Supabase tokens
-//      directly (see server/src/middleware/auth.ts).
+//   2. The access_token is stored in localStorage under "lumora.token" and
+//      used as the Bearer token for every request — the hub server's
+//      requireAuth middleware verifies central tokens directly (see
+//      server/src/middleware/auth.ts). On a 401 the refresh token
+//      ("lumora.refresh") is swapped at central for a new one.
 //   3. Socket.IO handshake carries the same token in auth.token.
 //
 // Live updates:
@@ -23,8 +24,11 @@
 //   store.tsx subscribes to these events and reconciles local state.
 // ---------------------------------------------------------------------------
 
+import { registerSeasonSaver, setHouseholdSeasons, type HouseholdSeasons } from "./household-seasons"
+import { registerSummerSaver, setSummer } from "./summer"
 import { io, type Socket } from "socket.io-client"
-import { supabase } from "./supabase"
+import * as account from "./account"
+import type { AccountSession } from "./account"
 import type {
   LumoraApi,
   ApiMember,
@@ -42,12 +46,18 @@ import type {
   Calendar,
   CalendarEvent,
   Chore,
+  Summer,
   Checklist,
   Meal,
   Notification,
   Photo,
   MemberColor,
   MemberRole,
+  Reward,
+  Redemption,
+  RewardsSummary,
+  Away,
+  HomeLayout,
 } from "./data"
 
 // ---------------------------------------------------------------------------
@@ -78,7 +88,7 @@ const TOKEN_KEY        = "lumora.token"
 const DEVICE_TOKEN_KEY = "lumora.kiosk.deviceToken"
 
 /** Read the kiosk device JWT directly — avoids a circular import with kiosk-session.ts. */
-function getDeviceToken(): string | null {
+export function getDeviceToken(): string | null {
   try { return localStorage.getItem(DEVICE_TOKEN_KEY) } catch { return null }
 }
 const REFRESH_KEY = "lumora.refresh"
@@ -133,7 +143,31 @@ export function getCachedSession(): Session | null {
 // HTTP helper
 // ---------------------------------------------------------------------------
 
-async function req<T>(path: string, method: string, body?: unknown): Promise<T> {
+let _refreshing: Promise<boolean> | null = null
+
+/** Swap the stored account refresh token for a new access token. Concurrent 401s share one call. */
+function refreshAccountToken(): Promise<boolean> {
+  if (!_refreshing) {
+    _refreshing = (async () => {
+      const refreshToken = tokenStore.getRefresh()
+      if (!refreshToken) return false
+      try {
+        storeAccountSession(await account.refresh(refreshToken))
+        return true
+      } catch {
+        return false
+      }
+    })().finally(() => { _refreshing = null })
+  }
+  return _refreshing
+}
+
+function storeAccountSession(session: AccountSession) {
+  tokenStore.set(session.access_token)
+  tokenStore.setRefresh(session.refresh_token)
+}
+
+async function req<T>(path: string, method: string, body?: unknown, retry = true): Promise<T> {
   // Prefer the user token (lumora.token); fall back to the kiosk device token
   // (lumora.kiosk.deviceToken) so API calls work before the bridge in
   // kiosk-provider.tsx has had a chance to copy it into tokenStore.
@@ -146,6 +180,10 @@ async function req<T>(path: string, method: string, body?: unknown): Promise<T> 
     },
     body: body != null ? JSON.stringify(body) : undefined,
   })
+  // Account access tokens are short-lived; device tokens have no refresh token.
+  if (res.status === 401 && retry && tokenStore.getRefresh() && (await refreshAccountToken())) {
+    return req<T>(path, method, body, false)
+  }
   if (!res.ok) {
     let message = `Request failed (${res.status})`
     try {
@@ -156,6 +194,21 @@ async function req<T>(path: string, method: string, body?: unknown): Promise<T> 
   }
   if (res.status === 204) return undefined as T
   return res.json() as Promise<T>
+}
+
+// Saving the house's seasons (holidays and shared themes) goes to this hub.
+registerSeasonSaver((data) => req<HouseholdSeasons>("/seasons", "PUT", data))
+
+registerSummerSaver(async (range) => {
+  if (range) return req<Summer | null>("/summer", "PUT", range)
+  await req("/summer", "DELETE")
+  return null
+})
+
+/** Read the house's seasons and summer break, for the wall signed in as a member rather than as a display. */
+export async function loadHouseholdSeasons(): Promise<void> {
+  try { setHouseholdSeasons(await req<HouseholdSeasons>("/seasons", "GET")) } catch { /* keep the cached ones */ }
+  try { setSummer(await req<Summer | null>("/summer", "GET")) } catch { /* keep the cached one */ }
 }
 
 // ---------------------------------------------------------------------------
@@ -196,6 +249,13 @@ function toEvent(r: Row): CalendarEvent {
     time: (r.time ?? "") as string,
     start: Number(r.start_hour ?? r.start) || 0,
     end: Number(r.end_hour ?? r.end) || 0,
+    endDate: (r.end_date ?? r.endDate ?? null) as string | null,
+    allDay: Boolean(r.all_day ?? r.allDay),
+    repeatDays: (r.repeat_days ?? r.repeatDays ?? undefined) as number[] | undefined,
+    repeatUntil: (r.repeat_until ?? r.repeatUntil ?? null) as string | null,
+    skipDates: (r.skip_dates ?? r.skipDates ?? []) as string[],
+    countdown: Boolean(r.countdown),
+    reminderMinutes: r.reminderMinutes == null && r.remind_minutes == null ? null : Number(r.reminderMinutes ?? r.remind_minutes),
     memberIds: (r.member_ids ?? r.memberIds ?? []) as string[],
     calendarId: (r.calendar_id ?? r.calendarId ?? "") as string,
     location: (r.location ?? undefined) as string | undefined,
@@ -210,12 +270,20 @@ function toChore(r: Row): Chore {
     done: (r.done as boolean | undefined) ?? false,
     points: Number(r.points) || 0,
     due: (r.due ?? "") as string,
+    repeatDays: (r.repeatDays ?? r.repeat_days ?? undefined) as number[] | undefined,
+    doneOn: (r.doneOn ?? r.done_on ?? undefined) as string | undefined,
+    icon: (r.icon ?? undefined) as string | undefined,
+    keepWhileAway: Boolean(r.keepWhileAway ?? r.keep_while_away),
+    summerMode: (r.summerMode ?? r.summer_mode ?? "same") as Chore["summerMode"],
+    summerDays: (r.summerDays ?? undefined) as number[] | undefined,
   }
 }
 
 function toMeal(r: Row): Meal {
   return {
     id: r.id as string,
+    date: (r.date ?? null) as string | null,
+    ingredients: (r.ingredients ?? []) as string[],
     day: r.day as string,
     name: r.name as string,
     type: r.type as string,
@@ -264,6 +332,7 @@ function toChecklist(r: Row): Checklist {
     id: i.id as string,
     label: i.label as string,
     done: (i.done as boolean | undefined) ?? false,
+    addedBy: (i.addedBy ?? i.added_by ?? null) as string | null,
   }))
   return {
     id: r.id as string,
@@ -285,12 +354,8 @@ export type LiveEvent = {
   householdId: string
 }
 
-export type HubCommandEvent =
-  | { type: "restart" }
-  | { type: "reload" }
-  | { type: "clear_cache" }
-  | { type: "set_orientation"; orientation: "normal" | "left" | "right" | "inverted" | "portrait" }
-  | { type: "set_idle_mins"; minutes: number | null }
+/** A remote command as it arrives on the hub socket (same shape as what's sent). */
+export type HubCommandEvent = HubCommandPayload
 
 type LiveListener = (event: LiveEvent) => void
 type HubCommandListener = (cmd: HubCommandEvent) => void
@@ -378,6 +443,14 @@ export type HubCommandPayload =
   | { type: "clear_cache" }
   | { type: "set_orientation"; orientation: "normal" | "left" | "right" | "inverted" | "portrait" }
   | { type: "set_idle_mins"; minutes: number | null }
+  | { type: "set_brightness"; level: number }
+  | { type: "set_volume"; level: number }
+  | { type: "set_muted"; muted: boolean }
+  | { type: "set_theme"; theme: "light" | "dark" | "system" }
+  | { type: "set_season"; mode: string }
+  | { type: "set_season_effects"; on: boolean }
+  | { type: "display_sleep" }
+  | { type: "display_wake" }
 
 /**
  * Ask the server to broadcast a hub command to all kiosk devices in the household.
@@ -385,6 +458,35 @@ export type HubCommandPayload =
  */
 export async function sendHubCommand(cmd: HubCommandPayload): Promise<void> {
   await req<{ ok: boolean }>("/hub/command", "POST", cmd)
+}
+
+/** What this display tells the hub about itself, for phones to show and change. */
+export type DisplayStateReport = {
+  brightness: number | null
+  volume: number | null
+  muted: boolean
+  theme: "light" | "dark" | "system"
+  seasonMode: string
+  seasonEffects: boolean
+  seasons: { id: string; label: string }[]
+  orientation: string | null
+  slideshowIdleMins: number | null
+  asleep: boolean
+}
+
+/**
+ * Report this display's settings to the hub (POST /kiosk/display-state).
+ * Always uses the device token: the hub only accepts this from a paired wall.
+ */
+export async function reportDisplayState(state: DisplayStateReport): Promise<void> {
+  const token = getDeviceToken()
+  if (!token) return
+  const res = await fetch(`${API}/kiosk/display-state`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ state }),
+  })
+  if (!res.ok) throw new Error(`Display state report failed (${res.status})`)
 }
 
 // ---------------------------------------------------------------------------
@@ -396,42 +498,32 @@ export function createLocalApi(): LumoraApi {
     // ----- auth -----
     async signUp(input: SignUpInput) {
       const email = input.email.trim().toLowerCase()
-      const { data, error } = await supabase.auth.signUp({ email, password: input.password })
-      if (error) throw new Error(error.message)
-      const accessToken = data.session?.access_token
-      if (!accessToken) {
-        throw new Error("Check your email to confirm your account, then sign in.")
-      }
+      const session = await account.signUp({ email, password: input.password, name: input.name.trim() })
 
       const res = await req<{ user: User; household: Household }>(
         "/auth/session", "POST", {
-          access_token: accessToken,
+          access_token: session.access_token,
           household_name: input.householdName?.trim() || `${input.name.trim()}'s Family`,
           setupCode: input.setupCode,
         }
       )
-      tokenStore.set(accessToken)
-      if (data.session?.refresh_token) tokenStore.setRefresh(data.session.refresh_token)
+      storeAccountSession(session)
       setCachedSession(res.user, res.household)
       liveSocket.connect(res.household.id)
-      return { token: accessToken, user: res.user, household: res.household }
+      return { token: session.access_token, user: res.user, household: res.household }
     },
 
     async signIn(input: SignInInput) {
       const email = input.email.trim().toLowerCase()
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password: input.password })
-      if (error) throw new Error(error.message)
-      const accessToken = data.session?.access_token
-      if (!accessToken) throw new Error("Sign-in did not return a session.")
+      const session = await account.signIn({ email, password: input.password })
 
       const res = await req<{ user: User; household: Household }>(
-        "/auth/session", "POST", { access_token: accessToken }
+        "/auth/session", "POST", { access_token: session.access_token }
       )
-      tokenStore.set(accessToken)
-      if (data.session?.refresh_token) tokenStore.setRefresh(data.session.refresh_token)
+      storeAccountSession(session)
       setCachedSession(res.user, res.household)
       liveSocket.connect(res.household.id)
-      return { token: accessToken, user: res.user, household: res.household }
+      return { token: session.access_token, user: res.user, household: res.household }
     },
 
     async kioskAutoSignIn() {
@@ -452,7 +544,10 @@ export function createLocalApi(): LumoraApi {
     },
 
     async signOut() {
-      try { await supabase.auth.signOut() } catch { /* ignore */ }
+      const refreshToken = tokenStore.getRefresh()
+      if (refreshToken) {
+        try { await account.signOut(refreshToken) } catch { /* ignore */ }
+      }
       tokenStore.clear()
       setCachedSession(null, null)
       liveSocket.disconnect()
@@ -528,21 +623,25 @@ export function createLocalApi(): LumoraApi {
       await req(`/invites/${id}`, "DELETE")
     },
     async claimInvite(input: ClaimInviteInput) {
-      const res = await req<{ token: string; refreshToken: string; user: User; household: Household }>(
+      // The invitee may or may not have a Lumora account yet.
+      const session = await account.signInOrSignUp({
+        email: input.email.trim().toLowerCase(),
+        password: input.password,
+        name: input.name.trim(),
+      })
+      const res = await req<{ user: User; household: Household }>(
         "/invites/claim", "POST", {
           token: input.token,
+          access_token: session.access_token,
           name: input.name.trim(),
-          email: input.email.trim().toLowerCase(),
-          password: input.password,
-          dob: input.dob ?? null,
-          color: input.color ?? null,
+          dob: input.dob ?? undefined,
+          color: input.color ?? undefined,
         }
       )
-      tokenStore.set(res.token)
-      tokenStore.setRefresh(res.refreshToken)
+      storeAccountSession(session)
       setCachedSession(res.user, res.household)
       liveSocket.connect(res.household.id)
-      return { token: res.token, user: res.user, household: res.household }
+      return { token: session.access_token, user: res.user, household: res.household }
     },
 
     // ----- calendars -----
@@ -582,6 +681,13 @@ export function createLocalApi(): LumoraApi {
         time: input.time ?? null,
         start_hour: input.start ?? 0,
         end_hour: input.end ?? 0,
+        end_date: input.endDate ?? null,
+        all_day: input.allDay ?? false,
+        repeat_days: input.repeatDays ?? [],
+        repeat_until: input.repeatUntil ?? null,
+        skip_dates: input.skipDates ?? [],
+        countdown: input.countdown ?? false,
+        reminderMinutes: input.reminderMinutes ?? null,
         member_ids: input.memberIds ?? [],
         calendar_id: input.calendarId || null,
         location: input.location ?? null,
@@ -595,6 +701,13 @@ export function createLocalApi(): LumoraApi {
       if (patch.time !== undefined) body.time = patch.time ?? null
       if (patch.start !== undefined) body.start_hour = patch.start
       if (patch.end !== undefined) body.end_hour = patch.end
+      if ("endDate" in patch) body.end_date = patch.endDate ?? null
+      if (patch.allDay !== undefined) body.all_day = patch.allDay
+      if (patch.repeatDays !== undefined) body.repeat_days = patch.repeatDays
+      if ("repeatUntil" in patch) body.repeat_until = patch.repeatUntil ?? null
+      if (patch.skipDates !== undefined) body.skip_dates = patch.skipDates
+      if (patch.countdown !== undefined) body.countdown = patch.countdown
+      if (patch.reminderMinutes !== undefined) body.reminderMinutes = patch.reminderMinutes
       if (patch.memberIds !== undefined) body.member_ids = patch.memberIds
       if (patch.calendarId !== undefined) body.calendar_id = patch.calendarId || null
       if (patch.location !== undefined) body.location = patch.location ?? null
@@ -611,27 +724,73 @@ export function createLocalApi(): LumoraApi {
       return rows.map(toChore)
     },
     async createChore(input: Omit<Chore, "id">) {
+      // The hub's chores route reads camelCase (kiosk/server/src/routes/chores.ts).
       const row = await req<Row>("/chores", "POST", {
         title: input.title,
-        member_id: input.memberId || null,
+        memberId: input.memberId || null,
         done: input.done ?? false,
         points: input.points ?? 0,
-        due: input.due ?? null,
+        due: input.due ?? "",
+        repeatDays: input.repeatDays ?? [],
+        icon: input.icon ?? null,
+        keepWhileAway: input.keepWhileAway ?? false,
+        summerMode: input.summerMode ?? "same",
+        summerDays: input.summerDays ?? [],
       })
       return toChore(row)
     },
     async updateChore(id: string, patch: Partial<Omit<Chore, "id">>) {
       const body: Row = {}
       if (patch.title !== undefined) body.title = patch.title
-      if (patch.memberId !== undefined) body.member_id = patch.memberId || null
+      if (patch.memberId !== undefined) body.memberId = patch.memberId || null
       if (patch.done !== undefined) body.done = patch.done
       if (patch.points !== undefined) body.points = patch.points
-      if (patch.due !== undefined) body.due = patch.due ?? null
+      if (patch.due !== undefined) body.due = patch.due ?? ""
+      if (patch.repeatDays !== undefined) body.repeatDays = patch.repeatDays
+      if ("icon" in patch) body.icon = patch.icon ?? null
+      if (patch.keepWhileAway !== undefined) body.keepWhileAway = patch.keepWhileAway
+      if (patch.summerMode !== undefined) body.summerMode = patch.summerMode
+      if (patch.summerDays !== undefined) body.summerDays = patch.summerDays
       const row = await req<Row>(`/chores/${id}`, "PATCH", body)
       return toChore(row)
     },
     async deleteChore(id: string) {
       await req(`/chores/${id}`, "DELETE")
+    },
+
+    // ----- rewards (the hub's rewards route reads camelCase) -----
+    async getRewards() {
+      return req<RewardsSummary>("/rewards", "GET")
+    },
+    async createReward(input) {
+      return req<Reward>("/rewards", "POST", input)
+    },
+    async updateReward(id, patch) {
+      return req<Reward>(`/rewards/${id}`, "PATCH", patch)
+    },
+    async deleteReward(id) {
+      await req(`/rewards/${id}`, "DELETE")
+    },
+    async redeemReward(id, memberId) {
+      return req<Redemption>(`/rewards/${id}/redeem`, "POST", memberId ? { memberId } : {})
+    },
+    async decideRedemption(id, decision) {
+      return req<Redemption>(`/rewards/redemptions/${id}/${decision}`, "POST")
+    },
+    async getAway() {
+      return req<Away | null>("/away", "GET")
+    },
+    async setAway(input) {
+      return req<Away | null>("/away", "PUT", input)
+    },
+    async endAway() {
+      await req("/away", "DELETE")
+    },
+    async getHomeLayout() {
+      return req<HomeLayout | null>("/home", "GET")
+    },
+    async setHomeLayout(layout) {
+      return req<HomeLayout>("/home", "PUT", layout)
     },
 
     // ----- lists -----
@@ -662,6 +821,10 @@ export function createLocalApi(): LumoraApi {
       const row = await req<Row>(`/lists/${listId}/items/${itemId}`, "DELETE")
       return toChecklist(row)
     },
+    async clearDoneItems(listId: string) {
+      const row = await req<Row>(`/lists/${listId}/clear-done`, "POST")
+      return toChecklist(row)
+    },
 
     // ----- meals -----
     async listMeals() {
@@ -674,7 +837,10 @@ export function createLocalApi(): LumoraApi {
         type: input.type,
         name: input.name,
         image: input.image ?? null,
-        member_id: input.memberId || null,
+        // The hub's meals route reads camelCase (kiosk/server/src/routes/meals.ts).
+        memberId: input.memberId || null,
+        date: input.date ?? null,
+        ingredients: input.ingredients ?? [],
       })
       return toMeal(row)
     },
@@ -684,7 +850,9 @@ export function createLocalApi(): LumoraApi {
       if (patch.type !== undefined) body.type = patch.type
       if (patch.name !== undefined) body.name = patch.name
       if (patch.image !== undefined) body.image = patch.image ?? null
-      if (patch.memberId !== undefined) body.member_id = patch.memberId || null
+      if (patch.memberId !== undefined) body.memberId = patch.memberId || null
+      if ("date" in patch) body.date = patch.date ?? null
+      if (patch.ingredients !== undefined) body.ingredients = patch.ingredients
       const row = await req<Row>(`/meals/${id}`, "PATCH", body)
       return toMeal(row)
     },

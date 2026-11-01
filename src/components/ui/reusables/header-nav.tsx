@@ -1,17 +1,13 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { Bell, BellOff, Check, Moon, Search, Sun, X } from "lucide-react"
-import { memberSoft } from "@/lib/data"
+import { Bell, BellOff, Check, Search, X } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { useTheme } from "@/components/theme-provider"
 import { useStore } from "@/lib/store"
 import { MemberAvatar } from "./member-avatar"
-import { SwipeRow } from "./swipe-row"
+import { ActionRow } from "./action-row"
 
 export function HeaderNav({ title, subtitle }: { title: string; subtitle?: string }) {
-  const { resolvedTheme, setTheme } = useTheme()
-  const isDark = resolvedTheme === "dark"
   const {
     search,
     navigateToResult,
@@ -41,33 +37,26 @@ export function HeaderNav({ title, subtitle }: { title: string; subtitle?: strin
   }
 
   return (
-    <header className="sticky top-0 z-30 border-b border-border/60 bg-card">
-      <div className="w-full px-4 pt-3 pb-2">
-        {/* Inline title + actions */}
-        <div className="flex items-center justify-between gap-3">
+    <header className="relative z-30">
+      <div className="w-full px-8 pb-4 pt-7">
+        {/* Eyebrow subtitle over a display-serif title; quiet actions on the right */}
+        <div className="flex items-end justify-between gap-6">
           <div className="min-w-0">
-            <h1 className="truncate text-2xl font-bold tracking-tight text-balance">{title}</h1>
-            {subtitle ? <p className="truncate text-sm text-muted-foreground">{subtitle}</p> : null}
+            {subtitle ? <p className="os-label mb-3 truncate">{subtitle}</p> : null}
+            <h1 className="truncate font-display text-[2.75rem] leading-none">{title}</h1>
           </div>
-          <div className="flex shrink-0 items-center gap-1">
+          <div className="flex shrink-0 items-center gap-2">
             <button
               type="button"
               onClick={() => setSearchOpen((v) => !v)}
               aria-label="Search"
               className={cn(
-                "flex size-9 items-center justify-center rounded-full transition-colors",
-                searchOpen ? "bg-secondary text-foreground" : "text-muted-foreground hover:bg-secondary hover:text-foreground",
+                "flex h-11 items-center gap-3 rounded-md border px-4 text-sm transition-colors",
+                searchOpen ? "border-foreground text-foreground" : "border-border text-muted-foreground hover:text-foreground",
               )}
             >
-              <Search className="size-5" />
-            </button>
-            <button
-              type="button"
-              onClick={() => setTheme(isDark ? "light" : "dark")}
-              aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
-              className="flex size-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-            >
-              {isDark ? <Sun className="size-5" /> : <Moon className="size-5" />}
+              <Search className="size-4" />
+              <span className="hidden w-28 text-left md:inline">Search</span>
             </button>
             <div className="relative">
               <button
@@ -75,41 +64,41 @@ export function HeaderNav({ title, subtitle }: { title: string; subtitle?: strin
                 onClick={() => setNotifOpen((v) => !v)}
                 aria-label="Notifications"
                 className={cn(
-                  "relative flex size-9 items-center justify-center rounded-full transition-colors",
-                  notifOpen ? "bg-secondary text-foreground" : "text-muted-foreground hover:bg-secondary hover:text-foreground",
+                  "relative flex size-11 items-center justify-center rounded-md border transition-colors",
+                  notifOpen ? "border-foreground text-foreground" : "border-border text-muted-foreground hover:text-foreground",
                 )}
               >
-                <Bell className="size-5" />
+                <Bell className="size-[1.15rem]" strokeWidth={1.6} />
                 {unread > 0 ? (
-                  <span className="absolute right-2 top-2 size-2 rounded-full bg-member-coral ring-2 ring-card" />
+                  <span className="absolute right-2.5 top-2.5 size-1.5 rounded-full bg-season" />
                 ) : null}
               </button>
 
               {notifOpen ? (
                 <>
                   <div className="fixed inset-0 z-30" onClick={() => setNotifOpen(false)} aria-hidden />
-                  <div className="absolute right-0 top-11 z-40 w-80 max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-border/60 bg-card shadow-xl">
-                    <div className="flex items-center justify-between border-b border-border/60 px-4 py-3">
-                      <p className="text-sm font-bold">Notifications</p>
+                  <div className="absolute right-0 top-13 z-40 w-96 max-w-[calc(100vw-2rem)] overflow-hidden rounded-md border border-border bg-popover shadow-[0_12px_40px_-12px_rgb(0_0_0/0.25)]">
+                    <div className="flex items-center justify-between border-b border-hairline px-4 py-3">
+                      <p className="os-label !text-foreground">Notifications</p>
                       {unread > 0 ? (
                         <button
                           type="button"
                           onClick={markAllNotificationsRead}
-                          className="text-[11px] font-semibold text-primary hover:underline"
+                          className="text-xs font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
                         >
                           Mark all read
                         </button>
                       ) : (
-                        <span className="text-[11px] font-medium text-muted-foreground">All caught up</span>
+                        <span className="text-[0.75rem] font-medium text-muted-foreground">All caught up</span>
                       )}
                     </div>
                     {notifications.length > 0 ? (
-                      <ul className="max-h-80 divide-y divide-border/60 overflow-y-auto overscroll-contain">
+                      <ul className="max-h-80 divide-y divide-hairline overflow-y-auto overscroll-contain">
                         {notifications.map((n) => {
                           const member = getMember(n.memberId)
                           return (
                             <li key={n.id}>
-                              <SwipeRow
+                              <ActionRow
                                 rounded=""
                                 editLabel={n.read ? "Unread" : "Read"}
                                 editIcon={n.read ? BellOff : Check}
@@ -122,16 +111,16 @@ export function HeaderNav({ title, subtitle }: { title: string; subtitle?: strin
                                     <div className="flex items-center justify-between gap-2">
                                       <p className="flex items-center gap-1.5 truncate text-sm font-semibold">
                                         {!n.read ? (
-                                          <span className="size-1.5 shrink-0 rounded-full bg-member-coral" aria-hidden />
+                                          <span className="size-1.5 shrink-0 rounded-full bg-season" aria-hidden />
                                         ) : null}
                                         <span className="truncate">{n.title}</span>
                                       </p>
-                                      <span className="shrink-0 text-[11px] text-muted-foreground">{n.time}</span>
+                                      <span className="shrink-0 text-[0.75rem] text-muted-foreground">{n.time}</span>
                                     </div>
                                     <p className="text-xs text-muted-foreground">{n.body}</p>
                                   </div>
                                 </div>
-                              </SwipeRow>
+                              </ActionRow>
                             </li>
                           )
                         })}
@@ -153,15 +142,15 @@ export function HeaderNav({ title, subtitle }: { title: string; subtitle?: strin
 
         {/* Search panel */}
         {searchOpen ? (
-          <div className="mt-3">
-            <div className="flex items-center gap-2 rounded-full bg-secondary px-3 py-2">
-              <Search className="size-4 shrink-0 text-muted-foreground" />
+          <div className="mt-5">
+            <div className="flex items-center gap-3 border-b border-foreground pb-3">
+              <Search className="size-5 shrink-0 text-muted-foreground" />
               <input
                 ref={inputRef}
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search events, chores, lists, meals…"
-                className="w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+                className="w-full bg-transparent text-xl outline-none placeholder:text-muted-foreground"
               />
               <button
                 type="button"
@@ -174,9 +163,9 @@ export function HeaderNav({ title, subtitle }: { title: string; subtitle?: strin
             </div>
 
             {query.trim() ? (
-              <div className="mt-2 max-h-72 overflow-y-auto overscroll-contain rounded-2xl border border-border/60 bg-card shadow-sm">
+              <div className="mt-2 max-h-80 overflow-y-auto overscroll-contain">
                 {results.length > 0 ? (
-                  <ul className="divide-y divide-border/60">
+                  <ul className="divide-y divide-hairline">
                     {results.map((r) => {
                       const member = getMember(r.memberId)
                       return (
@@ -194,9 +183,7 @@ export function HeaderNav({ title, subtitle }: { title: string; subtitle?: strin
                               <p className="truncate text-sm font-medium">{r.title}</p>
                               <p className="truncate text-xs text-muted-foreground">{r.detail}</p>
                             </div>
-                            <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold", memberSoft[member.color])}>
-                              {r.category}
-                            </span>
+                            <span className="os-label shrink-0">{r.category}</span>
                           </button>
                         </li>
                       )

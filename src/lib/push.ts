@@ -98,7 +98,7 @@ type TestOptions = {
 }
 
 export async function sendTestNotification(opts: TestOptions = {}): Promise<boolean> {
-  const title = opts.title ?? "Lumora Hub"
+  const title = opts.title ?? "Solora Hub"
   const body = opts.body ?? "This is a test notification. Push is working!"
 
   // Ensure permission first (this path is user-initiated, so prompting is fine).

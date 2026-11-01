@@ -12,6 +12,14 @@
 import { Router } from "express"
 import { requireAuth } from "../middleware/auth"
 import { getDb, parseJson, toBool } from "../db"
+import { rowToChore } from "./chores"
+import { rowToEvent } from "./events"
+import { rowToMeal } from "./meals"
+import { rowToItem } from "./lists"
+import { notificationsFor } from "./notifications"
+import { seasonSettings } from "./seasons"
+import { summerBreak } from "./summer"
+import { homeTimeZone } from "../lib/home-time"
 
 export const snapshotRouter = Router()
 
@@ -25,7 +33,7 @@ snapshotRouter.get("/", requireAuth, (req, res) => {
   // token resolved no household from DB. Return empty collections rather than
   // passing an invalid bind param to SQLite (which throws and causes a 500).
   if (hid == null || hid === "") {
-    res.json({ members: [], calendars: [], events: [], chores: [], lists: [], meals: [], notifications: [], photos: [] })
+    res.json({ members: [], calendars: [], events: [], chores: [], lists: [], meals: [], notifications: [], photos: [], timeZone: homeTimeZone() })
     return
   }
 
@@ -63,33 +71,12 @@ snapshotRouter.get("/", requireAuth, (req, res) => {
     const eventRows = db
       .prepare("SELECT * FROM events WHERE household_id = ? ORDER BY date ASC, start_hour ASC")
       .all(hid) as Row[]
-    const events = eventRows.map((r) => ({
-      id: r.id as string,
-      householdId: r.household_id as string,
-      calendarId: (r.calendar_id as string) ?? undefined,
-      title: r.title as string,
-      date: r.date as string,
-      time: (r.time as string) ?? undefined,
-      start: r.start_hour as number,
-      end: r.end_hour as number,
-      memberIds: parseJson<string[]>(r.member_ids, []),
-      location: (r.location as string) ?? undefined,
-      createdAt: r.created_at as string,
-    }))
+    const events = eventRows.map(rowToEvent)
 
     const choreRows = db
       .prepare("SELECT * FROM chores WHERE household_id = ? ORDER BY created_at ASC")
       .all(hid) as Row[]
-    const chores = choreRows.map((r) => ({
-      id: r.id as string,
-      householdId: r.household_id as string,
-      memberId: (r.member_id as string) ?? undefined,
-      title: r.title as string,
-      done: toBool(r.done),
-      points: r.points as number,
-      due: r.due as string,
-      createdAt: r.created_at as string,
-    }))
+    const chores = choreRows.map(rowToChore)
 
     const listRows = db
       .prepare("SELECT * FROM lists WHERE household_id = ? ORDER BY created_at ASC")
@@ -114,50 +101,16 @@ snapshotRouter.get("/", requireAuth, (req, res) => {
       title: l.title as string,
       color: l.color as string,
       createdAt: l.created_at as string,
-      items: (itemsByList.get(l.id as string) ?? []).map((i) => ({
-        id: i.id as string,
-        listId: i.list_id as string,
-        label: i.label as string,
-        done: toBool(i.done),
-        position: i.position as number,
-        createdAt: i.created_at as string,
-      })),
+      items: (itemsByList.get(l.id as string) ?? []).map(rowToItem),
     }))
 
     const mealRows = db
       .prepare("SELECT * FROM meals WHERE household_id = ? ORDER BY created_at ASC")
       .all(hid) as Row[]
-    const meals = mealRows.map((r) => ({
-      id: r.id as string,
-      householdId: r.household_id as string,
-      memberId: (r.member_id as string) ?? undefined,
-      day: r.day as string,
-      name: r.name as string,
-      type: r.type as string,
-      image: (r.image as string) ?? undefined,
-      createdAt: r.created_at as string,
-    }))
+    const meals = mealRows.map(rowToMeal)
 
-    // Notifications: join with notification_states to get per-user read status.
-    const notifRows = db
-      .prepare(
-        `SELECT n.*, COALESCE(ns.read, 0) as read_flag
-         FROM notifications n
-         LEFT JOIN notification_states ns ON ns.notification_id = n.id AND ns.user_id = ?
-         WHERE n.household_id = ?
-         ORDER BY n.created_at DESC LIMIT 100`,
-      )
-      .all(userId ?? "", hid) as (Row & { read_flag: number })[]
-    const notifications = notifRows.map((r) => ({
-      id: r.id as string,
-      householdId: r.household_id as string,
-      memberId: (r.member_id as string) ?? undefined,
-      title: r.title as string,
-      body: r.body as string,
-      time: r.time as string,
-      createdAt: r.created_at as string,
-      read: toBool(r.read_flag),
-    }))
+    // This person's notifications (and the household-wide ones), with their read state.
+    const notifications = notificationsFor((req as import("../middleware/auth").AuthRequest).user).slice(0, 100)
 
     // photos table may not exist in older DB files before migration
     let photos: unknown[] = []
@@ -177,7 +130,7 @@ snapshotRouter.get("/", requireAuth, (req, res) => {
       /* table not yet migrated — return empty */
     }
 
-    res.json({ members, calendars, events, chores, lists, meals, notifications, photos })
+    res.json({ members, calendars, events, chores, lists, meals, notifications, photos, timeZone: homeTimeZone(), seasons: seasonSettings(hid), summer: summerBreak(hid) })
   } catch (err) {
     console.error("[snapshot] query error:", err)
     res.status(500).json({ error: "Failed to load snapshot.", detail: String(err) })

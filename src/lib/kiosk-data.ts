@@ -13,6 +13,8 @@
 
 import { LOCAL_API_BASE } from "./local-api"
 import { getDeviceToken } from "./kiosk-session"
+import { setHouseholdSeasons, type HouseholdSeasons } from "./household-seasons"
+import { setSummer } from "./summer"
 import type {
   Calendar,
   CalendarEvent,
@@ -23,6 +25,7 @@ import type {
   MemberColor,
   Notification,
   Photo,
+  Summer,
 } from "./data"
 
 type Row = Record<string, unknown>
@@ -85,6 +88,13 @@ function toEvent(r: Row): CalendarEvent {
     time: (r.time ?? "") as string,
     start: Number(r.start_hour ?? r.start) || 0,
     end: Number(r.end_hour ?? r.end) || 0,
+    endDate: (r.end_date ?? r.endDate ?? null) as string | null,
+    allDay: Boolean(r.all_day ?? r.allDay),
+    repeatDays: (r.repeat_days ?? r.repeatDays ?? undefined) as number[] | undefined,
+    repeatUntil: (r.repeat_until ?? r.repeatUntil ?? null) as string | null,
+    skipDates: (r.skip_dates ?? r.skipDates ?? []) as string[],
+    countdown: Boolean(r.countdown),
+    reminderMinutes: r.reminderMinutes == null && r.remind_minutes == null ? null : Number(r.reminderMinutes ?? r.remind_minutes),
     memberIds: (r.member_ids ?? r.memberIds ?? []) as string[],
     calendarId: (r.calendar_id ?? r.calendarId ?? "") as string,
     location: (r.location ?? undefined) as string | undefined,
@@ -99,12 +109,20 @@ function toChore(r: Row): Chore {
     done: (r.done as boolean | undefined) ?? false,
     points: Number(r.points) || 0,
     due: (r.due ?? "") as string,
+    repeatDays: (r.repeatDays ?? r.repeat_days ?? undefined) as number[] | undefined,
+    doneOn: (r.doneOn ?? r.done_on ?? undefined) as string | undefined,
+    icon: (r.icon ?? undefined) as string | undefined,
+    keepWhileAway: Boolean(r.keepWhileAway ?? r.keep_while_away),
+    summerMode: (r.summerMode ?? r.summer_mode ?? "same") as Chore["summerMode"],
+    summerDays: (r.summerDays ?? undefined) as number[] | undefined,
   }
 }
 
 function toMeal(r: Row): Meal {
   return {
     id: r.id as string,
+    date: (r.date ?? null) as string | null,
+    ingredients: (r.ingredients ?? []) as string[],
     day: r.day as string,
     name: r.name as string,
     type: r.type as string,
@@ -124,12 +142,13 @@ function buildLists(lists: Row[], items: Row[]): Checklist[] {
     id: l.id as string,
     title: l.title as string,
     color: l.color as MemberColor,
-    items: items
-      .filter((i) => i.list_id === l.id)
+    // The hub's snapshot nests each list's items; older payloads sent a separate list_items array.
+    items: (Array.isArray(l.items) ? (l.items as Row[]) : items.filter((i) => i.list_id === l.id))
       .map((i) => ({
         id: i.id as string,
         label: i.label as string,
         done: (i.done as boolean | undefined) ?? false,
+        addedBy: (i.addedBy ?? i.added_by ?? null) as string | null,
       })),
   }))
 }
@@ -164,6 +183,8 @@ export async function fetchKioskSnapshot(): Promise<KioskSnapshot> {
     meals?: Row[]
     notifications?: Row[]
     photos?: Row[]
+    seasons?: HouseholdSeasons
+    summer?: Summer | null
   }
 
   try {
@@ -180,6 +201,8 @@ export async function fetchKioskSnapshot(): Promise<KioskSnapshot> {
     return EMPTY
   }
 
+  setHouseholdSeasons(data.seasons)
+  setSummer(data.summer)
   return {
     members: (data.members ?? []).map(toMember),
     calendars: (data.calendars ?? []).map(toCalendar),

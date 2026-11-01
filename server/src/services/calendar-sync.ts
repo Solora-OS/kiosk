@@ -20,12 +20,12 @@ import { encryptToken, decryptToken } from "../lib/token-crypto"
 
 // ----- Config ---------------------------------------------------------------
 
-const GOOGLE_CLIENT_ID = process.env.VITE_GOOGLE_CLIENT_ID ?? ""
-const GOOGLE_CLIENT_SECRET = process.env.VITE_GOOGLE_CLIENT_SECRET ?? ""
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || process.env.VITE_GOOGLE_CLIENT_ID || ""
+const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || process.env.VITE_GOOGLE_CLIENT_SECRET || ""
 
-const MICROSOFT_CLIENT_ID = process.env.VITE_MICROSOFT_CLIENT_ID ?? ""
-const MICROSOFT_CLIENT_SECRET = process.env.VITE_MICROSOFT_CLIENT_SECRET ?? ""
-const MICROSOFT_TENANT_ID = process.env.VITE_MICROSOFT_TENANT_ID ?? "common"
+const MICROSOFT_CLIENT_ID = process.env.MICROSOFT_CLIENT_ID || process.env.VITE_MICROSOFT_CLIENT_ID || ""
+const MICROSOFT_CLIENT_SECRET = process.env.MICROSOFT_CLIENT_SECRET || process.env.VITE_MICROSOFT_CLIENT_SECRET || ""
+const MICROSOFT_TENANT_ID = process.env.MICROSOFT_TENANT_ID || process.env.VITE_MICROSOFT_TENANT_ID || "common"
 
 // Sync a 90-day window: 7 days in the past, 83 days into the future.
 const WINDOW_PAST_DAYS = 7
@@ -47,6 +47,8 @@ type NormalisedEvent = {
   source_event_id: string
   title: string
   date: string        // yyyy-mm-dd
+  end_date: string | null // yyyy-mm-dd when it ends on a later day
+  all_day: number     // 1 for all-day events
   time: string | null // HH:MM or null
   start_hour: number
   end_hour: number
@@ -120,16 +122,52 @@ async function getValidToken(row: ProviderRow): Promise<string> {
 
 // ----- Google Calendar API --------------------------------------------------
 
+const localISODate = (d: Date): string =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
+
 function isoToDate(iso: string): { date: string; time: string | null; hour: number } {
   // Google sends dateTime (2024-06-01T10:00:00+00:00) or date (2024-06-01).
   if (iso.includes("T")) {
     const d = new Date(iso)
-    const date = d.toISOString().slice(0, 10)
+    // Local date, matching the local hour below (toISOString would give the UTC day).
+    const date = localISODate(d)
     const time = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`
     const hour = d.getHours() + d.getMinutes() / 60
     return { date, time, hour }
   }
   return { date: iso, time: null, hour: 0 }
+}
+
+/**
+ * Lumora's start/end fields for a provider event. Providers give all-day
+ * events an exclusive end date (a one-day event ends the next day), and a timed
+ * event that ends exactly at midnight ends at hour 24 of the previous day.
+ */
+function eventSpan(startIso: string, endIso: string, allDay: boolean) {
+  const start = isoToDate(startIso)
+  const end = isoToDate(endIso)
+  if (allDay) {
+    const last = new Date(`${end.date}T00:00:00`)
+    last.setDate(last.getDate() - 1)
+    const endDate = localISODate(last)
+    return { date: start.date, end_date: endDate > start.date ? endDate : null, all_day: 1, time: null, start_hour: 0, end_hour: 24 }
+  }
+  let endDate = end.date
+  let endHour = end.hour
+  if (endHour === 0 && endDate > start.date) {
+    const prev = new Date(`${endDate}T00:00:00`)
+    prev.setDate(prev.getDate() - 1)
+    endDate = localISODate(prev)
+    endHour = 24
+  }
+  return {
+    date: start.date,
+    end_date: endDate > start.date ? endDate : null,
+    all_day: 0,
+    time: start.time,
+    start_hour: start.hour,
+    end_hour: endHour,
+  }
 }
 
 async function fetchGoogleEventsForCalendar(
@@ -172,15 +210,11 @@ async function fetchGoogleEventsForCalendar(
   return (json.items ?? [])
     .filter((e) => e.status !== "cancelled")
     .map((e) => {
-      const start = isoToDate(e.start.dateTime ?? e.start.date ?? "")
-      const end = isoToDate(e.end.dateTime ?? e.end.date ?? "")
+      const span = eventSpan(e.start.dateTime ?? e.start.date ?? "", e.end.dateTime ?? e.end.date ?? "", !e.start.dateTime)
       return {
         source_event_id: e.id,
         title: e.summary ?? "(No title)",
-        date: start.date,
-        time: start.time,
-        start_hour: start.hour,
-        end_hour: end.hour,
+        ...span,
         location: e.location ?? null,
         calendar_id: lumoraCalendarId,
       }
@@ -224,7 +258,7 @@ async function fetchMicrosoftEvents(token: string, householdId: string): Promise
   const params = new URLSearchParams({
     startDateTime: past.toISOString(),
     endDateTime: future.toISOString(),
-    $select: "id,subject,start,end,location,isCancelled,categories",
+    $select: "id,subject,start,end,isAllDay,location,isCancelled,categories",
     $top: "500",
     $orderby: "start/dateTime",
   })
@@ -242,6 +276,7 @@ async function fetchMicrosoftEvents(token: string, householdId: string): Promise
       start: { dateTime: string; timeZone: string }
       end: { dateTime: string; timeZone: string }
       location?: { displayName?: string }
+      isAllDay?: boolean
       isCancelled?: boolean
       categories?: string[]
     }>
@@ -258,17 +293,18 @@ async function fetchMicrosoftEvents(token: string, householdId: string): Promise
   return (json.value ?? [])
     .filter((e) => !e.isCancelled)
     .map((e) => {
-      const start = isoToDate(e.start.dateTime)
-      const end = isoToDate(e.end.dateTime)
+      // Graph returns UTC times without a zone suffix unless asked otherwise.
+      const utc = (t: { dateTime: string; timeZone: string }) =>
+        t.timeZone === "UTC" && !/[zZ]|[+-]\d\d:\d\d$/.test(t.dateTime) ? `${t.dateTime}Z` : t.dateTime
+      const span = e.isAllDay
+        ? eventSpan(e.start.dateTime.slice(0, 10), e.end.dateTime.slice(0, 10), true)
+        : eventSpan(utc(e.start), utc(e.end), false)
       // Use first matched category mapping, else null (General).
       const calendarId = e.categories?.map((c) => categoryMap.get(c)).find((v) => v !== undefined) ?? null
       return {
         source_event_id: e.id,
         title: e.subject ?? "(No title)",
-        date: start.date,
-        time: start.time,
-        start_hour: start.hour,
-        end_hour: end.hour,
+        ...span,
         location: e.location?.displayName ?? null,
         calendar_id: calendarId ?? null,
       }
@@ -302,11 +338,13 @@ function upsertEvents(
   }
 
   const upsert = db.prepare(`
-    INSERT INTO events (id, household_id, calendar_id, title, date, time, start_hour, end_hour, location, source, source_event_id)
-    VALUES (@id, @household_id, @calendar_id, @title, @date, @time, @start_hour, @end_hour, @location, @source, @source_event_id)
+    INSERT INTO events (id, household_id, calendar_id, title, date, end_date, all_day, time, start_hour, end_hour, location, source, source_event_id)
+    VALUES (@id, @household_id, @calendar_id, @title, @date, @end_date, @all_day, @time, @start_hour, @end_hour, @location, @source, @source_event_id)
     ON CONFLICT(household_id, source, source_event_id) DO UPDATE SET
       title       = excluded.title,
       date        = excluded.date,
+      end_date    = excluded.end_date,
+      all_day     = excluded.all_day,
       time        = excluded.time,
       start_hour  = excluded.start_hour,
       end_hour    = excluded.end_hour,
@@ -323,6 +361,8 @@ function upsertEvents(
         calendar_id: e.calendar_id ?? null,
         title: e.title,
         date: e.date,
+        end_date: e.end_date,
+        all_day: e.all_day,
         time: e.time,
         start_hour: e.start_hour,
         end_hour: e.end_hour,

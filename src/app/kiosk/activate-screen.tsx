@@ -1,22 +1,33 @@
 "use client"
 
-import { useState } from "react"
-import { Loader2, Sparkles, Wifi } from "lucide-react"
+import { useEffect, useState } from "react"
+import { Loader2 } from "lucide-react"
 import { api } from "@/lib/api"
-import { claimThisDevice, fetchKioskState } from "@/lib/kiosk-session"
+import {
+  claimThisDevice, fetchHubSetup, fetchKioskState, moveFromOldHub, setupQrPayload, type HubSetup, type MoveSummary,
+} from "@/lib/kiosk-session"
+import { QrCode } from "@/components/ui/reusables/qr-code"
 import { useKiosk } from "@/lib/kiosk-provider"
-import { SystemStatusBar } from "@/components/ui/reusables/system-status-bar"
+import { SystemHeading, SystemScreen } from "@/components/os/system-screen"
 import { cn } from "@/lib/utils"
 
-const inputClass =
-  "w-full rounded-xl border border-border bg-card px-3.5 py-3 text-sm outline-none transition-colors focus:border-primary"
+const inputClass = "os-field"
+
+function Labeled({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label className="block">
+      <span className="os-label">{label}</span>
+      {children}
+    </label>
+  )
+}
 
 /**
  * Shown when no household exists on this hub yet (GET /hub/info → claimed:
  * false) — the very first device/user for a brand-new hub. Replaces the QR
  * pairing flow for this case: sign up or sign in with Supabase directly on
- * the display, gated by the activation code shown on the hub console
- * (~/.lumora/setup_code), then this device links itself into the new
+ * the display, gated by the hub's setup code (filled in automatically when
+ * this display runs on the hub itself), then this device links itself into the new
  * household automatically. Additional displays on an already-claimed hub
  * still use the existing QR pairing-screen.tsx flow, untouched.
  */
@@ -32,6 +43,40 @@ export function ActivateScreen() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [step, setStep] = useState<"form" | "linking">("form")
+
+  // Moving from an old hub instead of starting fresh.
+  const [moving, setMoving] = useState(false)
+  const [moveCode, setMoveCode] = useState("")
+  const [moveFrom, setMoveFrom] = useState("")
+  const [showMoveFrom, setShowMoveFrom] = useState(false)
+  const [moved, setMoved] = useState<MoveSummary | null>(null)
+
+  async function runMove(e: React.FormEvent) {
+    e.preventDefault()
+    setError(null)
+    setBusy(true)
+    try {
+      setMoved(await moveFromOldHub(moveCode.trim(), moveFrom.trim()))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "The move didn't finish. Try again.")
+      // Searching the network found nothing: let them type the old hub's address.
+      if (!showMoveFrom && err instanceof Error && /find your old hub/i.test(err.message)) setShowMoveFrom(true)
+    } finally {
+      setBusy(false)
+    }
+  }
+  // Read from the hub itself: fills in the code here and becomes the QR a phone can scan.
+  const [setup, setSetup] = useState<HubSetup | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    void fetchHubSetup().then((s) => {
+      if (cancelled || !s) return
+      setSetup(s)
+      setActivationCode(s.setupCode)
+    })
+    return () => { cancelled = true }
+  }, [])
 
   // Set once sign-up/sign-in succeeds so a retry after a failed link step
   // doesn't re-submit credentials (which would fail as "already registered").
@@ -82,144 +127,207 @@ export function ActivateScreen() {
   }
 
   return (
-    <main className="flex min-h-dvh flex-col bg-background text-foreground">
-      <SystemStatusBar />
+    <SystemScreen
+      footerRight={
+        <span className="flex items-center gap-2">
+          <span className="size-1.5 animate-pulse rounded-full bg-season" />
+          Broadcasting on your network
+        </span>
+      }
+      className="grid items-end gap-12 overflow-y-auto px-10 pb-14 pt-10 lg:landscape:grid-cols-[1.1fr_1fr] lg:landscape:gap-20"
+    >
+      <SystemHeading
+        eyebrow={moving ? "From your old hub" : mode === "signup" ? "First hub on this network" : "Existing family"}
+        title={moved ? `Welcome home, ${moved.householdName}.` : moving ? "Moving in." : mode === "signup" ? "Start your family." : "Welcome back."}
+      >
+        {moved ? (
+          <p>Your family is on this hub now.</p>
+        ) : moving ? (
+          <p>
+            Everything comes across: your family, chores, lists, meals, events, photos and linked calendars. Keep the
+            old hub plugged in until this finishes.
+          </p>
+        ) : mode === "signup" ? (
+          <p>Create the account that will run this hub, here or on your phone.</p>
+        ) : (
+          <p>Sign in with the account that already manages a Solora hub.</p>
+        )}
+        {mode === "signup" && setup && !moving ? (
+          <div className="mt-8 flex items-center gap-6">
+            <QrCode value={setupQrPayload(setup)} size={148} className="shrink-0" />
+            <div className="min-w-0">
+              <p className="text-sm text-foreground">Setting up from your phone?</p>
+              <p className="mt-1 text-pretty text-sm text-muted-foreground">
+                Open Solora, create your account, then scan this code.
+              </p>
+              <p className="os-label mt-4">Setup code</p>
+              <p className="mt-1 font-mono text-2xl tracking-[0.3em]">{setup.setupCode}</p>
+            </div>
+          </div>
+        ) : null}
+      </SystemHeading>
 
-      <div className="flex flex-1 flex-col items-center justify-center gap-10 px-10 pb-16 lg:flex-row lg:gap-20">
-        {/* Left: broadcasting animation */}
-        <div className="flex flex-col items-center gap-6">
-          <div className="relative flex size-40 items-center justify-center">
-            {[0, 1, 2].map((i) => (
-              <span
-                key={i}
-                className="absolute inset-0 rounded-full border-2 border-primary/40 animate-ping"
-                style={{ animationDelay: `${i * 700}ms`, animationDuration: "2.1s" }}
+      <div className="w-full max-w-md lg:landscape:justify-self-end portrait:max-w-xl">
+        {moved ? (
+          <div className="flex flex-col gap-6 border-t border-border pt-8">
+            <ul className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
+              {([
+                [moved.members, "person", "people"],
+                [moved.photos, "photo", "photos"],
+                [moved.events, "event", "events"],
+                [moved.chores, "chore", "chores"],
+                [moved.lists, "list", "lists"],
+                [moved.meals, "meal", "meals"],
+              ] as const).map(([n, one, many]) => (
+                <li key={many}><span className="tabular font-semibold">{n}</span> {n === 1 ? one : many}</li>
+              ))}
+            </ul>
+            <p className="text-pretty text-sm text-muted-foreground">
+              On each phone, open Settings › Connect to a different hub. Kids without an email get a new invite from a
+              parent.{moved.calendarsLinked > 0 ? " Linked calendars keep syncing." : ""} You can unplug the old hub now.
+            </p>
+            <button type="button" onClick={() => void refresh()} className="os-button self-start">
+              Continue
+            </button>
+          </div>
+        ) : moving ? (
+          <form onSubmit={(e) => void runMove(e)} className="flex flex-col gap-6">
+            <p className="text-pretty text-sm text-muted-foreground">
+              On your phone, open Settings › Move to a new hub, then type the code it shows.
+            </p>
+            <Labeled label="Transfer code">
+              <input
+                className={cn(inputClass, "font-mono uppercase tracking-[0.3em]")}
+                placeholder="XXXX-XXXX"
+                value={moveCode}
+                onChange={(e) => setMoveCode(e.target.value)}
+                autoComplete="off"
+                required
               />
-            ))}
-            <div className="relative flex size-20 items-center justify-center rounded-3xl bg-primary text-primary-foreground shadow-sm">
-              <Sparkles className="size-10" />
+            </Labeled>
+            {showMoveFrom ? (
+              <Labeled label="Old hub's address (optional)">
+                <input
+                  className={inputClass}
+                  placeholder="192.168.1.20"
+                  value={moveFrom}
+                  onChange={(e) => setMoveFrom(e.target.value)}
+                  autoComplete="off"
+                />
+              </Labeled>
+            ) : null}
+            {error ? <p className="text-sm text-destructive">{error}</p> : null}
+            <div className="mt-2 flex flex-wrap items-center justify-between gap-4">
+              <button type="submit" disabled={busy} className="os-button">
+                {busy ? <Loader2 className="size-4 animate-spin" /> : null}
+                {busy ? "Moving your family…" : "Move to this hub"}
+              </button>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => { setMoving(false); setError(null) }}
+                className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+              >
+                Start a new family instead
+              </button>
             </div>
+          </form>
+        ) : step === "linking" ? (
+          <div className="flex flex-col gap-6 border-t border-border pt-8">
+            <p className="font-display text-4xl leading-tight">Linking this display to your family…</p>
+            {!error ? <div className="boot-line h-[2px] bg-hairline" /> : null}
+            {error ? (
+              <div className="flex flex-col items-start gap-4">
+                <p className="text-sm text-destructive">{error}</p>
+                <button type="button" disabled={busy} onClick={() => void runFlow()} className="os-button">
+                  {busy ? <Loader2 className="size-4 animate-spin" /> : null}
+                  Try again
+                </button>
+              </div>
+            ) : null}
           </div>
-          <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-            <Wifi className="size-4" />
-            Broadcasting on your network
-          </div>
-        </div>
-
-        {/* Right: activation form */}
-        <div className="w-full max-w-sm">
-          <div className="mb-6 text-center lg:text-left">
-            <p className="text-base font-medium uppercase tracking-widest text-primary">
-              Set up this hub
-            </p>
-            <h1 className="mt-2 text-balance text-4xl font-bold leading-tight tracking-tight">
-              {mode === "signup" ? "Create your family" : "Sign in"}
-            </h1>
-            <p className="mt-3 text-pretty text-sm leading-relaxed text-muted-foreground">
-              {mode === "signup"
-                ? "Enter the activation code shown on this hub's console to finish setup."
-                : "Sign in with the account that already manages a Lumora hub."}
-            </p>
-          </div>
-
-          {step === "linking" ? (
-            <div className="flex flex-col items-center gap-4 rounded-2xl border border-border bg-card py-10 text-center">
-              <Loader2 className="size-8 animate-spin text-primary" />
-              <p className="text-sm font-medium">Linking this display to your family…</p>
-              {error ? (
-                <div className="mt-2 flex flex-col items-center gap-3 px-6">
-                  <p className="text-sm font-medium text-destructive">{error}</p>
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => void runFlow()}
-                    className="flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-50"
-                  >
-                    {busy ? <Loader2 className="size-4 animate-spin" /> : null}
-                    Try again
-                  </button>
-                </div>
-              ) : null}
-            </div>
-          ) : (
-            <form onSubmit={(e) => void submit(e)} className="space-y-3">
-              {mode === "signup" ? (
-                <>
+        ) : (
+          <form onSubmit={(e) => void submit(e)} className="flex flex-col gap-6">
+            {mode === "signup" ? (
+              <div className="grid grid-cols-2 gap-6">
+                <Labeled label="Your name">
+                  <input className={inputClass} value={name} onChange={(e) => setName(e.target.value)} required />
+                </Labeled>
+                <Labeled label="Family name">
                   <input
                     className={inputClass}
-                    placeholder="Your name"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    required
-                  />
-                  <input
-                    className={inputClass}
-                    placeholder="Family name (e.g. The Peaks)"
+                    placeholder="The Peaks"
                     value={householdName}
                     onChange={(e) => setHouseholdName(e.target.value)}
                   />
-                </>
-              ) : null}
+                </Labeled>
+              </div>
+            ) : null}
 
+            <Labeled label="Email">
               <input
                 className={inputClass}
                 type="email"
-                placeholder="Email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 autoComplete="email"
                 required
               />
+            </Labeled>
+            <Labeled label={mode === "signup" ? "Create a password" : "Password"}>
               <input
                 className={inputClass}
                 type="password"
-                placeholder={mode === "signup" ? "Create a password" : "Password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 autoComplete={mode === "signup" ? "new-password" : "current-password"}
                 minLength={6}
                 required
               />
+            </Labeled>
 
-              {mode === "signup" ? (
+            {/* Only asked for when this display isn't on the hub itself and couldn't read it. */}
+            {mode === "signup" && !setup ? (
+              <Labeled label="Setup code (on your hub's screen)">
                 <input
-                  className={cn(inputClass, "uppercase tracking-widest")}
-                  placeholder="Activation code"
+                  className={cn(inputClass, "font-mono uppercase tracking-[0.3em]")}
                   value={activationCode}
                   onChange={(e) => setActivationCode(e.target.value)}
                   required
                 />
-              ) : null}
+              </Labeled>
+            ) : null}
 
-              {error ? (
-                <p className="rounded-xl bg-destructive/10 px-3 py-2 text-sm font-medium text-destructive">
-                  {error}
-                </p>
-              ) : null}
+            {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
-              <button
-                type="submit"
-                disabled={busy}
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
-              >
+            <div className="mt-2 flex flex-wrap items-center justify-between gap-4">
+              <button type="submit" disabled={busy} className="os-button">
                 {busy ? <Loader2 className="size-4 animate-spin" /> : null}
                 {mode === "signup" ? "Activate hub" : "Sign in"}
               </button>
-
               <button
                 type="button"
                 onClick={() => {
                   setError(null)
                   setMode(mode === "signup" ? "signin" : "signup")
                 }}
-                className="w-full text-center text-sm font-medium text-muted-foreground"
+                className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
               >
-                {mode === "signup" ? "Already have an account? Sign in" : "Setting up a new family? Create one"}
+                {mode === "signup" ? "I already have an account" : "Create a new family"}
               </button>
-            </form>
-          )}
-        </div>
+            </div>
+            {mode === "signup" ? (
+              <button
+                type="button"
+                onClick={() => { setMoving(true); setError(null) }}
+                className="self-start border-t border-border pt-5 text-sm text-foreground underline-offset-4 hover:underline"
+              >
+                Moving from another Solora hub? Bring your family over
+              </button>
+            ) : null}
+          </form>
+        )}
       </div>
-    </main>
+    </SystemScreen>
   )
 }

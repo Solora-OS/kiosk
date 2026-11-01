@@ -1,7 +1,7 @@
 "use client"
 
-import { useEffect, useState, useSyncExternalStore } from "react"
-import { toast } from "sonner"
+import { useEffect, useRef, useState, useSyncExternalStore } from "react"
+import { kioskToast } from "@/components/os/kiosk-toast"
 import {
   ChevronRight,
   Bell,
@@ -39,15 +39,18 @@ import {
   User,
   Timer,
   Images,
+  Users,
+  Palette,
+  CalendarDays,
+  Wrench,
+  ShieldAlert,
+  Tablet,
   type LucideIcon,
 } from "lucide-react"
 import {
   roleLabels,
   calculateAge,
   memberBg,
-  permissionAreas,
-  permissionLabels,
-  permissionDescriptions,
   type Member,
   type MemberColor,
   type MemberRole,
@@ -56,6 +59,7 @@ import {
 import { cn } from "@/lib/utils"
 import { useTheme, type Theme } from "@/components/theme-provider"
 import { MemberAvatar } from "@/components/ui/reusables/member-avatar"
+import { PermissionPicker, defaultPermissions } from "@/components/ui/reusables/permission-picker"
 import { ConfirmDialog } from "@/components/ui/reusables/confirm-dialog"
 import { BottomSheet } from "@/components/ui/reusables/bottom-sheet"
 import { QrCode } from "@/components/ui/reusables/qr-code"
@@ -106,11 +110,13 @@ import {
   type WifiNetwork,
 } from "@/lib/wifi-service"
 import { patchDeviceState } from "@/lib/device-state"
+import { AppearanceSection, SoundDisplaySection } from "@/app/settings/appearance-section"
+import { HomeScreenSection, InterfaceSection } from "@/app/settings/interface-section"
 import { CalendarImportSheet } from "@/app/calendar/CalendarImportSheet"
 import { ActivityLog } from "@/app/settings/ActivityLog"
 import { LOCAL_API_BASE, tokenStore } from "@/lib/local-api"
 import { centralSocket, getCentralToken } from "@/lib/central-socket"
-import { getLocalDeviceId } from "@/lib/kiosk-session"
+import { getLocalDeviceId, saveTimezone } from "@/lib/kiosk-session"
 
 
 function Toggle({
@@ -126,8 +132,8 @@ function Toggle({
 }) {
   const [on, setOn] = useState(defaultOn)
   return (
-    <div className="flex items-center gap-3 px-4 py-3">
-      <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-secondary text-foreground">
+    <div className="flex items-center gap-3 px-4 py-4">
+      <span className="flex size-8 shrink-0 items-center justify-center text-muted-foreground">
         <Icon className="size-4" />
       </span>
       <span className="min-w-0 flex-1">
@@ -141,14 +147,14 @@ function Toggle({
         aria-label={label}
         onClick={() => setOn((v) => !v)}
         className={cn(
-          "relative h-6 w-11 shrink-0 rounded-full transition-colors",
-          on ? "bg-member-green" : "bg-border",
+          "relative h-8 w-14 shrink-0 rounded-md transition-colors",
+          on ? "bg-foreground" : "bg-secondary shadow-[inset_0_0_0_1px_var(--border)]",
         )}
       >
         <span
           className={cn(
-            "absolute top-0.5 size-5 rounded-full bg-white shadow transition-all",
-            on ? "left-[1.375rem]" : "left-0.5",
+            "absolute top-1 size-6 rounded-[5px] transition-all",
+            on ? "left-7 bg-season" : "left-1 bg-muted-foreground/60",
           )}
         />
       </button>
@@ -172,11 +178,11 @@ function ActionRow({
   trailing?: React.ReactNode
 }) {
   return (
-    <button type="button" onClick={onClick} className="flex w-full items-center gap-3 px-4 py-3 text-left">
+    <button type="button" onClick={onClick} className="flex w-full items-center gap-3 px-4 py-4 text-left transition-colors hover:bg-secondary/60">
       <span
         className={cn(
-          "flex size-8 shrink-0 items-center justify-center rounded-xl",
-          destructive ? "bg-destructive/10 text-destructive" : "bg-secondary text-foreground",
+          "flex size-8 shrink-0 items-center justify-center rounded-md",
+          destructive ? "text-destructive" : "text-muted-foreground",
         )}
       >
         <Icon className="size-4" />
@@ -187,43 +193,6 @@ function ActionRow({
       </span>
       {trailing ?? <ChevronRight className={cn("size-4", destructive ? "text-destructive/60" : "text-muted-foreground")} />}
     </button>
-  )
-}
-
-const appearanceOptions: { value: Theme; label: string; icon: typeof Sun }[] = [
-  { value: "light", label: "Light", icon: Sun },
-  { value: "dark", label: "Dark", icon: Moon },
-  { value: "system", label: "Auto", icon: Monitor },
-]
-
-function AppearanceControl() {
-  const { theme, setTheme } = useTheme()
-  return (
-    <div className="flex items-center justify-between rounded-3xl bg-card px-4 py-3 shadow-sm">
-      <span className="text-sm font-medium">Theme</span>
-      <div className="inline-flex items-center gap-0.5 rounded-full bg-secondary p-0.5">
-        {appearanceOptions.map(({ value, label, icon: Icon }) => {
-          const active = theme === value
-          return (
-            <button
-              key={value}
-              type="button"
-              onClick={() => setTheme(value)}
-              aria-pressed={active}
-              aria-label={label}
-              title={label}
-              className={cn(
-                "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-all",
-                active ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              <Icon className="size-4" />
-              {label}
-            </button>
-          )
-        })}
-      </div>
-    </div>
   )
 }
 
@@ -255,15 +224,15 @@ function PushNotificationsSection() {
     const result = await requestPushPermission()
     setPermission(result)
     if (result === "granted") {
-      toast.success("Push notifications enabled")
+      kioskToast.success("Push notifications enabled")
     } else {
-      toast.error(`Permission ${result}`)
+      kioskToast.error(`Permission ${result}`)
     }
   }
 
   const test = async () => {
     const ok = await sendTestNotification({
-      title: "Lumora Hub",
+      title: "Solora Hub",
       body: "Test notification — push is working!",
     })
     setPermission(await getPushPermission())
@@ -275,18 +244,18 @@ function PushNotificationsSection() {
       read: false,
     })
     if (ok) {
-      toast.success("Test notification sent")
+      kioskToast.success("Test notification sent")
     } else {
-      toast.error("Enable notifications first")
+      kioskToast.error("Enable notifications first")
     }
   }
 
   return (
     <section>
-      <h2 className="px-1 pb-2 text-sm font-semibold text-muted-foreground">Push Notifications</h2>
-      <div className="overflow-hidden rounded-3xl bg-card shadow-sm">
-        <div className="flex items-center gap-3 px-4 py-3">
-          <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-secondary text-foreground">
+      <h2 className="os-label px-1 pb-4">Push Notifications</h2>
+      <div className="overflow-hidden rounded-md border border-hairline bg-card">
+        <div className="flex items-center gap-3 px-4 py-4">
+          <span className="flex size-8 shrink-0 items-center justify-center text-muted-foreground">
             <Bell className="size-4" />
           </span>
           <span className="min-w-0 flex-1">
@@ -295,17 +264,17 @@ function PushNotificationsSection() {
               {supported ? "Allow alerts on this device" : "Not supported in this environment"}
             </span>
           </span>
-          <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold", meta.className)}>
+          <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-[0.75rem] font-semibold", meta.className)}>
             {meta.label}
           </span>
         </div>
 
-        <div className="flex gap-2 border-t border-border/60 px-4 py-3">
+        <div className="flex gap-2 border-t border-hairline px-4 py-3">
           <button
             type="button"
             onClick={enable}
             disabled={!supported || permission === "granted"}
-            className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary py-2.5 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-40"
+            className="flex flex-1 items-center justify-center gap-2 rounded-md bg-primary py-2.5 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-40"
           >
             <ShieldCheck className="size-4" />
             {permission === "granted" ? "Allowed" : "Enable"}
@@ -314,7 +283,7 @@ function PushNotificationsSection() {
             type="button"
             onClick={test}
             disabled={!supported}
-            className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-secondary py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-secondary/70 disabled:opacity-40"
+            className="flex flex-1 items-center justify-center gap-2 rounded-md bg-secondary py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-secondary/70 disabled:opacity-40"
           >
             <Send className="size-4" />
             Send test
@@ -322,7 +291,7 @@ function PushNotificationsSection() {
         </div>
 
         {permission === "denied" ? (
-          <p className="border-t border-border/60 px-4 py-2.5 text-xs text-muted-foreground">
+          <p className="border-t border-hairline px-4 py-2.5 text-xs text-muted-foreground">
             Notifications are blocked. Re-enable them in your device or browser settings.
           </p>
         ) : null}
@@ -355,7 +324,7 @@ function HistoryLogsSheet({ open, onClose }: { open: boolean; onClose: () => voi
           Clear
         </button>
       </div>
-      <ul className="max-h-[55vh] divide-y divide-border/60 overflow-y-auto overscroll-contain rounded-2xl bg-background">
+      <ul className="max-h-[55vh] divide-y divide-hairline overflow-y-auto overscroll-contain rounded-md bg-background">
         {logs.length === 0 ? (
           <li className="px-4 py-10 text-center text-sm text-muted-foreground">No log entries</li>
         ) : (
@@ -370,7 +339,7 @@ function HistoryLogsSheet({ open, onClose }: { open: boolean; onClose: () => voi
                     <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                       {entry.source}
                     </span>
-                    <span className="shrink-0 text-[11px] text-muted-foreground">{relativeTime(entry.time)}</span>
+                    <span className="shrink-0 text-[0.75rem] text-muted-foreground">{relativeTime(entry.time)}</span>
                   </div>
                   <p className="text-sm leading-snug">{entry.message}</p>
                 </div>
@@ -402,20 +371,20 @@ function CentralConnectionSection() {
     try {
       const localDeviceId = getLocalDeviceId()
       if (!localDeviceId) {
-        toast.error("Device not registered with local hub yet — try restarting the app")
+        kioskToast.error("Device not registered with local hub yet — try restarting the app")
         return
       }
       const token = await centralSocket.fetchAndStoreCentralToken(localDeviceId)
       if (!token) {
-        toast.error("Hub hasn't registered this kiosk with the central API yet — restart the hub server")
+        kioskToast.error("This display isn't connected to Solora yet. Restart the hub and try again.")
         return
       }
       centralSocket.connect(token)
       setHasToken(true)
       setConnected(centralSocket.connected)
-      toast.success("Reconnected to central server")
+      kioskToast.success("Reconnected to central server")
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Reconnect failed")
+      kioskToast.error(e instanceof Error ? e.message : "Reconnect failed")
     } finally {
       setBusy(false)
     }
@@ -430,20 +399,20 @@ function CentralConnectionSection() {
       setConnected(false)
       const localDeviceId = getLocalDeviceId()
       if (!localDeviceId) {
-        toast.error("No local device ID — kiosk needs to register with hub first")
+        kioskToast.error("This display hasn't registered with the hub yet. Wait a moment and try again.")
         return
       }
       const token = await centralSocket.fetchAndStoreCentralToken(localDeviceId)
       if (!token) {
-        toast.error("Hub hasn't registered this kiosk with the central API yet — restart the hub server")
+        kioskToast.error("This display isn't connected to Solora yet. Restart the hub and try again.")
         return
       }
       centralSocket.connect(token)
       setHasToken(true)
       setConnected(centralSocket.connected)
-      toast.success("Re-registered with central server")
+      kioskToast.success("Re-registered with central server")
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Re-registration failed")
+      kioskToast.error(e instanceof Error ? e.message : "Re-registration failed")
     } finally {
       setBusy(false)
     }
@@ -458,10 +427,10 @@ function CentralConnectionSection() {
 
   return (
     <section>
-      <h2 className="px-1 pb-2 text-sm font-semibold text-muted-foreground">Cloud Connection</h2>
-      <div className="overflow-hidden rounded-3xl bg-card shadow-sm">
-        <div className="flex items-center gap-3 px-4 py-3">
-          <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-secondary text-foreground">
+      <h2 className="os-label px-1 pb-4">Cloud Connection</h2>
+      <div className="overflow-hidden rounded-md border border-hairline bg-card">
+        <div className="flex items-center gap-3 px-4 py-4">
+          <span className="flex size-8 shrink-0 items-center justify-center text-muted-foreground">
             <Globe className="size-4" />
           </span>
           <span className="min-w-0 flex-1">
@@ -470,16 +439,16 @@ function CentralConnectionSection() {
               {connected ? "Live data sync active" : hasToken ? "Token stored, socket offline" : "Not yet registered"}
             </span>
           </span>
-          <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold", statusClass)}>
+          <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-[0.75rem] font-semibold", statusClass)}>
             {statusLabel}
           </span>
         </div>
-        <div className="flex gap-2 border-t border-border/60 px-4 py-3">
+        <div className="flex gap-2 border-t border-hairline px-4 py-3">
           <button
             type="button"
             onClick={() => void reconnect()}
             disabled={busy || connected}
-            className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary py-2.5 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-40"
+            className="flex flex-1 items-center justify-center gap-2 rounded-md bg-primary py-2.5 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-40"
           >
             {busy ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
             Reconnect
@@ -488,7 +457,7 @@ function CentralConnectionSection() {
             type="button"
             onClick={() => void reRegister()}
             disabled={busy}
-            className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-secondary py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-secondary/70 disabled:opacity-40"
+            className="flex flex-1 items-center justify-center gap-2 rounded-md bg-secondary py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-secondary/70 disabled:opacity-40"
           >
             {busy ? <Loader2 className="size-4 animate-spin" /> : <RotateCcw className="size-4" />}
             Re-register
@@ -517,11 +486,11 @@ function HubActionsSection() {
     try {
       const available = await checkForUpdates()
       if (!available) {
-        toast.success("Already on the latest version")
+        kioskToast.success("Already on the latest version")
       }
       // If available, the UpdateDialog opens automatically via useSyncExternalStore.
     } catch {
-      toast.error("Failed to check for updates — check your connection")
+      kioskToast.error("Failed to check for updates — check your connection")
     } finally {
       setChecking(false)
     }
@@ -533,9 +502,9 @@ function HubActionsSection() {
     } else {
       try {
         await sendHubCommand({ type: "reload" })
-        toast.success("Reload sent to hub")
+        kioskToast.success("Reload sent to hub")
       } catch {
-        toast.error("Could not reach hub")
+        kioskToast.error("Could not reach hub")
       }
     }
   }
@@ -543,13 +512,13 @@ function HubActionsSection() {
   const onClearCache = async () => {
     if (isHubDevice()) {
       await clearCache()
-      toast.success("Cache cleared")
+      kioskToast.success("Cache cleared")
     } else {
       try {
         await sendHubCommand({ type: "clear_cache" })
-        toast.success("Clear cache sent to hub")
+        kioskToast.success("Clear cache sent to hub")
       } catch {
-        toast.error("Could not reach hub")
+        kioskToast.error("Could not reach hub")
       }
     }
   }
@@ -561,17 +530,17 @@ function HubActionsSection() {
     } else {
       try {
         await sendHubCommand({ type: "restart" })
-        toast.success("Restart command sent to hub")
+        kioskToast.success("Restart command sent to hub")
       } catch {
-        toast.error("Could not reach hub")
+        kioskToast.error("Could not reach hub")
       }
     }
   }
 
   return (
     <section>
-      <h2 className="px-1 pb-2 text-sm font-semibold text-muted-foreground">Hub Actions</h2>
-      <div className="divide-y divide-border/60 overflow-hidden rounded-3xl bg-card shadow-sm">
+      <h2 className="os-label px-1 pb-4">Hub Actions</h2>
+      <div className="divide-y divide-hairline overflow-hidden rounded-md border border-hairline bg-card">
         <ActionRow
           icon={ScrollText}
           label="Activity logs"
@@ -591,7 +560,7 @@ function HubActionsSection() {
             checking ? (
               <Loader2 className="size-4 animate-spin text-muted-foreground" />
             ) : pendingUpdate ? (
-              <span className="flex items-center gap-1.5 rounded-full bg-member-green/15 px-2.5 py-1 text-[11px] font-semibold text-member-green">
+              <span className="flex items-center gap-1.5 rounded-full bg-member-green/15 px-2.5 py-1 text-[0.75rem] font-semibold text-member-green">
                 <DownloadCloud className="size-3" />
                 Update ready
               </span>
@@ -616,7 +585,7 @@ function HubActionsSection() {
           <ActionRow
             icon={Power}
             label="Restart hub"
-            description="Reboot the kiosk device"
+            description="Turn the hub off and on again"
             onClick={() => setConfirmRestart(true)}
             destructive
           />
@@ -656,7 +625,7 @@ function Field({
 }
 
 const inputClass =
-  "w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none transition-colors focus:border-primary"
+  "w-full rounded-md border border-border bg-background px-3 py-2.5 text-sm outline-none transition-colors focus:border-primary"
 
 type MemberDraft = {
   name: string
@@ -695,10 +664,13 @@ function MemberSheet({
   const auth = useOptionalAuth()
   const user = auth?.user ?? null
   const [draft, setDraft] = useState<MemberDraft>(() => toDraft(member))
+  const [permsTouched, setPermsTouched] = useState(false)
 
   // Re-seed the form whenever a different member (or add mode) opens.
   useEffect(() => {
-    if (open) setDraft(toDraft(member))
+    if (!open) return
+    setDraft(toDraft(member))
+    setPermsTouched(false)
   }, [open, member])
 
   const isEdit = !!member
@@ -734,13 +706,9 @@ function MemberSheet({
     onClose()
   }
 
-  const togglePermission = (area: PermissionArea) =>
-    setDraft((d) => ({
-      ...d,
-      permissions: d.permissions.includes(area)
-        ? d.permissions.filter((a) => a !== area)
-        : [...d.permissions, area],
-    }))
+  // A new member starts from their role's usual permissions until someone picks their own.
+  const pickRole = (role: MemberRole) =>
+    setDraft((d) => ({ ...d, role, permissions: !isEdit && !permsTouched ? defaultPermissions(role) : d.permissions }))
 
   return (
     <BottomSheet
@@ -752,7 +720,7 @@ function MemberSheet({
           type="button"
           onClick={save}
           disabled={!draft.name.trim()}
-          className="w-full rounded-xl bg-primary py-3 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-40"
+          className="w-full rounded-md bg-primary py-3 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-40"
         >
           {isEdit ? "Save changes" : "Add member"}
         </button>
@@ -780,7 +748,7 @@ function MemberSheet({
             />
           </Field>
           <Field label="Age">
-            <div className="flex items-center gap-2 rounded-xl border border-border bg-secondary/40 px-3 py-2.5 text-sm">
+            <div className="flex items-center gap-2 rounded-md border border-border bg-secondary/40 px-3 py-2.5 text-sm">
               <Cake className="size-4 text-muted-foreground" />
               <span>{age === null ? "—" : `${age} yrs`}</span>
             </div>
@@ -795,10 +763,10 @@ function MemberSheet({
                 <button
                   key={r}
                   type="button"
-                  onClick={() => set("role", r)}
+                  onClick={() => pickRole(r)}
                   aria-pressed={active}
                   className={cn(
-                    "rounded-xl py-2 text-xs font-semibold transition-colors",
+                    "rounded-md py-2 text-xs font-semibold transition-colors",
                     active ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground hover:text-foreground",
                   )}
                 >
@@ -865,7 +833,7 @@ function MemberSheet({
           <button
             type="button"
             onClick={onInvite}
-            className="flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-card py-3 text-sm font-semibold text-foreground transition-colors hover:bg-secondary"
+            className="flex w-full items-center justify-center gap-2 rounded-md border border-border bg-card py-3 text-sm font-semibold text-foreground transition-colors hover:bg-secondary"
           >
             <QrCodeIcon className="size-4 text-primary" />
             Invite to the app
@@ -874,8 +842,8 @@ function MemberSheet({
 
         {/* Permissions — admins implicitly have everything */}
         {draft.role === "admin" ? (
-          <div className="flex items-start gap-3 rounded-2xl border border-border/70 p-3">
-            <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+          <div className="flex items-start gap-3 rounded-md border border-border/70 p-3">
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
               <ShieldCheck className="size-4" />
             </span>
             <span className="min-w-0 flex-1">
@@ -886,53 +854,23 @@ function MemberSheet({
             </span>
           </div>
         ) : (
-          <div className="rounded-2xl border border-border/70 p-3">
-            <div className="mb-1 flex items-center gap-2">
-              <ShieldCheck className="size-4 text-muted-foreground" />
-              <span className="text-sm font-medium">Permissions</span>
-            </div>
-            <p className="mb-3 text-xs text-muted-foreground">
-              Choose what {draft.name.trim() || "this member"} can manage.
-            </p>
-            <div className="space-y-1">
-              {permissionAreas.map((area) => {
-                const on = draft.permissions.includes(area)
-                return (
-                  <div key={area} className="flex items-center gap-3 py-1.5">
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-sm font-medium">{permissionLabels[area]}</span>
-                      <span className="block text-xs text-muted-foreground">{permissionDescriptions[area]}</span>
-                    </span>
-                    <button
-                      type="button"
-                      role="switch"
-                      aria-checked={on}
-                      aria-label={`Can manage ${permissionLabels[area]}`}
-                      onClick={() => togglePermission(area)}
-                      className={cn(
-                        "relative h-6 w-11 shrink-0 rounded-full transition-colors",
-                        on ? "bg-member-green" : "bg-border",
-                      )}
-                    >
-                      <span
-                        className={cn(
-                          "absolute top-0.5 size-5 rounded-full bg-white shadow transition-all",
-                          on ? "left-[1.375rem]" : "left-0.5",
-                        )}
-                      />
-                    </button>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
+          <PermissionPicker
+            // Each opening starts folded.
+            key={`${member?.id ?? "new"}:${open}`}
+            name={draft.name}
+            value={draft.permissions}
+            onChange={(permissions) => {
+              setPermsTouched(true)
+              set("permissions", permissions)
+            }}
+          />
         )}
 
         {isEdit && onDelete ? (
           <button
             type="button"
             onClick={onDelete}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-destructive/10 py-3 text-sm font-semibold text-destructive transition-colors hover:bg-destructive/15"
+            className="flex w-full items-center justify-center gap-2 rounded-md bg-destructive/10 py-3 text-sm font-semibold text-destructive transition-colors hover:bg-destructive/15"
           >
             <Trash2 className="size-4" />
             Remove member
@@ -1028,11 +966,11 @@ function InviteSheet({
           </div>
         ) : error ? (
           <div className="w-full space-y-3">
-            <p className="rounded-xl bg-destructive/10 px-3 py-2 text-sm font-medium text-destructive">{error}</p>
+            <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm font-medium text-destructive">{error}</p>
             <button
               type="button"
               onClick={generate}
-              className="flex w-full items-center justify-center gap-2 rounded-xl border border-border py-3 text-sm font-semibold"
+              className="flex w-full items-center justify-center gap-2 rounded-md border border-border py-3 text-sm font-semibold"
             >
               <RefreshCw className="size-4" />
               Try again
@@ -1042,14 +980,14 @@ function InviteSheet({
           <>
             <p className="mb-4 max-w-xs text-pretty text-sm text-muted-foreground">
               Have{" "}
-              <span className="font-semibold text-foreground">{member?.name}</span> open Lumora on
+              <span className="font-semibold text-foreground">{member?.name}</span> open Solora on
               their phone, tap{" "}
               <span className="font-semibold text-foreground">I have an invite</span>, and scan the
               code below to create their profile.
             </p>
 
             {/* QR code */}
-            <div className="rounded-2xl border border-border bg-white p-3">
+            <div className="rounded-md border border-border bg-white p-3">
               <QrCode value={payload} size={192} />
             </div>
 
@@ -1061,7 +999,7 @@ function InviteSheet({
               <button
                 type="button"
                 onClick={copyCode}
-                className="mt-1.5 flex w-full items-center justify-center gap-2 rounded-xl bg-secondary py-3 text-xl font-bold tracking-widest text-foreground transition-colors hover:bg-secondary/80"
+                className="mt-1.5 flex w-full items-center justify-center gap-2 rounded-md bg-secondary py-3 text-xl font-bold tracking-widest text-foreground transition-colors hover:bg-secondary/80"
               >
                 {invite.code}
                 {copied ? (
@@ -1076,7 +1014,7 @@ function InviteSheet({
             <button
               type="button"
               onClick={copyLink}
-              className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl border border-border py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-secondary"
+              className="mt-2 flex w-full items-center justify-center gap-2 rounded-md border border-border py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-secondary"
             >
               {copiedLink ? (
                 <>
@@ -1101,7 +1039,7 @@ function InviteSheet({
                 type="button"
                 onClick={generate}
                 disabled={busy}
-                className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-border py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-secondary disabled:opacity-50"
+                className="flex flex-1 items-center justify-center gap-2 rounded-md border border-border py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-secondary disabled:opacity-50"
               >
                 <RefreshCw className="size-4" />
                 New code
@@ -1110,7 +1048,7 @@ function InviteSheet({
                 type="button"
                 onClick={handleCancel}
                 disabled={cancelling}
-                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-destructive/10 py-2.5 text-sm font-semibold text-destructive transition-colors hover:bg-destructive/15 disabled:opacity-50"
+                className="flex flex-1 items-center justify-center gap-2 rounded-md bg-destructive/10 py-2.5 text-sm font-semibold text-destructive transition-colors hover:bg-destructive/15 disabled:opacity-50"
               >
                 {cancelling ? (
                   <Loader2 className="size-4 animate-spin" />
@@ -1131,7 +1069,7 @@ function InviteSheet({
 function MemberStatusBadge({ member }: { member: Member }) {
   if (member.pending) {
     return (
-      <span className="flex items-center gap-1 rounded-full bg-member-amber/15 px-2 py-0.5 text-[10px] font-semibold text-member-amber">
+      <span className="flex items-center gap-1 rounded-full bg-member-amber/15 px-2 py-0.5 text-[0.7rem] font-semibold text-member-amber">
         <Send className="size-2.5" />
         Invite sent
       </span>
@@ -1139,14 +1077,14 @@ function MemberStatusBadge({ member }: { member: Member }) {
   }
   if (member.userId || member.account) {
     return (
-      <span className="flex items-center gap-1 rounded-full bg-member-green/15 px-2 py-0.5 text-[10px] font-semibold text-member-green">
+      <span className="flex items-center gap-1 rounded-full bg-member-green/15 px-2 py-0.5 text-[0.7rem] font-semibold text-member-green">
         <UserCheck className="size-2.5" />
         Linked
       </span>
     )
   }
   return (
-    <span className="flex items-center gap-1 rounded-full bg-secondary px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
+    <span className="flex items-center gap-1 rounded-full bg-secondary px-2 py-0.5 text-[0.7rem] font-semibold text-muted-foreground">
       <Unplug className="size-2.5" />
       Not linked
     </span>
@@ -1175,7 +1113,7 @@ function MemberActionSheet({
     <BottomSheet open={open} onClose={onClose} title={member.name}>
       <div className="space-y-3">
         {/* Summary card */}
-        <div className="flex items-center gap-4 rounded-2xl bg-secondary/50 px-4 py-3">
+        <div className="flex items-center gap-4 rounded-md bg-secondary/50 px-4 py-3">
           <MemberAvatar member={member} size="lg" />
           <div className="min-w-0 flex-1">
             <p className="truncate text-base font-semibold">{member.name}</p>
@@ -1195,9 +1133,9 @@ function MemberActionSheet({
         <button
           type="button"
           onClick={onEdit}
-          className="flex w-full items-center gap-3 rounded-2xl bg-secondary/50 px-4 py-3.5 text-sm font-semibold text-foreground transition-colors hover:bg-secondary"
+          className="flex w-full items-center gap-3 rounded-md bg-secondary/50 px-4 py-3.5 text-sm font-semibold text-foreground transition-colors hover:bg-secondary"
         >
-          <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-card">
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-card">
             <User className="size-4 text-primary" />
           </span>
           Edit profile
@@ -1207,9 +1145,9 @@ function MemberActionSheet({
         <button
           type="button"
           onClick={onInvite}
-          className="flex w-full items-center gap-3 rounded-2xl bg-secondary/50 px-4 py-3.5 text-sm font-semibold text-foreground transition-colors hover:bg-secondary"
+          className="flex w-full items-center gap-3 rounded-md bg-secondary/50 px-4 py-3.5 text-sm font-semibold text-foreground transition-colors hover:bg-secondary"
         >
-          <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-card">
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-card">
             <QrCodeIcon className="size-4 text-primary" />
           </span>
           {member.pending ? "Resend invite" : "Invite to app"}
@@ -1219,9 +1157,9 @@ function MemberActionSheet({
         <button
           type="button"
           onClick={onDelete}
-          className="flex w-full items-center gap-3 rounded-2xl bg-destructive/8 px-4 py-3.5 text-sm font-semibold text-destructive transition-colors hover:bg-destructive/12"
+          className="flex w-full items-center gap-3 rounded-md bg-destructive/8 px-4 py-3.5 text-sm font-semibold text-destructive transition-colors hover:bg-destructive/12"
         >
-          <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-destructive/10">
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-destructive/10">
             <Trash2 className="size-4 text-destructive" />
           </span>
           Remove member
@@ -1322,14 +1260,14 @@ function FamilyMembersSection() {
     <section className="space-y-3">
       {/* Section header */}
       <div className="flex items-center justify-between px-1">
-        <h2 className="text-sm font-semibold text-muted-foreground">Family Members</h2>
+        <h2 className="os-label">Family Members</h2>
         <span className="text-xs text-muted-foreground">{people.length} {people.length === 1 ? "person" : "people"}</span>
       </div>
 
       {/* Member grid */}
       {people.length === 0 ? (
         /* Empty state */
-        <div className="flex flex-col items-center gap-3 rounded-3xl border-2 border-dashed border-border bg-card/50 py-12">
+        <div className="flex flex-col items-center gap-3 rounded-lg border-2 border-dashed border-border bg-card/50 py-12">
           <span className="flex size-14 items-center justify-center rounded-full bg-secondary">
             <UserPlus className="size-6 text-muted-foreground" />
           </span>
@@ -1341,7 +1279,7 @@ function FamilyMembersSection() {
             <button
               type="button"
               onClick={() => { setEditTarget(null); setAddOpen(true) }}
-              className="mt-1 flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground"
+              className="mt-1 flex items-center gap-2 rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground"
             >
               <UserPlus className="size-4" />
               Add first member
@@ -1358,7 +1296,7 @@ function FamilyMembersSection() {
                 type="button"
                 onClick={() => openAction(m)}
                 disabled={!canManageMembers}
-                className="group relative flex w-36 shrink-0 flex-col overflow-hidden rounded-3xl bg-card shadow-sm transition-transform active:scale-95 disabled:cursor-default"
+                className="group relative flex w-36 shrink-0 flex-col overflow-hidden rounded-md border border-hairline bg-card transition-transform active:scale-95 disabled:cursor-default"
               >
                 {/* Color accent bar */}
                 <div className={cn("h-1.5 w-full", memberBg[m.color])} />
@@ -1388,7 +1326,7 @@ function FamilyMembersSection() {
             <button
               type="button"
               onClick={() => { setEditTarget(null); setAddOpen(true) }}
-              className="flex w-36 shrink-0 flex-col items-center justify-center gap-2 rounded-3xl border-2 border-dashed border-border bg-card/50 py-8 transition-colors hover:bg-card"
+              className="flex w-36 shrink-0 flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border bg-card/50 py-8 transition-colors hover:bg-card"
             >
               <span className="flex size-10 items-center justify-center rounded-full bg-secondary">
                 <UserPlus className="size-5 text-muted-foreground" />
@@ -1404,7 +1342,7 @@ function FamilyMembersSection() {
         <button
           type="button"
           onClick={() => { setQuickOpen(true); setQuickError(null) }}
-          className="flex w-full items-center justify-center gap-2 rounded-2xl border border-border bg-card py-3.5 text-sm font-semibold text-foreground shadow-sm transition-colors hover:bg-secondary"
+          className="flex w-full items-center justify-center gap-2 rounded-md border border-border bg-card py-3.5 text-sm font-semibold text-foreground transition-colors hover:bg-secondary"
         >
           <QrCodeIcon className="size-4 text-primary" />
           Invite someone to join
@@ -1455,7 +1393,7 @@ function FamilyMembersSection() {
             type="button"
             onClick={submitQuickInvite}
             disabled={!quickName.trim() || quickBusy}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3 text-sm font-semibold text-primary-foreground disabled:opacity-40"
+            className="flex w-full items-center justify-center gap-2 rounded-md bg-primary py-3 text-sm font-semibold text-primary-foreground disabled:opacity-40"
           >
             {quickBusy ? <Loader2 className="size-4 animate-spin" /> : <QrCodeIcon className="size-4" />}
             Create &amp; get invite code
@@ -1482,7 +1420,7 @@ function FamilyMembersSection() {
                 const active = quickRole === r
                 return (
                   <button key={r} type="button" onClick={() => setQuickRole(r)} aria-pressed={active}
-                    className={cn("rounded-xl py-2 text-xs font-semibold transition-colors",
+                    className={cn("rounded-md py-2 text-xs font-semibold transition-colors",
                       active ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground hover:text-foreground")}
                   >
                     {roleLabels[r]}
@@ -1497,7 +1435,7 @@ function FamilyMembersSection() {
                 const active = quickColor === c
                 return (
                   <button key={c} type="button" onClick={() => setQuickColor(c)} aria-label={c} aria-pressed={active}
-                    className={cn("size-9 rounded-full transition-transform", memberBg[c],
+                    className={cn("size-11 rounded-full transition-transform", memberBg[c],
                       active ? "ring-2 ring-foreground ring-offset-2 ring-offset-card" : "hover:scale-105")}
                   />
                 )
@@ -1505,7 +1443,7 @@ function FamilyMembersSection() {
             </div>
           </Field>
           {quickError && (
-            <p className="rounded-xl bg-destructive/10 px-3 py-2 text-sm font-medium text-destructive">{quickError}</p>
+            <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm font-medium text-destructive">{quickError}</p>
           )}
         </div>
       </BottomSheet>
@@ -1562,7 +1500,7 @@ function FactoryResetDialog({ open, onClose }: { open: boolean; onClose: () => v
       {step === 1 ? (
         <div className="space-y-4">
           {/* Warning banner */}
-          <div className="flex items-start gap-3 rounded-2xl bg-destructive/10 p-4">
+          <div className="flex items-start gap-3 rounded-md bg-destructive/10 p-4">
             <AlertTriangle className="mt-0.5 size-5 shrink-0 text-destructive" />
             <div className="min-w-0">
               <p className="text-sm font-semibold text-destructive">This cannot be undone</p>
@@ -1573,7 +1511,7 @@ function FactoryResetDialog({ open, onClose }: { open: boolean; onClose: () => v
           </div>
 
           {/* What gets deleted */}
-          <div className="divide-y divide-border/60 overflow-hidden rounded-2xl border border-border/60">
+          <div className="divide-y divide-hairline overflow-hidden rounded-md border border-hairline">
             {[
               { icon: User, label: "All family member profiles" },
               { icon: Lock, label: "Account & authentication data" },
@@ -1596,14 +1534,14 @@ function FactoryResetDialog({ open, onClose }: { open: boolean; onClose: () => v
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 rounded-xl border border-border bg-card py-3 text-sm font-semibold text-foreground transition-colors hover:bg-secondary"
+              className="flex-1 rounded-md border border-border bg-card py-3 text-sm font-semibold text-foreground transition-colors hover:bg-secondary"
             >
               Cancel
             </button>
             <button
               type="button"
               onClick={() => setStep(2)}
-              className="flex-1 rounded-xl bg-destructive py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90"
+              className="flex-1 rounded-md bg-destructive py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90"
             >
               Continue
             </button>
@@ -1611,7 +1549,7 @@ function FactoryResetDialog({ open, onClose }: { open: boolean; onClose: () => v
         </div>
       ) : (
         <div className="space-y-4">
-          <div className="flex items-start gap-3 rounded-2xl bg-destructive/10 p-4">
+          <div className="flex items-start gap-3 rounded-md bg-destructive/10 p-4">
             <AlertTriangle className="mt-0.5 size-5 shrink-0 text-destructive" />
             <p className="text-sm font-semibold text-destructive">
               All data will be permanently erased. This device will be reset to factory defaults.
@@ -1631,7 +1569,7 @@ function FactoryResetDialog({ open, onClose }: { open: boolean; onClose: () => v
               value={typed}
               onChange={(e) => setTyped(e.target.value)}
               placeholder="RESET"
-              className="w-full rounded-xl border border-border bg-background px-3 py-3 text-sm font-mono tracking-wider outline-none transition-colors focus:border-destructive"
+              className="w-full rounded-md border border-border bg-background px-3 py-3 text-sm font-mono tracking-wider outline-none transition-colors focus:border-destructive"
             />
           </div>
 
@@ -1640,7 +1578,7 @@ function FactoryResetDialog({ open, onClose }: { open: boolean; onClose: () => v
               type="button"
               onClick={() => setStep(1)}
               disabled={busy}
-              className="flex-1 rounded-xl border border-border bg-card py-3 text-sm font-semibold text-foreground transition-colors hover:bg-secondary disabled:opacity-50"
+              className="flex-1 rounded-md border border-border bg-card py-3 text-sm font-semibold text-foreground transition-colors hover:bg-secondary disabled:opacity-50"
             >
               Back
             </button>
@@ -1648,7 +1586,7 @@ function FactoryResetDialog({ open, onClose }: { open: boolean; onClose: () => v
               type="button"
               onClick={() => void handleReset()}
               disabled={!confirmed || busy}
-              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-destructive py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-40"
+              className="flex flex-1 items-center justify-center gap-2 rounded-md bg-destructive py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-40"
             >
               {busy ? (
                 <>
@@ -1675,7 +1613,7 @@ function SignalBars({ signal }: { signal: number }) {
   const pct = Math.round(signal)
   const color = pct >= 70 ? "text-member-green" : pct >= 40 ? "text-member-amber" : "text-destructive"
   return (
-    <span className={cn("text-[11px] font-semibold tabular-nums", color)}>
+    <span className={cn("text-[0.75rem] font-semibold tabular-nums", color)}>
       {pct}%
     </span>
   )
@@ -1701,8 +1639,9 @@ function WifiSection() {
     try {
       const nets = await scanNetworks()
       setNetworks(nets)
-    } catch {
-      setConnectError("Scan failed — check WiFi hardware")
+    } catch (err) {
+      setNetworks([])
+      setConnectError(err instanceof Error ? err.message : "Scan failed — check WiFi hardware")
     } finally {
       setScanning(false)
     }
@@ -1726,7 +1665,7 @@ function WifiSection() {
         setSheetOpen(false)
         setPasswordFor(null)
         setPassword("")
-        toast.success(`Connected to ${ssid}`)
+        kioskToast.success(`Connected to ${ssid}`)
       } else {
         setConnectError("Connection failed — wrong password?")
       }
@@ -1750,8 +1689,8 @@ function WifiSection() {
 
   return (
     <section>
-      <h2 className="px-1 pb-2 text-sm font-semibold text-muted-foreground">WiFi</h2>
-      <div className="divide-y divide-border/60 overflow-hidden rounded-3xl bg-card shadow-sm">
+      <h2 className="os-label px-1 pb-4">WiFi</h2>
+      <div className="divide-y divide-hairline overflow-hidden rounded-md border border-hairline bg-card">
         <ActionRow
           icon={Wifi}
           label="Network"
@@ -1776,10 +1715,10 @@ function WifiSection() {
         </div>
 
         {connectError ? (
-          <p className="mb-3 rounded-xl bg-destructive/10 px-3 py-2 text-xs font-medium text-destructive">{connectError}</p>
+          <p className="mb-3 rounded-md bg-destructive/10 px-3 py-2 text-xs font-medium text-destructive">{connectError}</p>
         ) : null}
 
-        <ul className="max-h-[55vh] divide-y divide-border/60 overflow-y-auto overscroll-contain rounded-2xl bg-background">
+        <ul className="max-h-[55vh] divide-y divide-hairline overflow-y-auto overscroll-contain rounded-md bg-background">
           {scanning && networks.length === 0 ? (
             <li className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground">
               <Loader2 className="size-4 animate-spin" />
@@ -1830,7 +1769,7 @@ function WifiSection() {
             type="button"
             onClick={() => passwordFor && void doConnect(passwordFor.ssid, password)}
             disabled={!password.trim() || !!connecting}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3 text-sm font-semibold text-primary-foreground disabled:opacity-40"
+            className="flex w-full items-center justify-center gap-2 rounded-md bg-primary py-3 text-sm font-semibold text-primary-foreground disabled:opacity-40"
           >
             {connecting ? <Loader2 className="size-4 animate-spin" /> : null}
             {connecting ? "Connecting…" : "Connect"}
@@ -1852,10 +1791,10 @@ function WifiSection() {
               }
             }}
             placeholder="Password"
-            className="w-full rounded-xl border border-border bg-background px-3 py-3 text-sm outline-none transition-colors focus:border-primary"
+            className="w-full rounded-md border border-border bg-background px-3 py-3 text-sm outline-none transition-colors focus:border-primary"
           />
           {connectError ? (
-            <p className="rounded-xl bg-destructive/10 px-3 py-2 text-xs font-medium text-destructive">{connectError}</p>
+            <p className="rounded-md bg-destructive/10 px-3 py-2 text-xs font-medium text-destructive">{connectError}</p>
           ) : null}
         </div>
       </BottomSheet>
@@ -2002,12 +1941,12 @@ function LanguageRegionSection({ initialOrientation }: { initialOrientation?: st
       const ok = await setLanguage(code)
       if (ok) {
         setCurrentLang(code)
-        toast.success("OS language updated — takes effect after a restart")
+        kioskToast.success("OS language updated — takes effect after a restart")
       } else {
-        toast.error("Could not apply language — check system permissions")
+        kioskToast.error("Could not apply language — check system permissions")
       }
     } catch {
-      toast.error("Could not apply language")
+      kioskToast.error("Could not apply language")
     } finally {
       setApplying(false)
     }
@@ -2020,12 +1959,13 @@ function LanguageRegionSection({ initialOrientation }: { initialOrientation?: st
       const ok = await setTimezone(tz)
       if (ok) {
         setCurrentTz(tz)
-        toast.success("Timezone updated — takes effect immediately")
+        void saveTimezone(tz).catch(() => {})
+        kioskToast.success("Timezone updated — takes effect immediately")
       } else {
-        toast.error("Could not apply timezone — check system permissions")
+        kioskToast.error("Could not apply timezone — check system permissions")
       }
     } catch {
-      toast.error("Could not apply timezone")
+      kioskToast.error("Could not apply timezone")
     } finally {
       setApplying(false)
     }
@@ -2040,18 +1980,18 @@ function LanguageRegionSection({ initialOrientation }: { initialOrientation?: st
         if (ok) {
           setCurrentOrientation(rotation)
           await patchDeviceState({ orientation: rotation })
-          toast.success("Screen rotation updated")
+          kioskToast.success("Screen rotation updated")
         } else {
-          toast.error("Could not apply rotation — check display connection")
+          kioskToast.error("Could not apply rotation — check display connection")
         }
       } else {
         await sendHubCommand({ type: "set_orientation", orientation: rotation })
         setCurrentOrientation(rotation)
         await patchDeviceState({ orientation: rotation })
-        toast.success("Orientation command sent to hub")
+        kioskToast.success("Orientation command sent to hub")
       }
     } catch {
-      toast.error("Could not apply rotation")
+      kioskToast.error("Could not apply rotation")
     } finally {
       setApplying(false)
     }
@@ -2076,20 +2016,20 @@ function LanguageRegionSection({ initialOrientation }: { initialOrientation?: st
 
   return (
     <section>
-      <h2 className="px-1 pb-2 text-sm font-semibold text-muted-foreground">Language & Region</h2>
+      <h2 className="os-label px-1 pb-4">Language & Region</h2>
 
       {/* OS-level explanation banner */}
-      <div className="mb-3 flex items-start gap-3 rounded-2xl border border-border/60 bg-card px-4 py-3 shadow-sm">
+      <div className="mb-3 flex items-start gap-3 rounded-md border border-hairline bg-card px-4 py-3">
         <Globe className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
         <p className="text-xs text-muted-foreground leading-relaxed">
           These settings change the <span className="font-semibold text-foreground">operating system language</span> via{" "}
-          <span className="font-mono text-[11px]">localectl</span> and timezone via{" "}
-          <span className="font-mono text-[11px]">timedatectl</span> — affecting the entire kiosk, not just the app.
+          <span className="font-mono text-[0.75rem]">localectl</span> and timezone via{" "}
+          <span className="font-mono text-[0.75rem]">timedatectl</span> — affecting the whole hub, not just the app.
           Language changes take effect after a restart; timezone changes are immediate.
         </p>
       </div>
 
-      <div className="divide-y divide-border/60 overflow-hidden rounded-3xl bg-card shadow-sm">
+      <div className="divide-y divide-hairline overflow-hidden rounded-md border border-hairline bg-card">
         {/* Language */}
         <ActionRow
           icon={Globe}
@@ -2142,10 +2082,10 @@ function LanguageRegionSection({ initialOrientation }: { initialOrientation?: st
             placeholder="Search languages…"
             value={langSearch}
             onChange={(e) => setLangSearch(e.target.value)}
-            className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none transition-colors focus:border-primary"
+            className="w-full rounded-md border border-border bg-background px-3 py-2.5 text-sm outline-none transition-colors focus:border-primary"
           />
         </div>
-        <ul className="max-h-[55vh] divide-y divide-border/60 overflow-y-auto overscroll-contain rounded-2xl bg-background">
+        <ul className="max-h-[55vh] divide-y divide-hairline overflow-y-auto overscroll-contain rounded-md bg-background">
           {filteredLangs.length === 0 ? (
             <li className="px-4 py-8 text-center text-sm text-muted-foreground">No languages match</li>
           ) : (
@@ -2173,10 +2113,10 @@ function LanguageRegionSection({ initialOrientation }: { initialOrientation?: st
             })
           )}
         </ul>
-        <p className="mt-3 text-center text-[11px] text-muted-foreground">
+        <p className="mt-3 text-center text-[0.75rem] text-muted-foreground">
           Runs{" "}
           <span className="font-mono">localectl set-locale LANG=xx_XX.UTF-8</span>{" "}
-          on the kiosk OS
+          on the hub
         </p>
       </BottomSheet>
 
@@ -2188,10 +2128,10 @@ function LanguageRegionSection({ initialOrientation }: { initialOrientation?: st
             placeholder="Search timezones…"
             value={tzSearch}
             onChange={(e) => setTzSearch(e.target.value)}
-            className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none transition-colors focus:border-primary"
+            className="w-full rounded-md border border-border bg-background px-3 py-2.5 text-sm outline-none transition-colors focus:border-primary"
           />
         </div>
-        <ul className="max-h-[55vh] divide-y divide-border/60 overflow-y-auto overscroll-contain rounded-2xl bg-background">
+        <ul className="max-h-[55vh] divide-y divide-hairline overflow-y-auto overscroll-contain rounded-md bg-background">
           {filteredTzs.length === 0 ? (
             <li className="px-4 py-8 text-center text-sm text-muted-foreground">No timezones match</li>
           ) : (
@@ -2219,16 +2159,16 @@ function LanguageRegionSection({ initialOrientation }: { initialOrientation?: st
             })
           )}
         </ul>
-        <p className="mt-3 text-center text-[11px] text-muted-foreground">
+        <p className="mt-3 text-center text-[0.75rem] text-muted-foreground">
           Runs{" "}
           <span className="font-mono">timedatectl set-timezone</span>{" "}
-          on the kiosk OS
+          on the hub
         </p>
       </BottomSheet>
 
       {/* Orientation picker sheet */}
       <BottomSheet open={orientationSheetOpen} onClose={() => setOrientationSheetOpen(false)} title="Screen Orientation">
-        <ul className="divide-y divide-border/60 overflow-hidden rounded-2xl bg-background">
+        <ul className="divide-y divide-hairline overflow-hidden rounded-md bg-background">
           {ORIENTATION_OPTIONS.map((opt) => {
             const active = opt.value === currentOrientation
             return (
@@ -2253,8 +2193,8 @@ function LanguageRegionSection({ initialOrientation }: { initialOrientation?: st
             )
           })}
         </ul>
-        <p className="mt-3 text-center text-[11px] text-muted-foreground">
-          Runs <span className="font-mono">xrandr --rotate</span> on the kiosk OS
+        <p className="mt-3 text-center text-[0.75rem] text-muted-foreground">
+          Runs <span className="font-mono">xrandr --rotate</span> on the hub
         </p>
       </BottomSheet>
     </section>
@@ -2280,9 +2220,9 @@ function SlideshowSection({ initialIdleMins }: { initialIdleMins: number | null 
     setSaving(true)
     try {
       await patchDeviceState({ slideshowIdleMins: value })
-      toast.success(value === null ? "Slideshow disabled" : `Slideshow starts after ${value} min${value === 1 ? "" : "s"} idle`)
+      kioskToast.success(value === null ? "Slideshow disabled" : `Slideshow starts after ${value} min${value === 1 ? "" : "s"} idle`)
     } catch {
-      toast.error("Could not save setting")
+      kioskToast.error("Could not save setting")
     } finally {
       setSaving(false)
     }
@@ -2290,10 +2230,10 @@ function SlideshowSection({ initialIdleMins }: { initialIdleMins: number | null 
 
   return (
     <section>
-      <h2 className="px-1 pb-2 text-sm font-semibold text-muted-foreground">Slideshow</h2>
-      <div className="overflow-hidden rounded-3xl bg-card shadow-sm">
-        <div className="flex items-center gap-3 px-4 py-3">
-          <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-secondary text-foreground">
+      <h2 className="os-label px-1 pb-4">Slideshow</h2>
+      <div className="overflow-hidden rounded-md border border-hairline bg-card">
+        <div className="flex items-center gap-3 px-4 py-4">
+          <span className="flex size-8 shrink-0 items-center justify-center text-muted-foreground">
             <Images className="size-4" />
           </span>
           <span className="min-w-0 flex-1">
@@ -2306,7 +2246,7 @@ function SlideshowSection({ initialIdleMins }: { initialIdleMins: number | null 
           </span>
           {saving && <Loader2 className="size-4 animate-spin text-muted-foreground" />}
         </div>
-        <div className="flex flex-wrap gap-1.5 border-t border-border/60 px-4 py-3">
+        <div className="flex flex-wrap gap-1.5 border-t border-hairline px-4 py-3">
           {IDLE_OPTIONS.map((opt) => {
             const active = opt.value === current
             return (
@@ -2326,7 +2266,7 @@ function SlideshowSection({ initialIdleMins }: { initialIdleMins: number | null 
             )
           })}
         </div>
-        <div className="flex items-start gap-2.5 border-t border-border/60 px-4 py-3">
+        <div className="flex items-start gap-2.5 border-t border-hairline px-4 py-3">
           <Timer className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
           <p className="text-xs text-muted-foreground">
             Tap anywhere on screen to dismiss the slideshow. Requires at least one uploaded photo.
@@ -2354,9 +2294,10 @@ function CalendarIntegrationSection() {
         fetch(`${LOCAL_API_BASE}/ics/token/${payload.householdId}`, {
           headers: { Authorization: `Bearer ${token}` },
         })
-          .then((r) => r.json() as Promise<{ token: string; householdId: string }>)
-          .then(({ token: t }) => {
-            setIcsUrl(`${LOCAL_API_BASE}/ics/${t}`)
+          .then((r) => r.json() as Promise<{ token: string; householdId: string; url?: string }>)
+          .then(({ token: t, url }) => {
+            // The hub's address on the home network; the wall's own address (127.0.0.1) means nothing on another device.
+            setIcsUrl(url ?? `${LOCAL_API_BASE}/ics/${t}`)
           })
           .catch(() => null)
       }
@@ -2373,18 +2314,18 @@ function CalendarIntegrationSection() {
 
   return (
     <section>
-      <h2 className="px-1 pb-2 text-sm font-semibold text-muted-foreground">Calendar Integration</h2>
-      <div className="divide-y divide-border/60 overflow-hidden rounded-3xl bg-card shadow-sm">
+      <h2 className="os-label px-1 pb-4">Calendar Integration</h2>
+      <div className="divide-y divide-hairline overflow-hidden rounded-md border border-hairline bg-card">
         <ActionRow
           icon={Globe}
           label="Map Google calendars"
-          description="Assign Google calendars to Lumora calendars"
+          description="Assign Google calendars to Solora calendars"
           onClick={() => setImportProvider("google")}
         />
         <ActionRow
           icon={Globe}
           label="Map Outlook categories"
-          description="Assign Outlook categories to Lumora calendars"
+          description="Assign Outlook categories to Solora calendars"
           onClick={() => setImportProvider("microsoft")}
         />
         {icsUrl ? (
@@ -2393,7 +2334,7 @@ function CalendarIntegrationSection() {
             onClick={copyIcs}
             className="flex w-full items-center gap-3 px-4 py-3 text-left"
           >
-            <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-secondary text-foreground">
+            <span className="flex size-8 shrink-0 items-center justify-center text-muted-foreground">
               <Link2Off className="size-4" />
             </span>
             <span className="min-w-0 flex-1">
@@ -2435,21 +2376,75 @@ function CalendarIntegrationSection() {
   )
 }
 
-export function SettingsView() {
+// ---------------------------------------------------------------------------
+// Settings shell — a two-pane layout: a category rail on the left, and only
+// the active category's sections on the right. Categories group related
+// controls instead of stacking every section in one long scroll.
+// ---------------------------------------------------------------------------
+
+type SettingsCategory = "general" | "family" | "display" | "network" | "calendars" | "maintenance" | "account"
+
+const CATEGORY_STORAGE_KEY = "lumora-settings-category"
+
+const categoryMeta: Record<SettingsCategory, { label: string; icon: LucideIcon; description: string }> = {
+  general: { label: "General", icon: Tablet, description: "This display, language, time zone and orientation." },
+  family: { label: "Family", icon: Users, description: "People in your household, their roles and invites." },
+  display: { label: "Display & Sound", icon: Palette, description: "Theme, seasons, brightness, volume and the idle slideshow." },
+  network: { label: "Network", icon: Wifi, description: "Wi‑Fi and the Solora cloud connection." },
+  calendars: { label: "Calendars", icon: CalendarDays, description: "Imported calendars, ICS feeds and sync activity." },
+  maintenance: { label: "Maintenance", icon: Wrench, description: "Updates, activity logs, cache and restarts." },
+  account: { label: "Account & Reset", icon: ShieldAlert, description: "Sign out, disconnect this hub, or erase data." },
+}
+
+const categoryOrder: SettingsCategory[] = ["general", "family", "display", "network", "calendars", "maintenance", "account"]
+
+function readStoredCategory(): SettingsCategory {
+  try {
+    const stored = sessionStorage.getItem(CATEGORY_STORAGE_KEY) as SettingsCategory | null
+    if (stored && stored in categoryMeta) return stored
+  } catch {
+    // Storage unavailable
+  }
+  return "general"
+}
+
+function SettingsGroup({ title, tone, children }: { title: string; tone?: "destructive"; children: React.ReactNode }) {
+  return (
+    <section>
+      <h2 className={cn("os-label px-1 pb-4", tone === "destructive" && "!text-destructive")}>{title}</h2>
+      <div className="divide-y divide-hairline overflow-hidden rounded-md border border-hairline bg-card">{children}</div>
+    </section>
+  )
+}
+
+function DeviceIdentityCard() {
+  const { state: kioskState } = useKiosk()
+  return (
+    <section>
+      <h2 className="os-label px-1 pb-4">This Device</h2>
+      <div className="flex items-end gap-3 rounded-md border border-hairline bg-card px-5 py-6">
+        <div className="min-w-0 flex-1">
+          <p className="truncate font-display text-5xl leading-none">{kioskState.deviceName}</p>
+          <p className="mt-3 text-sm text-muted-foreground">
+            {kioskState.paired ? kioskState.householdName ?? "Connected household" : "Not connected to a household"}
+          </p>
+        </div>
+        <span className="os-label flex shrink-0 items-center gap-2">
+          <span className={cn("size-1.5 rounded-full", kioskState.paired ? "bg-season" : "bg-muted-foreground/50")} />
+          {kioskState.paired ? "Paired" : "Unpaired"}
+        </span>
+      </div>
+    </section>
+  )
+}
+
+function AccountResetSection() {
   const { clearNotifications, can } = useStore()
   const authCtx = useOptionalAuth()
   const signOut = authCtx?.signOut ?? (async () => { })
-  const { state: kioskState, deviceState, unpair } = useKiosk()
+  const { state: kioskState, unpair } = useKiosk()
   const [confirm, setConfirm] = useState<null | "signout" | "clear" | "reset" | "delete" | "unpair">(null)
   const [factoryResetOpen, setFactoryResetOpen] = useState(false)
-  const [appVersion, setAppVersion] = useState<string | null>(null)
-
-  useEffect(() => {
-    import("@tauri-apps/api/app")
-      .then(({ getVersion }) => getVersion())
-      .then(setAppVersion)
-      .catch(() => null)
-  }, [])
 
   const confirmMeta = {
     signout: {
@@ -2478,126 +2473,60 @@ export function SettingsView() {
     },
     unpair: {
       title: "Disconnect hub?",
-      message: `Removes this display from ${kioskState.householdName ?? "your household"}. A new pairing code will be issued.`,
+      message: `Removes this display from ${kioskState.householdName ?? "your household"}. It will show a new display code to pair again.`,
       confirmLabel: "Disconnect",
       onConfirm: () => { void unpair() },
     },
   } as const
 
   const active = confirm ? confirmMeta[confirm] : null
+  const showSignOut = !kioskConfig.enabled && !kioskConfig.hideSignOut
 
   return (
-    <div className="space-y-5 px-4 py-4">
+    <>
+      <SettingsGroup title="Account">
+        {showSignOut ? <ActionRow icon={LogOut} label="Sign out" onClick={() => setConfirm("signout")} /> : null}
+        <ActionRow
+          icon={Bell}
+          label="Clear notifications"
+          description="Remove all notification history on this hub"
+          onClick={() => setConfirm("clear")}
+        />
+        {kioskState.paired ? (
+          <ActionRow
+            icon={Link2Off}
+            label="Disconnect hub"
+            description={`Unpair from ${kioskState.householdName ?? "household"} and show a new display code`}
+            onClick={() => setConfirm("unpair")}
+          />
+        ) : null}
+      </SettingsGroup>
 
-      {/* Device identity — read-only status card */}
-      <section>
-        <h2 className="px-1 pb-2 text-sm font-semibold text-muted-foreground">This Device</h2>
-        <div className="rounded-3xl bg-card p-4 shadow-sm">
-          <div className="flex items-center gap-3">
-            <span className="flex size-12 items-center justify-center rounded-2xl bg-foreground text-background">
-              <MonitorSmartphone className="size-6" />
-            </span>
-            <div className="flex-1 min-w-0">
-              <p className="font-bold leading-tight truncate">{kioskState.deviceName}</p>
-              <p className="text-sm text-muted-foreground">
-                {kioskState.paired
-                  ? kioskState.householdName ?? "Connected household"
-                  : "Not connected to a household"}
-              </p>
-            </div>
-            <span className={cn(
-              "shrink-0 rounded-full px-2 py-1 text-[11px] font-semibold",
-              kioskState.paired
-                ? "bg-member-green/15 text-member-green"
-                : "bg-secondary text-muted-foreground",
-            )}>
-              {kioskState.paired ? "Paired" : "Unpaired"}
-            </span>
-          </div>
-        </div>
-      </section>
-
-      {/* Family Members — full CRUD */}
-      <FamilyMembersSection />
-
-      {/* Appearance */}
-      <section>
-        <h2 className="px-1 pb-2 text-sm font-semibold text-muted-foreground">Appearance</h2>
-        <AppearanceControl />
-      </section>
-
-      {/* WiFi */}
-      <WifiSection />
-
-      {/* Calendar integration — import mappings + ICS feed + activity log */}
-      <CalendarIntegrationSection />
-
-      {/* Language & Region — OS level */}
-      <LanguageRegionSection initialOrientation={deviceState.orientation} />
-
-      {/* Slideshow idle timer */}
-      <SlideshowSection initialIdleMins={deviceState.slideshowIdleMins ?? 5} />
-
-      {/* Cloud connection */}
-      <CentralConnectionSection />
-
-      {/* Hub actions */}
-      <HubActionsSection />
-
-      {/* Danger Zone — only destructive, irreversible actions */}
-      <section>
-        <h2 className="px-1 pb-2 text-sm font-semibold text-destructive">Danger Zone</h2>
-        <div className="divide-y divide-border/60 overflow-hidden rounded-3xl bg-card shadow-sm">
-          {kioskState.paired ? (
-            <ActionRow
-              icon={Link2Off}
-              label="Disconnect hub"
-              description={`Unpair from ${kioskState.householdName ?? "household"} and reissue a pairing code`}
-              onClick={() => setConfirm("unpair")}
-              destructive
-            />
-          ) : null}
-          {can("hub") ? (
-            <ActionRow
-              icon={RefreshCw}
-              label="Reset hub data"
-              description="Permanently removes all events, chores, lists and meals"
-              onClick={() => setConfirm("reset")}
-              destructive
-            />
-          ) : null}
-          {!kioskConfig.enabled && !kioskConfig.hideSignOut ? (
-            <ActionRow
-              icon={LogOut}
-              label="Sign out"
-              onClick={() => setConfirm("signout")}
-              destructive
-            />
-          ) : null}
-          {can("hub") ? (
-            <ActionRow
-              icon={Trash2}
-              label="Delete account"
-              description="Permanently deletes your account and all family data"
-              onClick={() => setConfirm("delete")}
-              destructive
-            />
-          ) : null}
-          {can("hub") ? (
-            <ActionRow
-              icon={RotateCcw}
-              label="Factory Reset"
-              description="Erase everything and return to the setup wizard"
-              onClick={() => setFactoryResetOpen(true)}
-              destructive
-            />
-          ) : null}
-        </div>
-      </section>
-
-      <p className="pb-2 text-center text-xs text-muted-foreground">
-        Lumora Hub{appVersion ? ` · v${appVersion}` : ""}
-      </p>
+      {can("hub") ? (
+        <SettingsGroup title="Danger Zone" tone="destructive">
+          <ActionRow
+            icon={RefreshCw}
+            label="Reset hub data"
+            description="Permanently removes all events, chores, lists and meals"
+            onClick={() => setConfirm("reset")}
+            destructive
+          />
+          <ActionRow
+            icon={Trash2}
+            label="Delete account"
+            description="Permanently deletes your account and all family data"
+            onClick={() => setConfirm("delete")}
+            destructive
+          />
+          <ActionRow
+            icon={RotateCcw}
+            label="Factory reset"
+            description="Erase everything and return to the setup wizard"
+            onClick={() => setFactoryResetOpen(true)}
+            destructive
+          />
+        </SettingsGroup>
+      ) : null}
 
       <FactoryResetDialog open={factoryResetOpen} onClose={() => setFactoryResetOpen(false)} />
 
@@ -2612,6 +2541,133 @@ export function SettingsView() {
           setConfirm(null)
         }}
       />
+    </>
+  )
+}
+
+function CategoryContent({ category }: { category: SettingsCategory }) {
+  const { deviceState } = useKiosk()
+  switch (category) {
+    case "general":
+      return (
+        <>
+          <DeviceIdentityCard />
+          <LanguageRegionSection initialOrientation={deviceState.orientation} />
+        </>
+      )
+    case "family":
+      return <FamilyMembersSection />
+    case "display":
+      return (
+        <>
+          <HomeScreenSection />
+          <InterfaceSection />
+          <AppearanceSection />
+          <SoundDisplaySection />
+          <SlideshowSection initialIdleMins={deviceState.slideshowIdleMins ?? 5} />
+        </>
+      )
+    case "network":
+      return (
+        <>
+          <WifiSection />
+          <CentralConnectionSection />
+        </>
+      )
+    case "calendars":
+      return <CalendarIntegrationSection />
+    case "maintenance":
+      return <HubActionsSection />
+    case "account":
+      return <AccountResetSection />
+  }
+}
+
+export function SettingsView() {
+  const { members } = useStore()
+  const { state: kioskState } = useKiosk()
+  const pendingUpdate = useSyncExternalStore(subscribeUpdate, getPendingUpdate, getPendingUpdate)
+  const [category, setCategory] = useState<SettingsCategory>(readStoredCategory)
+  const [appVersion, setAppVersion] = useState<string | null>(null)
+  const contentRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    import("@tauri-apps/api/app")
+      .then(({ getVersion }) => getVersion())
+      .then(setAppVersion)
+      .catch(() => null)
+  }, [])
+
+  const select = (next: SettingsCategory) => {
+    setCategory(next)
+    try {
+      sessionStorage.setItem(CATEGORY_STORAGE_KEY, next)
+    } catch {
+      // Storage unavailable
+    }
+    // Start each category at the top of the scrolling panel.
+    contentRef.current?.closest("main")?.scrollTo({ top: 0 })
+  }
+
+  const peopleCount = members.filter((m) => m.id !== "family").length
+  const hints: Partial<Record<SettingsCategory, React.ReactNode>> = {
+    general: kioskState.paired ? "Paired" : "Unpaired",
+    family: peopleCount > 0 ? `${peopleCount}` : null,
+    maintenance: pendingUpdate ? (
+      <span className="rounded-full bg-member-green/15 px-2 py-0.5 text-[0.7rem] font-semibold text-member-green">Update</span>
+    ) : null,
+  }
+
+  const meta = categoryMeta[category]
+
+  return (
+    <div ref={contentRef} className="flex flex-col gap-8 py-2 md:flex-row md:items-start md:gap-10">
+      {/* Category rail — horizontal chips on narrow screens, sticky sidebar on wide ones */}
+      <nav
+        aria-label="Settings categories"
+        className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:sticky md:top-0 md:mx-0 md:w-64 md:shrink-0 md:flex-col md:gap-1 md:overflow-visible md:px-0 md:pb-0"
+      >
+        {categoryOrder.map((id) => {
+          const item = categoryMeta[id]
+          const Icon = item.icon
+          const selected = id === category
+          const hint = hints[id]
+          return (
+            <button
+              key={id}
+              type="button"
+              onClick={() => select(id)}
+              aria-current={selected ? "page" : undefined}
+              className={cn(
+                "flex shrink-0 items-center gap-3 rounded-md px-3.5 py-3 text-left text-sm transition-colors",
+                selected
+                  ? "bg-foreground text-background"
+                  : "text-muted-foreground hover:bg-secondary/70 hover:text-foreground active:bg-secondary",
+                id === "account" && "md:mt-4",
+              )}
+            >
+              <Icon className="size-[18px] shrink-0" strokeWidth={1.7} />
+              <span className="flex-1 font-medium whitespace-nowrap">{item.label}</span>
+              {hint ? (
+                <span className={cn("hidden text-xs md:inline", selected ? "text-background/70" : "text-muted-foreground")}>
+                  {hint}
+                </span>
+              ) : null}
+            </button>
+          )
+        })}
+        <p className="os-label hidden px-3.5 pt-6 md:block">Solora OS{appVersion ? ` · v${appVersion}` : ""}</p>
+      </nav>
+
+      {/* Active category */}
+      <div className="min-w-0 flex-1 space-y-12 pb-10">
+        <header className="border-b border-hairline pb-6">
+          <h1 className="font-display text-5xl leading-none">{meta.label}</h1>
+          <p className="mt-3 text-sm text-muted-foreground">{meta.description}</p>
+        </header>
+        <CategoryContent category={category} />
+        <p className="os-label md:hidden">Solora OS{appVersion ? ` · v${appVersion}` : ""}</p>
+      </div>
     </div>
   )
 }

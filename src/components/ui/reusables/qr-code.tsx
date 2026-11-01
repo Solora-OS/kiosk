@@ -39,7 +39,7 @@ export function QrCode({ value, size = 220, className }: { value: string; size?:
 
   return (
     <div
-      className={cn("flex items-center justify-center rounded-2xl bg-white p-3 shadow-sm", className)}
+      className={cn("flex items-center justify-center rounded-md bg-white p-3", className)}
       // Fixed logical size, but never wider than the available container.
       style={{ width: size + 24, height: size + 24, maxWidth: "100%", maxHeight: "100%" }}
     >

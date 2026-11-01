@@ -14,7 +14,6 @@
     "node": ">=20.0.0"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.108.2",
     "bcryptjs": "^2.4.3",
     "better-sqlite3": "^12.11.1",
     "bonjour-service": "^1.4.2",

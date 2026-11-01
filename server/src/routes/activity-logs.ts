@@ -29,7 +29,14 @@ type LogInput = {
 
 export function writeLog(input: LogInput): void {
   try {
-    getDb()
+    const db = getDb()
+    // Callers pass the signed-in user's id; actor_id points at their member
+    // record (or nothing, e.g. for the wall display).
+    const actor = input.actorId
+      ? (db.prepare("SELECT id, name FROM members WHERE (id = ? OR user_id = ?) AND household_id = ?")
+          .get(input.actorId, input.actorId, input.householdId) as { id: string; name: string } | undefined)
+      : undefined
+    db
       .prepare(
         `INSERT INTO activity_logs
            (id, household_id, actor_id, actor_name, action, resource_type, resource_id, resource_name, metadata)
@@ -38,8 +45,8 @@ export function writeLog(input: LogInput): void {
       .run(
         uuidv4(),
         input.householdId,
-        input.actorId ?? null,
-        input.actorName ?? "",
+        actor?.id ?? null,
+        input.actorName ?? actor?.name ?? "",
         input.action,
         input.resourceType,
         input.resourceId ?? null,

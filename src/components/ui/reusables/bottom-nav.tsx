@@ -36,7 +36,7 @@ export function BottomNav({
                 onClick={() => onChange(key)}
                 aria-current={isActive ? "page" : undefined}
                 className={cn(
-                  "flex w-full flex-col items-center gap-1 rounded-2xl pt-2 pb-1.5 text-[10px] font-medium transition-colors",
+                  "flex w-full flex-col items-center gap-1 rounded-2xl pt-2 pb-1.5 text-[0.7rem] font-medium transition-colors",
                   isActive ? "text-primary" : "text-muted-foreground hover:text-foreground",
                 )}
               >

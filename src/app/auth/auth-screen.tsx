@@ -65,7 +65,7 @@ export function AuthScreen() {
           <div className="mb-4 flex size-14 items-center justify-center rounded-2xl bg-primary text-primary-foreground">
             <Sparkles className="size-7" />
           </div>
-          <h1 className="text-2xl font-bold tracking-tight">Welcome to Lumora</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Welcome to Solora</h1>
           <p className="mt-1 text-sm text-muted-foreground text-pretty">
             {mode === "signin"
               ? "Sign in to your family hub account."

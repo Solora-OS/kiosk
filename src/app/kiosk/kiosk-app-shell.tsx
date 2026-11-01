@@ -1,18 +1,22 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
-import { Loader2, WrenchIcon } from "lucide-react"
-import { toast } from "sonner"
+
+import { kioskToast } from "@/components/os/kiosk-toast"
 import { SideNav } from "@/components/ui/reusables/side-nav"
 import { HeaderNav } from "@/components/ui/reusables/header-nav"
 import { MemberChips } from "@/components/ui/reusables/member-chips"
 import { CalendarView } from "@/app/calendar/calender"
 import { ChoresView } from "@/app/chores/chores"
+import { RewardsShelf } from "@/app/chores/rewards-shelf"
 import { ListsView } from "@/app/lists/lists"
 import { MealsView } from "@/app/meals/meals"
 import { PhotosView } from "@/app/photos/photos"
 import { SettingsView } from "@/app/settings/settings"
+import { HomeView } from "@/app/home/home"
+import { getDisplayPrefs } from "@/lib/display-prefs"
 import { SlideshowScreen } from "./slideshow-screen"
+import { QuietHours } from "@/components/os/quiet-hours"
 import { useStore, type TabKey } from "@/lib/store"
 import { SystemStatusBar } from "@/components/ui/reusables/system-status-bar"
 import { centralSocket } from "@/lib/central-socket"
@@ -21,6 +25,8 @@ import { restartHub, reloadDisplay, clearCache, addLog, checkForUpdates } from "
 import { setOrientation } from "@/lib/locale-service"
 import { patchDeviceState } from "@/lib/device-state"
 import { useKiosk } from "@/lib/kiosk-provider"
+import { SystemHeading, SystemScreen } from "@/components/os/system-screen"
+import { ErrorBoundary } from "@/components/os/error-state"
 
 const todaySubtitle = new Date().toLocaleDateString(undefined, {
   weekday: "long",
@@ -29,8 +35,10 @@ const todaySubtitle = new Date().toLocaleDateString(undefined, {
 })
 
 const headers: Record<TabKey, { title: string; subtitle?: string; showMembers: boolean }> = {
+  home: { title: "Home", subtitle: todaySubtitle, showMembers: false },
   calendar: { title: "Calendar", subtitle: todaySubtitle, showMembers: true },
   chores: { title: "Chores", subtitle: "Keep the streak going", showMembers: true },
+  rewards: { title: "Rewards", subtitle: "Points, streaks and treats", showMembers: false },
   lists: { title: "Lists", subtitle: "Shared with the family", showMembers: false },
   meals: { title: "Meals", subtitle: "Dinner plan for the week", showMembers: false },
   photos: { title: "Photos", subtitle: "Family moments on your hub", showMembers: false },
@@ -61,14 +69,18 @@ export function KioskAppShell() {
   // Log full connection health on mount — visible in Tauri devtools console
   useEffect(() => { void logConnectionHealth() }, [])
 
+  const returnTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const resetIdleTimer = useCallback(() => {
+    if (returnTimerRef.current) clearTimeout(returnTimerRef.current)
+    const { startTab, returnAfterMins } = getDisplayPrefs()
+    if (returnAfterMins) returnTimerRef.current = setTimeout(() => setTab(startTab), returnAfterMins * 60 * 1000)
     if (idleTimerRef.current) clearTimeout(idleTimerRef.current)
     if (!idleMins || photos.length === 0) return
     idleTimerRef.current = setTimeout(
       () => setSlideshowActive(true),
       idleMins * 60 * 1000,
     )
-  }, [idleMins, photos.length])
+  }, [idleMins, photos.length, setTab])
 
   // Start/restart the idle timer on any user activity
   useEffect(() => {
@@ -102,7 +114,7 @@ export function KioskAppShell() {
 
     const unsubNotif = centralSocket.onNotification((payload) => {
       addLog("info", "system", `Notification: ${payload.title}`)
-      toast(payload.title, { description: payload.body, duration: 8000 })
+      kioskToast.notice(payload.title, { description: payload.body })
       if (payload.notification_id) centralSocket.notificationAck(payload.notification_id)
     })
 
@@ -151,7 +163,7 @@ export function KioskAppShell() {
     <>
       <div className="flex h-dvh flex-col overflow-hidden bg-background">
         {/* System status bar — WiFi, date, clock — always visible at top */}
-        <SystemStatusBar />
+        <SystemStatusBar label={deviceState.deviceName ?? undefined} />
 
         {/* flex-1 + overflow-hidden so this row fills remaining height exactly */}
         <div className="flex flex-1 overflow-hidden">
@@ -159,25 +171,36 @@ export function KioskAppShell() {
           <SideNav active={tab} onChange={setTab} />
 
           {/* Right panel: header + optional chips + scrollable content */}
-          <div className="flex flex-1 flex-col overflow-hidden">
+          <div className="relative flex flex-1 flex-col overflow-hidden">
             <HeaderNav title={head.title} subtitle={head.subtitle} />
             {head.showMembers ? <MemberChips /> : null}
 
             {/* Only this element scrolls — overflow-y-auto, never x */}
             <main className={`overflow-x-hidden ${tab === "calendar" ? "flex flex-1 flex-col overflow-hidden" : "flex-1 overflow-y-auto"}`}>
+              {tab === "home" && !loading ? (
+                <ErrorBoundary resetKey={tab}>
+                  <HomeView />
+                </ErrorBoundary>
+              ) : null}
               {loading && tab !== "settings" ? (
-                <div className="flex items-center justify-center py-24">
-                  <Loader2 className="size-6 animate-spin text-muted-foreground" />
+                <div className="flex flex-col gap-4 px-8 py-16">
+                  <p className="os-label">Loading</p>
+                  <div className="boot-line h-[2px] max-w-xs bg-hairline" />
                 </div>
-              ) : tab === "calendar" ? (
-                <CalendarView />
+              ) : tab === "home" ? null : tab === "calendar" ? (
+                <ErrorBoundary resetKey={tab}>
+                  <CalendarView />
+                </ErrorBoundary>
               ) : (
-                <div className="mx-auto max-w-6xl px-4 py-4">
-                  {tab === "chores" && <ChoresView />}
-                  {tab === "lists" && <ListsView />}
-                  {tab === "meals" && <MealsView />}
-                  {tab === "photos" && <PhotosView />}
-                  {tab === "settings" && <SettingsView />}
+                <div className="mx-auto max-w-6xl px-8 py-6">
+                  <ErrorBoundary resetKey={tab}>
+                    {tab === "chores" && <ChoresView />}
+                    {tab === "rewards" && <RewardsShelf />}
+                    {tab === "lists" && <ListsView />}
+                    {tab === "meals" && <MealsView />}
+                    {tab === "photos" && <PhotosView />}
+                    {tab === "settings" && <SettingsView />}
+                  </ErrorBoundary>
                 </div>
               )}
             </main>
@@ -189,18 +212,15 @@ export function KioskAppShell() {
         <SlideshowScreen photos={photos} onDismiss={dismissSlideshow} />
       )}
 
+      <QuietHours />
+
       {maintenanceLock.locked && (
-        <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center gap-6 bg-background/95 backdrop-blur-sm">
-          <div className="flex size-20 items-center justify-center rounded-full bg-member-amber/15">
-            <WrenchIcon className="size-10 text-member-amber" />
-          </div>
-          <div className="text-center">
-            <p className="text-2xl font-bold tracking-tight">Under Maintenance</p>
-            <p className="mt-2 text-sm text-muted-foreground">
-              {maintenanceLock.reason ?? "This display is temporarily offline for maintenance."}
-            </p>
-          </div>
-          <p className="text-xs text-muted-foreground">It will resume automatically when unlocked.</p>
+        <div className="fixed inset-0 z-[9999]">
+          <SystemScreen footerRight="Resumes automatically" className="justify-end px-10 pb-16">
+            <SystemHeading eyebrow="Maintenance" title="Back in a moment.">
+              <p>{maintenanceLock.reason ?? "This display is being looked after remotely."}</p>
+            </SystemHeading>
+          </SystemScreen>
         </div>
       )}
     </>

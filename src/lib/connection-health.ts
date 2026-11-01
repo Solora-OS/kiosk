@@ -124,7 +124,7 @@ export async function checkConnectionHealth(): Promise<ConnectionHealth> {
     steps.push("No central token on kiosk — hub must register this kiosk (happens after hub registers itself). Try restarting the hub server, then reload this kiosk.")
   }
   if (!centralSocket.connected) {
-    steps.push("Central socket not connected — kiosk needs a central token first (see above)")
+    steps.push("Central socket not connected — this display needs a central token first (see above)")
   }
 
   return {

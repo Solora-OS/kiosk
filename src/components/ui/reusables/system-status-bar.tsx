@@ -1,13 +1,12 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import {
-  Wifi,
-  WifiHigh,
-  WifiLow,
-  WifiOff,
-} from "lucide-react"
+import { ChevronDown, Wifi, WifiHigh, WifiLow, WifiOff } from "lucide-react"
 import { currentNetwork, scanNetworks } from "@/lib/wifi-service"
+import { toggleControlCenter } from "@/components/os/control-center"
+import { SeasonEdge, SeasonMark } from "@/components/season/ornaments"
+import { useSeason } from "@/components/season-provider"
+import { useDisplayPrefs } from "@/lib/display-prefs"
 
 // ---------------------------------------------------------------------------
 // Clock hook — ticks every second and returns the formatted time + date.
@@ -30,10 +29,11 @@ function useClock() {
     }
   }, [])
 
+  const { clock24 } = useDisplayPrefs()
   const timeStr = now.toLocaleTimeString(undefined, {
-    hour: "2-digit",
+    hour: "numeric",
     minute: "2-digit",
-    hour12: true,
+    hour12: !clock24,
   })
 
   const dateStr = now.toLocaleDateString(undefined, {
@@ -102,36 +102,42 @@ function WifiIcon({ ssid, signal }: { ssid: string | null; signal: number | null
 // SystemStatusBar
 // ---------------------------------------------------------------------------
 /**
- * A slim always-visible status strip for the kiosk UI (32px tall).
- * Shows: WiFi SSID + signal icon | date | time
+ * The OS status strip (40px) at the top of every kiosk screen.
  *
- * Meant to live at the very top of every kiosk screen (setup wizard, pairing,
- * and the main app shell) so the operator can always see connectivity and
- * system time at a glance.
+ *   left   season name + mark (what the hub is "wearing")
+ *   right  network · date · time — tap to drop the Control Center
+ *
+ * Seasonal edge decoration (string lights, a spider…) hangs from its hairline.
  */
-export function SystemStatusBar() {
+export function SystemStatusBar({ label }: { label?: string }) {
   const { timeStr, dateStr } = useClock()
   const { ssid, signal } = useWifi()
+  const { season } = useSeason()
 
   return (
-    <div
-      role="status"
-      aria-live="polite"
-      className="flex h-8 w-full items-center justify-between bg-card/80 px-4 text-[11px] font-medium text-muted-foreground backdrop-blur-sm border-b border-border/40"
-    >
-      {/* Left — WiFi */}
-      <div className="flex items-center gap-1.5 min-w-0">
-        <WifiIcon ssid={ssid} signal={signal} />
-        <span className="truncate max-w-[160px]">
-          {ssid ?? "No network"}
-        </span>
-      </div>
+    <div role="status" aria-live="polite" className="relative z-30 h-12 w-full shrink-0 border-b border-hairline bg-background">
+      <div className="flex h-full items-center justify-between pl-5 pr-2">
+        <div className="flex min-w-0 items-center gap-2 os-label">
+          <SeasonMark className="text-[0.85rem]" />
+          <span className="truncate">{label ?? season.name}</span>
+        </div>
 
-      {/* Right — date + time */}
-      <div className="flex items-center gap-3 shrink-0">
-        <span className="hidden sm:inline">{dateStr}</span>
-        <span className="tabular-nums font-semibold text-foreground">{timeStr}</span>
+        <button
+          type="button"
+          onClick={toggleControlCenter}
+          aria-label="Open control center"
+          className="flex h-12 items-center gap-4 rounded-none px-4 text-muted-foreground transition-colors hover:bg-secondary active:bg-accent"
+        >
+          <span className="flex items-center gap-1.5 os-label">
+            <WifiIcon ssid={ssid} signal={signal} />
+            <span className="max-w-[10rem] truncate">{ssid ?? "Offline"}</span>
+          </span>
+          <span className="hidden os-label sm:inline">{dateStr}</span>
+          <span className="font-mono text-[0.95rem] font-medium tabular text-foreground">{timeStr}</span>
+          <ChevronDown className="size-3.5" aria-hidden />
+        </button>
       </div>
+      <SeasonEdge />
     </div>
   )
 }

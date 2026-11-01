@@ -1,11 +1,11 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Check, ChevronDown, Plus } from "lucide-react"
+import { Check, ChevronDown, Eraser, Plus } from "lucide-react"
 import { type Checklist, type MemberColor, memberBg, memberSoft } from "@/lib/data"
 import { cn } from "@/lib/utils"
 import { celebrateCompletion } from "@/lib/celebration"
-import { SwipeRow } from "@/components/ui/reusables/swipe-row"
+import { ActionRow } from "@/components/ui/reusables/action-row"
 import { BottomSheet, Field, inputClass } from "@/components/ui/reusables/bottom-sheet"
 import { ConfirmDialog } from "@/components/ui/reusables/confirm-dialog"
 import { useHighlight, useStore } from "@/lib/store"
@@ -17,10 +17,13 @@ type ItemEdit = { listId: string; itemId: string; label: string }
 type DeleteTarget =
   | { kind: "list"; listId: string; label: string }
   | { kind: "item"; listId: string; itemId: string; label: string }
+  | { kind: "clear"; listId: string; label: string; count: number }
 
 export function ListsView() {
-  const { lists, can, addList, updateList, deleteList, addItem, updateItem, deleteItem, toggleItem } = useStore()
+  const { lists, can, currentMember, addList, updateList, deleteList, addItem, updateItem, deleteItem, clearDone, toggleItem } = useStore()
   const canManage = can("lists")
+  // Whoever added an item can rename or remove it ("unicorn food"), even without the Lists permission.
+  const canChange = (addedBy?: string | null) => canManage || (!!addedBy && addedBy === currentMember?.id)
   const { highlight, register, clearHighlight, refs } = useHighlight("lists")
 
   const [open, setOpen] = useState<Record<string, boolean>>({})
@@ -83,9 +86,9 @@ export function ListsView() {
         const allDone = done === list.items.length && list.items.length > 0
         const isOpen = open[list.id] ?? !allDone
         return (
-          <section key={list.id} ref={register(list.id)} className="overflow-hidden rounded-3xl bg-card shadow-sm">
-            <SwipeRow
-              rounded="rounded-3xl"
+          <section key={list.id} ref={register(list.id)} className="overflow-hidden rounded-lg bg-card">
+            <ActionRow
+              rounded="rounded-lg"
               onEdit={canManage ? () => openEditList(list) : undefined}
               onDelete={canManage ? () => setDeleteTarget({ kind: "list", listId: list.id, label: list.title }) : undefined}
             >
@@ -99,7 +102,7 @@ export function ListsView() {
                   <span className={cn("size-3 rounded-full", memberBg[list.color])} />
                   <h2 className="font-bold">{list.title}</h2>
                   {allDone ? (
-                    <span className="rounded-full bg-member-green/15 px-2 py-0.5 text-[11px] font-semibold text-member-green">
+                    <span className="rounded-full bg-member-green/15 px-2 py-0.5 text-[0.75rem] font-semibold text-member-green">
                       Complete
                     </span>
                   ) : null}
@@ -111,18 +114,18 @@ export function ListsView() {
                   <ChevronDown className={cn("size-4 text-muted-foreground transition-transform", isOpen && "rotate-180")} />
                 </div>
               </button>
-            </SwipeRow>
+            </ActionRow>
 
             {isOpen ? (
               <>
-                <ul className="divide-y divide-border/60 border-t border-border/60">
+                <ul className="divide-y divide-hairline border-t border-hairline">
                   {list.items.map((item) => (
                     <li key={item.id}>
-                      <SwipeRow
+                      <ActionRow
                         rounded="rounded-none"
                         editLabel="Rename"
-                        onEdit={canManage ? () => setItemSheet({ listId: list.id, itemId: item.id, label: item.label }) : undefined}
-                        onDelete={canManage ? () => setDeleteTarget({ kind: "item", listId: list.id, itemId: item.id, label: item.label }) : undefined}
+                        onEdit={canChange(item.addedBy) ? () => setItemSheet({ listId: list.id, itemId: item.id, label: item.label }) : undefined}
+                        onDelete={canChange(item.addedBy) ? () => setDeleteTarget({ kind: "item", listId: list.id, itemId: item.id, label: item.label }) : undefined}
                       >
                       <button
                         type="button"
@@ -147,7 +150,7 @@ export function ListsView() {
                           </span>
                           <span className={cn("text-sm", item.done && "text-muted-foreground line-through")}>{item.label}</span>
                         </button>
-                      </SwipeRow>
+                      </ActionRow>
                     </li>
                   ))}
                   {list.items.length === 0 ? (
@@ -155,27 +158,37 @@ export function ListsView() {
                   ) : null}
                 </ul>
 
-                {canManage ? (
-                  <div className="flex items-center gap-2 border-t border-border/60 px-3 py-2.5">
-                    <Plus className="size-4 shrink-0 text-muted-foreground" />
-                    <input
-                      value={drafts[list.id] ?? ""}
-                      onChange={(e) => setDrafts((p) => ({ ...p, [list.id]: e.target.value }))}
-                      onKeyDown={(e) => e.key === "Enter" && submitDraft(list.id)}
-                      placeholder="Add item…"
-                      className="w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
-                    />
-                    {(drafts[list.id] ?? "").trim() ? (
-                      <button
-                        type="button"
-                        onClick={() => submitDraft(list.id)}
-                        className="shrink-0 rounded-full bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground"
-                      >
-                        Add
-                      </button>
-                    ) : null}
-                  </div>
+                {canManage && done > 0 ? (
+                  <button
+                    type="button"
+                    onClick={() => setDeleteTarget({ kind: "clear", listId: list.id, label: list.title, count: done })}
+                    className="flex w-full items-center gap-3 border-t border-hairline px-4 py-2.5 text-left text-sm text-muted-foreground transition-colors hover:text-foreground"
+                  >
+                    <Eraser className="size-4 shrink-0" />
+                    Clear {done} checked {done === 1 ? "item" : "items"}
+                  </button>
                 ) : null}
+
+                {/* Anyone can add an item and change their own; managing lists and others' items needs the Lists permission. */}
+                <div className="flex items-center gap-2 border-t border-hairline px-3 py-2.5">
+                  <Plus className="size-4 shrink-0 text-muted-foreground" />
+                  <input
+                    value={drafts[list.id] ?? ""}
+                    onChange={(e) => setDrafts((p) => ({ ...p, [list.id]: e.target.value }))}
+                    onKeyDown={(e) => e.key === "Enter" && submitDraft(list.id)}
+                    placeholder="Add item…"
+                    className="w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+                  />
+                  {(drafts[list.id] ?? "").trim() ? (
+                    <button
+                      type="button"
+                      onClick={() => submitDraft(list.id)}
+                      className="shrink-0 rounded-full bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground"
+                    >
+                      Add
+                    </button>
+                  ) : null}
+                </div>
               </>
             ) : null}
           </section>
@@ -186,7 +199,7 @@ export function ListsView() {
         <button
           type="button"
           onClick={openAddList}
-          className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-border py-3 text-sm font-semibold text-muted-foreground transition-colors hover:border-primary hover:text-primary"
+          className="flex w-full items-center justify-center gap-2 rounded-md border border-dashed border-border py-3 text-sm font-semibold text-muted-foreground transition-colors hover:border-primary hover:text-primary"
         >
           <Plus className="size-4" />
           New list
@@ -202,7 +215,7 @@ export function ListsView() {
           <button
             type="button"
             onClick={saveList}
-            className="w-full rounded-xl bg-primary py-3 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
+            className="w-full rounded-md bg-primary py-3 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
           >
             {listSheet?.editingId ? "Save changes" : "Create list"}
           </button>
@@ -245,7 +258,7 @@ export function ListsView() {
           <button
             type="button"
             onClick={saveItem}
-            className="w-full rounded-xl bg-primary py-3 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
+            className="w-full rounded-md bg-primary py-3 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
           >
             Save changes
           </button>
@@ -263,12 +276,18 @@ export function ListsView() {
 
       <ConfirmDialog
         open={!!deleteTarget}
-        title={deleteTarget?.kind === "list" ? "Delete list?" : "Delete item?"}
-        message={deleteTarget ? `“${deleteTarget.label}” will be removed.` : ""}
+        title={deleteTarget?.kind === "list" ? "Delete list?" : deleteTarget?.kind === "clear" ? "Clear checked items?" : "Delete item?"}
+        message={
+          deleteTarget?.kind === "clear"
+            ? `${deleteTarget.count} ticked ${deleteTarget.count === 1 ? "item comes" : "items come"} off “${deleteTarget.label}”. Unticked items stay.`
+            : deleteTarget ? `“${deleteTarget.label}” will be removed.` : ""
+        }
+        confirmLabel={deleteTarget?.kind === "clear" ? "Clear" : undefined}
         onCancel={() => setDeleteTarget(null)}
         onConfirm={() => {
           if (deleteTarget?.kind === "list") deleteList(deleteTarget.listId)
           else if (deleteTarget?.kind === "item") deleteItem(deleteTarget.listId, deleteTarget.itemId)
+          else if (deleteTarget?.kind === "clear") clearDone(deleteTarget.listId)
           setDeleteTarget(null)
         }}
       />

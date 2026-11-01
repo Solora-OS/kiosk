@@ -3,6 +3,9 @@ import { v4 as uuidv4 } from "uuid"
 import { getDb, parseJson, toBool } from "../db"
 import { requireAuth, type AuthRequest } from "../middleware/auth"
 import { broadcast } from "../broadcaster"
+import { unregisterRemoteInvite } from "../services/invite-relay"
+import { notifyMembers } from "../services/notify"
+import { callerMember } from "../lib/household-member"
 import type { Member } from "../types"
 
 const router = Router()
@@ -81,6 +84,12 @@ router.post("/", (req: Request, res: Response) => {
   const row = db.prepare("SELECT * FROM members WHERE id = ?").get(id) as Record<string, unknown>
   const member = rowToMember(row)
   broadcast(householdId, "members:created", member)
+  // Family news: everyone else hears about the new arrival.
+  const me = callerMember((req as AuthRequest).user)?.id
+  const others = (db.prepare("SELECT id FROM members WHERE household_id = ? AND id != ?").all(householdId, id) as { id: string }[])
+    .map((m) => m.id)
+    .filter((m) => m !== me)
+  if (others.length) notifyMembers(householdId, others, { title: `${member.name} joined the family`, body: "Say hello on Solora.", ref: `member:${id}` })
   res.status(201).json(member)
 })
 
@@ -142,10 +151,15 @@ router.delete("/:id", (req: Request, res: Response) => {
     return
   }
 
+  const linked = db.prepare("SELECT user_id FROM members WHERE id = ?").get(id) as { user_id: string | null }
+  const pendingInvites = db.prepare("SELECT code, token FROM invites WHERE member_id = ?").all(id) as { code: string; token: string }[]
   db.transaction(() => {
     db.prepare("DELETE FROM invites WHERE member_id = ?").run(id)
     db.prepare("DELETE FROM members WHERE id = ? AND household_id = ?").run(id, householdId)
+    // A kid's phone has no account to keep; its local user goes with the member.
+    if (linked.user_id) db.prepare("DELETE FROM users WHERE id = ? AND device_only = 1").run(linked.user_id)
   })()
+  pendingInvites.forEach(unregisterRemoteInvite)
 
   broadcast(householdId, "members:deleted", id)
   res.status(204).end()

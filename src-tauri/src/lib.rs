@@ -82,43 +82,59 @@ fn parse_nmcli_wifi_line(line: &str) -> Option<WifiNetwork> {
 
 // ─── WiFi commands ────────────────────────────────────────────────────────────
 
+/// Run `nmcli dev wifi list` with the given `--rescan` mode.
+fn nmcli_wifi_list(rescan: &str) -> std::io::Result<std::process::Output> {
+    Command::new("nmcli")
+        .args([
+            "--terse",
+            "--fields",
+            "SSID,SIGNAL,SECURITY,IN-USE",
+            "dev",
+            "wifi",
+            "list",
+            "--rescan",
+            rescan,
+        ])
+        .output()
+}
+
 /// Scan for nearby WiFi networks using NetworkManager's `nmcli`.
 ///
 /// Triggers a fresh rescan (`--rescan yes`) before listing, deduplicates by
 /// SSID (nmcli can list the same network multiple times on different BSSIDs),
 /// and returns networks sorted strongest-first.
 ///
+/// If NetworkManager refuses the rescan (polkit denies it for some users, or
+/// one was requested too recently) we fall back to its cached scan results
+/// rather than showing nothing. When nmcli is unavailable or fails outright
+/// this returns an error — never a placeholder list — so the UI can say so.
+///
 /// All Command::new calls are wrapped in spawn_blocking so they never block
-/// the Tokio executor thread. Returns an empty list when nmcli is unavailable
-/// (e.g. during development outside the kiosk), causing the frontend to fall
-/// back to its mock list.
+/// the Tokio executor thread.
 #[tauri::command]
 async fn wifi_scan() -> Result<Vec<WifiNetwork>, String> {
     let output = tokio::task::spawn_blocking(|| {
-        Command::new("nmcli")
-            .args([
-                "--terse",
-                "--fields",
-                "SSID,SIGNAL,SECURITY,IN-USE",
-                "dev",
-                "wifi",
-                "list",
-                "--rescan",
-                "yes",
-            ])
-            .output()
+        let fresh = nmcli_wifi_list("yes")?;
+        if fresh.status.success() {
+            Ok(fresh)
+        } else {
+            nmcli_wifi_list("no")
+        }
     })
     .await
-    .map_err(|e| format!("spawn_blocking failed: {e}"))?;
-
-    let output = match output {
-        Ok(o) => o,
-        Err(_) => {
-            // nmcli not available (e.g. macOS dev machine) — return mock networks
-            // so the wizard flow is exercisable without a real kiosk device.
-            return Ok(dev_mock_networks());
+    .map_err(|e| format!("spawn_blocking failed: {e}"))?
+    .map_err(|e| {
+        if e.kind() == std::io::ErrorKind::NotFound {
+            "Wi-Fi scanning needs NetworkManager (nmcli), which isn't installed on this device.".to_string()
+        } else {
+            format!("Couldn't run nmcli: {e}")
         }
-    };
+    })?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(humanise_nmcli_error(stderr.trim()));
+    }
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
@@ -132,44 +148,6 @@ async fn wifi_scan() -> Result<Vec<WifiNetwork>, String> {
     networks.sort_by(|a, b| b.signal.cmp(&a.signal));
 
     Ok(networks)
-}
-
-/// Mock network list returned when nmcli is unavailable (dev / macOS).
-/// Mirrors the mock data in `src/lib/wifi-service.ts` so the wizard is
-/// fully exercisable without a real kiosk device.
-fn dev_mock_networks() -> Vec<WifiNetwork> {
-    vec![
-        WifiNetwork {
-            ssid: "Lumora Home".into(),
-            signal: 92,
-            security: "wpa".into(),
-            connected: false,
-        },
-        WifiNetwork {
-            ssid: "Living Room 5G".into(),
-            signal: 78,
-            security: "wpa".into(),
-            connected: false,
-        },
-        WifiNetwork {
-            ssid: "Pek Family".into(),
-            signal: 64,
-            security: "wpa".into(),
-            connected: false,
-        },
-        WifiNetwork {
-            ssid: "Guest Network".into(),
-            signal: 51,
-            security: "open".into(),
-            connected: false,
-        },
-        WifiNetwork {
-            ssid: "Neighbor_2.4".into(),
-            signal: 28,
-            security: "wep".into(),
-            connected: false,
-        },
-    ]
 }
 
 /// Connect to a WiFi network via `nmcli dev wifi connect`.
@@ -199,11 +177,13 @@ async fn wifi_connect(ssid: String, password: Option<String>) -> Result<bool, St
     .await
     .map_err(|e| format!("spawn_blocking failed: {e}"))?;
 
-    // nmcli not available (dev / macOS) — simulate success.
-    let output = match output {
-        Ok(o) => o,
-        Err(_) => return Ok(true),
-    };
+    let output = output.map_err(|e| {
+        if e.kind() == std::io::ErrorKind::NotFound {
+            "Wi-Fi needs NetworkManager (nmcli), which isn't installed on this device.".to_string()
+        } else {
+            format!("Couldn't run nmcli: {e}")
+        }
+    })?;
 
     if output.status.success() {
         // Verify the connection actually came up by checking device status.
@@ -711,6 +691,190 @@ async fn screen_orientation_set(rotation: String) -> Result<(), String> {
     .map_err(|e| e.to_string())?
 }
 
+// ─── System controls (volume, brightness, display, power) ────────────────────
+//
+// Lumora replaces the desktop entirely, so these are the only way the family
+// changes sound, screen and power. Every command degrades gracefully when the
+// underlying tool is missing (dev machines, minimal images).
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct AudioState {
+    volume: u8,
+    muted: bool,
+}
+
+fn sh(cmd: &str, args: &[&str]) -> Option<String> {
+    let out = Command::new(cmd).args(args).output().ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    Some(String::from_utf8_lossy(&out.stdout).to_string())
+}
+
+/// Read output volume. Tries PipeWire (`wpctl`) then ALSA (`amixer`).
+#[tauri::command]
+async fn system_volume_get() -> Result<AudioState, String> {
+    tokio::task::spawn_blocking(|| {
+        // wpctl: "Volume: 0.55 [MUTED]"
+        if let Some(text) = sh("wpctl", &["get-volume", "@DEFAULT_AUDIO_SINK@"]) {
+            let muted = text.contains("MUTED");
+            let vol = text
+                .split_whitespace()
+                .nth(1)
+                .and_then(|v| v.parse::<f32>().ok())
+                .map(|v| (v * 100.0).round().clamp(0.0, 100.0) as u8)
+                .unwrap_or(50);
+            return Ok(AudioState { volume: vol, muted });
+        }
+        // amixer: "... [55%] [on]"
+        if let Some(text) = sh("amixer", &["get", "Master"]) {
+            let vol = text
+                .split('[')
+                .find_map(|p| p.split('%').next().filter(|_| p.contains('%')).and_then(|n| n.parse::<u8>().ok()))
+                .unwrap_or(50);
+            let muted = text.contains("[off]");
+            return Ok(AudioState { volume: vol, muted });
+        }
+        Err("No audio control available".to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+async fn system_volume_set(volume: u8) -> Result<(), String> {
+    let v = volume.min(100);
+    tokio::task::spawn_blocking(move || {
+        let frac = format!("{:.2}", v as f32 / 100.0);
+        if sh("wpctl", &["set-volume", "@DEFAULT_AUDIO_SINK@", &frac]).is_some() {
+            return Ok(());
+        }
+        let pct = format!("{v}%");
+        if sh("amixer", &["-q", "set", "Master", &pct]).is_some() {
+            return Ok(());
+        }
+        Err("No audio control available".to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+async fn system_mute_set(muted: bool) -> Result<(), String> {
+    tokio::task::spawn_blocking(move || {
+        let flag = if muted { "1" } else { "0" };
+        if sh("wpctl", &["set-mute", "@DEFAULT_AUDIO_SINK@", flag]).is_some() {
+            return Ok(());
+        }
+        let state = if muted { "mute" } else { "unmute" };
+        if sh("amixer", &["-q", "set", "Master", state]).is_some() {
+            return Ok(());
+        }
+        Err("No audio control available".to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+/// First backlight device under /sys/class/backlight, if any.
+fn backlight_dir() -> Option<std::path::PathBuf> {
+    std::fs::read_dir("/sys/class/backlight")
+        .ok()?
+        .filter_map(|e| e.ok())
+        .map(|e| e.path())
+        .next()
+}
+
+fn read_u32(path: std::path::PathBuf) -> Option<u32> {
+    std::fs::read_to_string(path).ok()?.trim().parse().ok()
+}
+
+/// Screen brightness 0-100, or None when the panel isn't software-dimmable
+/// (most HDMI monitors).
+#[tauri::command]
+async fn system_brightness_get() -> Result<Option<u8>, String> {
+    tokio::task::spawn_blocking(|| {
+        let dir = match backlight_dir() {
+            Some(d) => d,
+            None => return Ok(None),
+        };
+        let cur = read_u32(dir.join("brightness"));
+        let max = read_u32(dir.join("max_brightness"));
+        Ok(match (cur, max) {
+            (Some(c), Some(m)) if m > 0 => Some(((c as f32 / m as f32) * 100.0).round() as u8),
+            _ => None,
+        })
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+async fn system_brightness_set(level: u8) -> Result<(), String> {
+    let level = level.clamp(5, 100);
+    tokio::task::spawn_blocking(move || {
+        let pct = format!("{level}%");
+        if sh("brightnessctl", &["-q", "set", &pct]).is_some() {
+            return Ok(());
+        }
+        // Fallback: write sysfs directly (needs a udev rule granting the kiosk
+        // user write access to /sys/class/backlight/*/brightness).
+        let dir = backlight_dir().ok_or("No backlight device")?;
+        let max = read_u32(dir.join("max_brightness")).ok_or("No max_brightness")?;
+        let raw = ((level as f32 / 100.0) * max as f32).round() as u32;
+        std::fs::write(dir.join("brightness"), raw.to_string()).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+async fn system_display_sleep() -> Result<(), String> {
+    tokio::task::spawn_blocking(|| {
+        sh("xset", &["dpms", "force", "off"])
+            .map(|_| ())
+            .ok_or_else(|| "xset unavailable".to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+/// Turn the panel back on after a DPMS sleep (remote "wake" from a phone).
+#[tauri::command]
+async fn system_display_wake() -> Result<(), String> {
+    tokio::task::spawn_blocking(|| {
+        sh("xset", &["dpms", "force", "on"])
+            .map(|_| ())
+            .ok_or_else(|| "xset unavailable".to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+/// Power off or reboot the whole device. Requires polkit to allow the kiosk
+/// user `org.freedesktop.login1.power-off` / `reboot` (granted by the image).
+#[tauri::command]
+async fn system_power(action: String) -> Result<(), String> {
+    let verb = match action.as_str() {
+        "poweroff" => "poweroff",
+        "reboot" => "reboot",
+        other => return Err(format!("Unknown power action: {other}")),
+    };
+    tokio::task::spawn_blocking(move || {
+        let out = Command::new("systemctl")
+            .arg(verb)
+            .output()
+            .map_err(|e| format!("systemctl failed: {e}"))?;
+        if out.status.success() {
+            Ok(())
+        } else {
+            Err(String::from_utf8_lossy(&out.stderr).trim().to_string())
+        }
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
 fn get_utc_offset_string(timezone: &str) -> String {
     // Use the `date` command for a reliable, dependency-free offset string.
     let output = Command::new("date")
@@ -754,6 +918,14 @@ pub fn run() {
             timezone_set,
             screen_orientation_set,
             factory_reset,
+            system_volume_get,
+            system_volume_set,
+            system_mute_set,
+            system_brightness_get,
+            system_brightness_set,
+            system_display_sleep,
+            system_display_wake,
+            system_power,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

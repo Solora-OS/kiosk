@@ -9,9 +9,17 @@
     />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f7f7f8" />
-    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#1c1c1e" />
-    <title>Lumora — Family Hub</title>
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f6f5f2" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#131313" />
+    <title>Solora</title>
+    <script>
+      // Apply light/dark before first paint so boot never flashes the wrong theme.
+      try {
+        var t = localStorage.getItem("lumora-theme") || "system";
+        var dark = t === "dark" || (t === "system" && matchMedia("(prefers-color-scheme: dark)").matches);
+        if (dark) document.documentElement.classList.add("dark");
+      } catch (e) {}
+    </script>
   </head>
 
   <body>

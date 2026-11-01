@@ -74,6 +74,14 @@ export type HubCommandEvent =
   | { type: "clear_cache" }
   | { type: "set_orientation"; orientation: "normal" | "left" | "right" | "inverted" | "portrait" }
   | { type: "set_idle_mins"; minutes: number | null }
+  | { type: "set_brightness"; level: number }
+  | { type: "set_volume"; level: number }
+  | { type: "set_muted"; muted: boolean }
+  | { type: "set_theme"; theme: "light" | "dark" | "system" }
+  | { type: "set_season"; mode: string }
+  | { type: "set_season_effects"; on: boolean }
+  | { type: "display_sleep" }
+  | { type: "display_wake" }
 
 // Table names that produce table:action events (relayed from hub broadcaster)
 const TABLE_EVENTS = [

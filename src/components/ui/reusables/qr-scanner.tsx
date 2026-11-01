@@ -42,7 +42,7 @@ export function QrScanner({ onResult, active }: { onResult: (text: string) => vo
 
   if (error) {
     return (
-      <div className="flex aspect-square w-full flex-col items-center justify-center gap-2 rounded-2xl bg-secondary text-center text-sm text-muted-foreground">
+      <div className="flex aspect-square w-full flex-col items-center justify-center gap-2 rounded-md bg-secondary text-center text-sm text-muted-foreground">
         <CameraOff className="size-6" />
         <p className="px-6 text-pretty">{error}</p>
       </div>
@@ -50,9 +50,9 @@ export function QrScanner({ onResult, active }: { onResult: (text: string) => vo
   }
 
   return (
-    <div className="relative aspect-square w-full overflow-hidden rounded-2xl bg-black">
+    <div className="relative aspect-square w-full overflow-hidden rounded-md bg-black">
       <video ref={videoRef} className="size-full object-cover" muted playsInline />
-      <div className="pointer-events-none absolute inset-8 rounded-xl border-2 border-white/80" />
+      <div className="pointer-events-none absolute inset-8 rounded-md border-2 border-white/80" />
     </div>
   )
 }

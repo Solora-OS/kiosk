@@ -1,27 +1,42 @@
 "use client"
 
-import { Sparkles, Loader2 } from "lucide-react"
+import { useSeason } from "@/components/season-provider"
+import { SeasonCorner, SeasonMark } from "@/components/season/ornaments"
+import { Wordmark } from "@/components/os/wordmark"
 
 /**
- * Lumora splash screen.
+ * Boot screen.
  *
- * Shown the instant the appliance boots while we load local device state and
- * decide which startup phase to enter. Deliberately minimal and brand-forward
- * so the user never glimpses Linux/Ubuntu underneath.
+ * Shown the instant the appliance powers on while we load local device state.
+ * A wordmark set large in the lower-left, the season's line beneath it, and a
+ * single hairline sweeping along the bottom edge. Nothing of Linux, ever.
  */
 export function SplashScreen({ message = "Starting up" }: { message?: string }) {
+  const { season } = useSeason()
+  const date = new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })
+
   return (
-    <main className="flex min-h-dvh flex-col items-center justify-center gap-10 bg-background text-foreground">
-      <div className="flex flex-col items-center gap-5">
-        <div className="flex size-20 items-center justify-center rounded-3xl bg-primary text-primary-foreground shadow-sm">
-          <Sparkles className="size-10" />
-        </div>
-        <span className="text-3xl font-bold tracking-tight">Lumora</span>
+    <main className="relative flex h-dvh flex-col justify-between overflow-hidden bg-background px-12 pb-0 pt-10 text-foreground">
+      <SeasonCorner className="size-[30rem]" />
+
+      <div className="relative flex items-center justify-between os-label">
+        <span>{date}</span>
       </div>
 
-      <div className="flex items-center gap-2.5 text-muted-foreground">
-        <Loader2 className="size-4 animate-spin" />
-        <span className="text-sm font-medium">{message}…</span>
+      <div className="relative pb-14">
+        <Wordmark className="rise-in block text-[8.5rem] lg:text-[11rem]" />
+        <p className="rise-in mt-4 flex items-center gap-3 font-display text-3xl italic text-muted-foreground [animation-delay:120ms]">
+          <SeasonMark className="text-2xl not-italic" />
+          {season.tagline}
+        </p>
+      </div>
+
+      <div className="relative -mx-12">
+        <div className="flex items-center justify-between px-12 pb-4 os-label">
+          <span>{message}</span>
+          <span className="tabular">Solora OS</span>
+        </div>
+        <div className="boot-line h-[2px] bg-hairline" />
       </div>
     </main>
   )

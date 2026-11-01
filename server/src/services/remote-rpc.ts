@@ -13,10 +13,11 @@ import crypto from "crypto"
 import { getRemoteKey } from "../routes/auth"
 import { signToken } from "../middleware/auth"
 
-const HUB_PORT = process.env.PORT ?? "4000"
+// Must match the port index.ts listens on (LUMORA_PORT); PORT kept as a legacy fallback.
+const HUB_PORT = process.env.LUMORA_PORT ?? process.env.PORT ?? "4000"
 const LOCAL_URL = `http://127.0.0.1:${HUB_PORT}/api/v1`
 
-const RELAY_ALLOWLIST = /^\/(?:households|members|events|chores|lists|list_items|meals|notifications|photos|invites|auth\/me|kiosk-devices)(?:\/.*)?$/
+const RELAY_ALLOWLIST = /^\/(?:snapshot|households|members|calendars|events|chores|lists|list_items|meals|notifications|photos|invites|auth\/me|kiosk-devices|rewards|away|home|calendar-links|ics-link|seasons|summer)(?:\/.*)?$/
 
 type RpcPayload = {
   method:      string
@@ -56,7 +57,13 @@ function encrypt(data: unknown): { iv: string; ciphertext: string } {
   }
 }
 
+let _registeredOn: unknown = null
+
 export function registerRemoteRpc(socket: import("socket.io-client").Socket): void {
+  // The socket object survives reconnects; attach the handler once, or every
+  // relayed call would run once per reconnect since boot.
+  if (_registeredOn === socket) return
+  _registeredOn = socket
   socket.on("hub:rpc", async (envelope: RpcEnvelope) => {
     const { correlation_id, encrypted_payload, iv } = envelope
 

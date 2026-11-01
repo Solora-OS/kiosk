@@ -76,7 +76,7 @@ export function BottomSheet({
     <div className="fixed inset-0 z-50 flex items-stretch justify-end">
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/40"
+        className="absolute inset-0 bg-black/35"
         style={{
           opacity: animating ? 1 : 0,
           transition: "opacity 300ms cubic-bezier(0.4, 0, 0.2, 1)",
@@ -90,34 +90,33 @@ export function BottomSheet({
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="relative z-10 flex h-full w-full max-w-sm flex-col bg-card shadow-2xl"
+        className="relative z-10 flex h-full w-full max-w-md flex-col border-l border-border bg-popover"
         style={{
           transform: animating ? "translateX(0)" : "translateX(100%)",
-          transition: "transform 300ms cubic-bezier(0.4, 0, 0.2, 1)",
-          borderRadius: "1.5rem 0 0 1.5rem",
+          transition: "transform 320ms cubic-bezier(0.25, 1, 0.5, 1)",
         }}
       >
         {/* Header */}
-        <div className="flex shrink-0 items-center justify-between border-b border-border px-5 py-4">
-          <h2 className="text-lg font-bold tracking-tight">{title}</h2>
+        <div className="flex shrink-0 items-end justify-between px-7 pb-5 pt-8">
+          <h2 className="font-display text-4xl leading-none">{title}</h2>
           <button
             type="button"
             onClick={requestClose}
             aria-label="Close"
-            className="flex size-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+            className="flex size-11 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
           >
             <X className="size-5" />
           </button>
         </div>
 
         {/* Scrollable body */}
-        <div className="flex-1 overflow-y-auto overflow-x-hidden px-5 py-5">
-          <div className="space-y-4">{children}</div>
+        <div className="flex-1 overflow-y-auto overflow-x-hidden border-t border-hairline px-7 py-6">
+          <div className="space-y-6">{children}</div>
         </div>
 
         {/* Footer */}
         {footer ? (
-          <div className="shrink-0 border-t border-border px-5 py-4">
+          <div className="shrink-0 border-t border-hairline px-7 py-5">
             {footer}
           </div>
         ) : null}
@@ -130,7 +129,7 @@ export function BottomSheet({
 export function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <label className="block">
-      <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+      <span className="os-label mb-1 block">
         {label}
       </span>
       {children}
@@ -138,5 +137,6 @@ export function Field({ label, children }: { label: string; children: ReactNode 
   )
 }
 
+/** Underline field — matches .os-field on system screens, sized for sheets. */
 export const inputClass =
-  "w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none transition-colors focus:border-primary"
+  "w-full border-0 border-b border-input bg-transparent px-0 py-2.5 text-base outline-none transition-colors focus:border-season"

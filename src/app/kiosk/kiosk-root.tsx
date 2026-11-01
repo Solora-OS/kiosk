@@ -1,6 +1,6 @@
 "use client"
 
-import { WifiOff } from "lucide-react"
+import { RefreshCw } from "lucide-react"
 import { KioskProvider, useKiosk } from "@/lib/kiosk-provider"
 import { StoreProvider } from "@/lib/store"
 import { PairingScreen } from "./pairing-screen"
@@ -9,7 +9,7 @@ import { KioskAppShell } from "./kiosk-app-shell"
 import { SplashScreen } from "./splash-screen"
 import { RegisteringScreen } from "./registering-screen"
 import { SetupWizard } from "./setup/setup-wizard"
-import { SystemStatusBar } from "@/components/ui/reusables/system-status-bar"
+import { SystemHeading, SystemScreen } from "@/components/os/system-screen"
 
 /**
  * Root for the kiosk experience (a wall-mounted family display).
@@ -37,25 +37,19 @@ function KioskGate() {
   // Hard failure talking to the backend (e.g. RPC not deployed).
   if (initError) {
     return (
-      <div className="flex min-h-dvh flex-col bg-background">
-        <SystemStatusBar />
-        <div className="flex flex-1 flex-col items-center justify-center gap-4 px-8 text-center">
-          <WifiOff className="size-10 text-muted-foreground" />
+      <SystemScreen footerRight="Offline" className="justify-end px-10 pb-16">
+        <div className="flex flex-col gap-10">
+          <SystemHeading eyebrow="Connection" title="We couldn't get through.">
+            <p>{initError}</p>
+          </SystemHeading>
           <div>
-            <p className="text-lg font-semibold text-foreground">Could not connect</p>
-            <p className="mt-1 max-w-xs text-pretty text-sm text-muted-foreground">
-              {initError}
-            </p>
+            <button type="button" onClick={() => void refresh()} className="os-button">
+              <RefreshCw className="size-4" />
+              Retry
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={() => void refresh()}
-            className="rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground"
-          >
-            Retry
-          </button>
         </div>
-      </div>
+      </SystemScreen>
     )
   }
 

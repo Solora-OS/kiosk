@@ -8,15 +8,13 @@
  * the Tauri Rust backend (see `wifi_scan` / `wifi_connect` / `wifi_status` in
  * `src-tauri/src/lib.rs`), which will talk to NetworkManager on Linux.
  *
- * This module is the single boundary the UI uses. Right now the Rust commands
- * are stubs, so:
- *   - In the native shell with no backend yet, `scanNetworks()` returns [] and
- *     `connect()` reports a not-implemented failure.
- *   - In the browser/dev preview (no Tauri), we serve a small mock network list
- *     so the wizard flow can be designed and exercised end-to-end.
+ * This module is the single boundary the UI uses. It only ever returns the
+ * real list reported by NetworkManager — when scanning isn't possible (no
+ * Tauri shell, nmcli missing, scan refused) it throws, so the UI shows an
+ * honest error instead of a made-up list.
  *
- * When the NetworkManager implementation lands in Rust, nothing here or in the
- * UI needs to change.
+ * For designing the wizard in a plain browser, set VITE_WIFI_MOCK=1 to opt
+ * into a clearly fake list.
  */
 
 export type WifiSecurity = "open" | "wpa" | "wep"
@@ -39,46 +37,61 @@ async function invoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T
   return mod.invoke<T>(cmd, args)
 }
 
-// Mock list used only in the browser/dev preview so the wizard is exercisable.
+// Opt-in mock list for browser-only UI work (VITE_WIFI_MOCK=1). Never used
+// otherwise, so a real device can't silently show fake networks.
+const USE_MOCK = !isTauri() && import.meta.env.VITE_WIFI_MOCK === "1"
+
 const MOCK_NETWORKS: WifiNetwork[] = [
-  { ssid: "Lumora Home", signal: 92, security: "wpa", connected: false },
-  { ssid: "Living Room 5G", signal: 78, security: "wpa", connected: false },
-  { ssid: "Pek Family", signal: 64, security: "wpa", connected: false },
-  { ssid: "Guest Network", signal: 51, security: "open", connected: false },
-  { ssid: "Neighbor_2.4", signal: 28, security: "wep", connected: false },
+  { ssid: "Mock Network (dev)", signal: 92, security: "wpa", connected: false },
+  { ssid: "Mock Open Network (dev)", signal: 51, security: "open", connected: false },
 ]
 
 let _connectedSsid: string | null = null
 
-/** Scan for nearby WiFi networks, sorted strongest-first. */
+const UNAVAILABLE = "Wi-Fi scanning is only available on the hub itself."
+
+function errorMessage(err: unknown, fallback: string): string {
+  if (typeof err === "string" && err) return err
+  if (err instanceof Error && err.message) return err.message
+  return fallback
+}
+
+/** Scan for nearby WiFi networks, sorted strongest-first. Throws when scanning isn't possible. */
 export async function scanNetworks(): Promise<WifiNetwork[]> {
   if (isTauri()) {
     try {
       const nets = await invoke<WifiNetwork[]>("wifi_scan")
       return [...nets].sort((a, b) => b.signal - a.signal)
     } catch (err) {
-      console.error("[v0] wifi-service: scan failed:", err)
-      return []
+      console.error("[wifi-service] scan failed:", err)
+      throw new Error(errorMessage(err, "Couldn't scan for networks."))
     }
   }
-  // Dev fallback — simulate a short scan delay then return mock networks.
-  await new Promise((r) => setTimeout(r, 900))
-  return MOCK_NETWORKS.map((n) => ({ ...n, connected: n.ssid === _connectedSsid }))
+  if (USE_MOCK) {
+    await new Promise((r) => setTimeout(r, 900))
+    return MOCK_NETWORKS.map((n) => ({ ...n, connected: n.ssid === _connectedSsid }))
+  }
+  throw new Error(UNAVAILABLE)
 }
 
 /**
- * Connect to a network. Returns true on success.
- *
- * In dev (no Tauri) this always "succeeds" after a short delay so the wizard
- * can advance; on a real device it delegates to NetworkManager via Rust.
+ * Connect to a network. Returns true on success; throws with a user-facing
+ * message on failure.
  */
 export async function connect(ssid: string, password?: string): Promise<boolean> {
   if (isTauri()) {
-    return invoke<boolean>("wifi_connect", { ssid, password: password ?? null })
+    try {
+      return await invoke<boolean>("wifi_connect", { ssid, password: password ?? null })
+    } catch (err) {
+      throw new Error(errorMessage(err, "Couldn't connect to this network."))
+    }
   }
-  await new Promise((r) => setTimeout(r, 1200))
-  _connectedSsid = ssid
-  return true
+  if (USE_MOCK) {
+    await new Promise((r) => setTimeout(r, 1200))
+    _connectedSsid = ssid
+    return true
+  }
+  throw new Error(UNAVAILABLE)
 }
 
 /** Return the SSID of the currently connected network, if any. */
@@ -90,7 +103,7 @@ export async function currentNetwork(): Promise<string | null> {
       return null
     }
   }
-  return _connectedSsid
+  return USE_MOCK ? _connectedSsid : null
 }
 
 /** Whether a security type requires a password. */

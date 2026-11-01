@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from "uuid"
 import { getDb, parseJson } from "../db"
 import { requireAuth, type AuthRequest } from "../middleware/auth"
 import { broadcast } from "../broadcaster"
+import { manages } from "../lib/household-member"
 import type { Calendar } from "../types"
 
 const router = Router()
@@ -28,6 +29,7 @@ router.get("/", (req: Request, res: Response) => {
 })
 
 router.post("/", (req: Request, res: Response) => {
+  if (!manages((req as AuthRequest).user, "calendar")) { res.status(403).json({ error: "Ask a parent to change the calendars." }); return }
   const householdId = (req as AuthRequest).user.householdId!
   const { name, color = "blue", memberIds = [] } = req.body as {
     name?: string; color?: string; memberIds?: string[]
@@ -45,6 +47,7 @@ router.post("/", (req: Request, res: Response) => {
 })
 
 router.patch("/:id", (req: Request, res: Response) => {
+  if (!manages((req as AuthRequest).user, "calendar")) { res.status(403).json({ error: "Ask a parent to change the calendars." }); return }
   const householdId = (req as AuthRequest).user.householdId!
   const { id } = req.params
   const db = getDb()
@@ -65,6 +68,7 @@ router.patch("/:id", (req: Request, res: Response) => {
 })
 
 router.delete("/:id", (req: Request, res: Response) => {
+  if (!manages((req as AuthRequest).user, "calendar")) { res.status(403).json({ error: "Ask a parent to change the calendars." }); return }
   const householdId = (req as AuthRequest).user.householdId!
   const { id } = req.params
   const db = getDb()

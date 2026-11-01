@@ -61,8 +61,8 @@ function InfoRow({
         <Icon className="size-3.5" />
       </span>
       <div className="min-w-0 flex-1">
-        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
-        <p className={cn("mt-0.5 break-all text-sm leading-snug text-foreground", mono && "font-mono text-[12px]")}>
+        <p className="text-[0.75rem] font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
+        <p className={cn("mt-0.5 break-all text-sm leading-snug text-foreground", mono && "font-mono text-[0.8rem]")}>
           {value}
         </p>
       </div>
@@ -118,11 +118,11 @@ export function UpdateDialog() {
     <Dialog open={open} onOpenChange={(o) => { if (!o) handleDismiss() }}>
       <DialogContent className="max-w-sm gap-0 p-0 overflow-hidden">
         {/* Header — same bg-card as body, no split */}
-        <div className="px-6 pt-6 pb-4 border-b border-border/60">
+        <div className="px-6 pt-6 pb-4 border-b border-hairline">
           <DialogHeader>
             <DialogTitle className="text-base font-bold">Update Available</DialogTitle>
             <DialogDescription className="text-sm text-muted-foreground mt-0.5">
-              A new version of Lumora is ready to install.
+              A new version of Solora is ready to install.
             </DialogDescription>
           </DialogHeader>
 
@@ -136,7 +136,7 @@ export function UpdateDialog() {
               v{update?.version ?? "…"}
             </span>
             {update?.signed && (
-              <span className="ml-auto flex items-center gap-1 rounded-full bg-member-green/15 px-2.5 py-1 text-[11px] font-semibold text-member-green">
+              <span className="ml-auto flex items-center gap-1 rounded-full bg-member-green/15 px-2.5 py-1 text-[0.75rem] font-semibold text-member-green">
                 <ShieldCheck className="size-3" />
                 Signed
               </span>
@@ -154,7 +154,7 @@ export function UpdateDialog() {
                 <FileText className="size-3.5" />
               </span>
               <div className="min-w-0 flex-1">
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Release notes</p>
+                <p className="text-[0.75rem] font-semibold uppercase tracking-wide text-muted-foreground">Release notes</p>
                 <div className="mt-1 max-h-32 overflow-y-auto overscroll-contain">
                   <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">{update.body}</p>
                 </div>
@@ -165,13 +165,13 @@ export function UpdateDialog() {
 
         {/* Error */}
         {error && (
-          <p className="mx-6 mb-2 rounded-xl bg-destructive/10 px-3 py-2 text-xs font-medium text-destructive">
+          <p className="mx-6 mb-2 rounded-md bg-destructive/10 px-3 py-2 text-xs font-medium text-destructive">
             {error}
           </p>
         )}
 
         {/* Footer */}
-        <DialogFooter className="gap-2 px-6 py-4 border-t border-border/60">
+        <DialogFooter className="gap-2 px-6 py-4 border-t border-hairline">
           <Button variant="outline" onClick={handleDismiss} disabled={installing} className="flex-1">
             Later
           </Button>

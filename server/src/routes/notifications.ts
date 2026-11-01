@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from "uuid"
 import { getDb, toBool } from "../db"
 import { requireAuth, type AuthRequest } from "../middleware/auth"
 import { broadcast } from "../broadcaster"
+import { callerMember } from "../lib/household-member"
 import type { NotificationWithState } from "../types"
 
 const router = Router()
@@ -30,33 +31,40 @@ function fetchNotification(id: string, userId: string): NotificationWithState | 
   }
 }
 
-// GET /notifications
-router.get("/", (req: Request, res: Response) => {
-  const { sub } = (req as AuthRequest).user
-  const householdId = (req as AuthRequest).user.householdId!
+/**
+ * The notifications a caller sees: ones for everyone, plus ones addressed to
+ * their own member. Reminders and reward news for one person stay with them;
+ * the wall, which is nobody in particular, sees only the household-wide ones.
+ */
+export function notificationsFor(user: AuthRequest["user"]): NotificationWithState[] {
+  const me = user.role === "kiosk" ? null : callerMember(user)?.id ?? null
   const rows = getDb()
     .prepare(
       `SELECT n.*, COALESCE(ns.read, 0) as read_flag
        FROM notifications n
        LEFT JOIN notification_states ns ON ns.notification_id = n.id AND ns.user_id = ?
        WHERE n.household_id = ?
+         AND (n.member_id IS NULL OR n.member_id = ?)
          AND (ns.dismissed IS NULL OR ns.dismissed = 0)
        ORDER BY n.created_at DESC`,
     )
-    .all(sub, householdId) as (Record<string, unknown> & { read_flag: number })[]
+    .all(user.sub, user.householdId ?? "", me) as (Record<string, unknown> & { read_flag: number })[]
+  return rows.map((r) => ({
+    id: r.id as string,
+    householdId: r.household_id as string,
+    memberId: (r.member_id as string) ?? undefined,
+    title: r.title as string,
+    body: r.body as string,
+    time: r.time as string,
+    ref: (r.ref as string) ?? undefined,
+    createdAt: r.created_at as string,
+    read: toBool(r.read_flag),
+  }))
+}
 
-  res.json(
-    rows.map((r) => ({
-      id: r.id as string,
-      householdId: r.household_id as string,
-      memberId: (r.member_id as string) ?? undefined,
-      title: r.title as string,
-      body: r.body as string,
-      time: r.time as string,
-      createdAt: r.created_at as string,
-      read: toBool(r.read_flag),
-    })),
-  )
+// GET /notifications
+router.get("/", (req: Request, res: Response) => {
+  res.json(notificationsFor((req as AuthRequest).user))
 })
 
 // POST /notifications

@@ -4,6 +4,7 @@ import { CalendarView } from "./app/calendar/calender";
 import { ChoresView } from "./app/chores/chores";
 import { ListsView } from "./app/lists/lists";
 import { MealsView } from "./app/meals/meals";
+import { HomeView } from "./app/home/home"
 import { SettingsView } from "./app/settings/settings";
 import { PhotosView } from "./app/photos/photos";
 import { HeaderNav } from "./components/ui/reusables/header-nav";
@@ -22,8 +23,10 @@ const todaySubtitle = new Date().toLocaleDateString(undefined, {
 })
 
 const headers: Record<TabKey, { title: string; subtitle?: string; showMembers: boolean }> = {
+  home: { title: "Home", subtitle: todaySubtitle, showMembers: false },
   calendar: { title: "Calendar", subtitle: todaySubtitle, showMembers: true },
   chores: { title: "Chores", subtitle: "Keep the streak going", showMembers: true },
+  rewards: { title: "Rewards", subtitle: "Points, streaks and treats", showMembers: false },
   lists: { title: "Lists", subtitle: "Shared with the family", showMembers: false },
   meals: { title: "Meals", subtitle: "Dinner plan for the week", showMembers: false },
   photos: { title: "Photos", subtitle: "Family moments on your hub", showMembers: false },
@@ -55,6 +58,7 @@ function AppShell() {
               {tab === "meals" && <MealsView />}
               {tab === "photos" && <PhotosView />}
               {tab === "settings" && <SettingsView />}
+              {tab === "home" && <HomeView />}
             </div>
           )}
         </main>

@@ -98,13 +98,69 @@ function migrate(db: Database.Database): void {
     }
   }
 
-  addColumnSafe("users",  "supabase_id",      "TEXT")
+  addColumnSafe("users",  "supabase_id",      "TEXT") // legacy — superseded by account_id
+  addColumnSafe("users",  "account_id",       "TEXT") // Lumora central account id
+  db.exec("CREATE UNIQUE INDEX IF NOT EXISTS users_account_id_key ON users (account_id) WHERE account_id IS NOT NULL")
   addColumnSafe("events", "source",          "TEXT")
   addColumnSafe("events", "source_event_id", "TEXT")
   addColumnSafe("lists",      "position", "INTEGER NOT NULL DEFAULT 0")
   addColumnSafe("list_items", "position", "INTEGER NOT NULL DEFAULT 0")
+  addColumnSafe("chores", "repeat_days", "TEXT")
+  addColumnSafe("chores", "done_on",     "TEXT")
+  addColumnSafe("chores", "icon",        "TEXT")
+  addColumnSafe("users",  "device_only", "INTEGER NOT NULL DEFAULT 0")
+  addColumnSafe("meals", "date",        "TEXT")
+  addColumnSafe("meals", "ingredients", "TEXT NOT NULL DEFAULT '[]'")
+  addColumnSafe("households", "away_from",  "TEXT")
+  addColumnSafe("households", "away_until", "TEXT")
+  addColumnSafe("households", "away_label", "TEXT")
+  addColumnSafe("households", "home_layout", "TEXT")
+  addColumnSafe("events", "end_date", "TEXT")
+  addColumnSafe("events", "all_day",  "INTEGER NOT NULL DEFAULT 0")
+  addColumnSafe("events", "repeat_days",  "TEXT")
+  addColumnSafe("events", "repeat_until", "TEXT")
+  addColumnSafe("events", "skip_dates",   "TEXT NOT NULL DEFAULT '[]'")
+  addColumnSafe("events", "countdown",    "INTEGER NOT NULL DEFAULT 0")
+  addColumnSafe("list_items", "added_by", "TEXT")
+  addColumnSafe("kiosk_devices", "on_hub", "INTEGER NOT NULL DEFAULT 0")
+  addColumnSafe("kiosk_devices", "display_state", "TEXT") // JSON DisplayState the wall last reported
+  addColumnSafe("kiosk_devices", "display_state_at", "TEXT")
+  addColumnSafe("chores", "keep_while_away", "INTEGER NOT NULL DEFAULT 0")
+  addColumnSafe("events", "remind_minutes", "INTEGER")
+  addColumnSafe("events", "created_by", "TEXT")
+  addColumnSafe("households", "season_settings", "TEXT")
+  addColumnSafe("households", "summer_from", "TEXT")
+  addColumnSafe("households", "summer_until", "TEXT")
+  addColumnSafe("chores", "summer_mode", "TEXT NOT NULL DEFAULT 'same'")
+  addColumnSafe("chores", "summer_days", "TEXT")
+  addColumnSafe("notifications", "ref", "TEXT")
+  repairEventTimes(db)
 
   console.log("[lumora] Database schema applied:", DB_PATH)
+}
+
+/**
+ * One-off fixes for events written before all-day support and before the
+ * events route read the apps' start/end fields. Both are no-ops once applied.
+ */
+function repairEventTimes(db: Database.Database): void {
+  // Imported date-only events were stored as 00:00–00:00 with no time.
+  db.exec("UPDATE events SET all_day = 1, start_hour = 0, end_hour = 24 WHERE source IS NOT NULL AND time IS NULL AND all_day = 0")
+
+  // Hand-entered events lost their hours but kept the "5:00 PM" label: recover the start from it.
+  type Row = { id: string; time: string }
+  const rows = db
+    .prepare("SELECT id, time FROM events WHERE source IS NULL AND all_day = 0 AND start_hour = 0 AND end_hour = 0 AND time IS NOT NULL")
+    .all() as Row[]
+  const fix = db.prepare("UPDATE events SET start_hour = ?, end_hour = ? WHERE id = ?")
+  for (const r of rows) {
+    const m = /^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i.exec(r.time.trim())
+    if (!m) continue
+    let h = Number(m[1]) % (m[3] ? 12 : 24)
+    if (m[3]?.toUpperCase() === "PM") h += 12
+    const start = h + Number(m[2]) / 60
+    fix.run(start, Math.min(start + 1, 24), r.id)
+  }
 }
 
 // ---------------------------------------------------------------------------

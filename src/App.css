@@ -2,12 +2,29 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/geist";
+@import "@fontsource-variable/geist-mono";
+@import "@fontsource/instrument-serif/400.css";
+@import "@fontsource/instrument-serif/400-italic.css";
 
 @custom-variant dark (&:is(.dark *));
 
+/*
+ * Lumora design language
+ * ──────────────────────
+ * Paper & graphite. Almost no color: one accent, owned by the active season
+ * (see src/lib/seasons.ts). Three voices:
+ *   display  Instrument Serif — clock, dates, titles. Big, quiet, editorial.
+ *   sans     Geist — everything you read.
+ *   mono     Geist Mono — system labels, counters, status. Small caps-ish.
+ * Hairlines instead of shadows. Corners are tight (8px), not pillowy.
+ */
+
 @theme inline {
-    --font-heading: var(--font-sans);
-    --font-sans: 'Geist Variable', sans-serif;
+    --font-heading: var(--font-display);
+    --font-sans: 'Geist Variable', ui-sans-serif, sans-serif;
+    --font-mono: 'Geist Mono Variable', ui-monospace, monospace;
+    --font-display: 'Instrument Serif', ui-serif, Georgia, serif;
+
     --color-sidebar-ring: var(--sidebar-ring);
     --color-sidebar-border: var(--sidebar-border);
     --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -40,7 +57,13 @@
     --color-foreground: var(--foreground);
     --color-background: var(--background);
 
-    /* Family member accent colors */
+    /* Season accent — the only "brand" color on screen */
+    --color-season: var(--season);
+    --color-season-ink: var(--season-ink);
+    --color-season-soft: var(--season-soft);
+    --color-hairline: var(--hairline);
+
+    /* Family member accents */
     --color-member-coral: var(--member-coral);
     --color-member-amber: var(--member-amber);
     --color-member-teal: var(--member-teal);
@@ -48,122 +71,258 @@
     --color-member-pink: var(--member-pink);
     --color-member-green: var(--member-green);
 
-    --radius-sm: calc(var(--radius) * 0.6);
-    --radius-md: calc(var(--radius) * 0.8);
+    --radius-sm: calc(var(--radius) * 0.5);
+    --radius-md: calc(var(--radius) * 0.75);
     --radius-lg: var(--radius);
-    --radius-xl: calc(var(--radius) * 1.4);
-    --radius-2xl: calc(var(--radius) * 1.8);
-    --radius-3xl: calc(var(--radius) * 2.2);
-    --radius-4xl: calc(var(--radius) * 2.6);
+    --radius-xl: calc(var(--radius) * 1.25);
+    --radius-2xl: calc(var(--radius) * 1.5);
+    --radius-3xl: calc(var(--radius) * 2);
+    --radius-4xl: calc(var(--radius) * 2.5);
+
+    --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
 }
 
 :root {
-    /* iOS systemGroupedBackground: soft gray behind white cards */
-    --background: oklch(0.971 0.002 247.84);
-    --foreground: oklch(0.16 0.01 264);
-    --card: oklch(1 0 0);
-    --card-foreground: oklch(0.16 0.01 264);
-    --popover: oklch(1 0 0);
-    --popover-foreground: oklch(0.16 0.01 264);
-    --primary: oklch(0.21 0.01 264);
-    --primary-foreground: oklch(0.985 0 0);
-    --secondary: oklch(0.955 0.003 247.84);
-    --secondary-foreground: oklch(0.21 0.01 264);
-    --muted: oklch(0.955 0.003 247.84);
-    --muted-foreground: oklch(0.55 0.01 264);
-    --accent: oklch(0.93 0.004 247.84);
-    --accent-foreground: oklch(0.21 0.01 264);
-    --destructive: oklch(0.577 0.245 27.325);
-    --border: oklch(0.91 0.004 247.84);
-    --input: oklch(0.91 0.004 247.84);
-    --ring: oklch(0.708 0 0);
+    /* Seasons override these three (see SeasonProvider). Hue of the paper tint. */
+    --tint: 80;
+    --season-l: oklch(0.66 0.15 58);
+    --season-d: oklch(0.76 0.13 66);
+
+    /* Paper */
+    --background: oklch(0.972 0.005 var(--tint));
+    --foreground: oklch(0.2 0.008 var(--tint));
+    --card: oklch(0.99 0.003 var(--tint));
+    --card-foreground: var(--foreground);
+    --popover: oklch(0.99 0.003 var(--tint));
+    --popover-foreground: var(--foreground);
+    --primary: oklch(0.2 0.008 var(--tint));
+    --primary-foreground: oklch(0.98 0.004 var(--tint));
+    --secondary: oklch(0.945 0.006 var(--tint));
+    --secondary-foreground: var(--foreground);
+    --muted: oklch(0.945 0.006 var(--tint));
+    --muted-foreground: oklch(0.5 0.01 var(--tint));
+    --accent: oklch(0.925 0.007 var(--tint));
+    --accent-foreground: var(--foreground);
+    --destructive: oklch(0.56 0.2 28);
+    --border: oklch(0.885 0.007 var(--tint));
+    --hairline: oklch(0.2 0.008 var(--tint) / 9%);
+    --input: oklch(0.86 0.008 var(--tint));
+    --ring: var(--season);
     --chart-1: oklch(0.87 0 0);
     --chart-2: oklch(0.556 0 0);
     --chart-3: oklch(0.439 0 0);
     --chart-4: oklch(0.371 0 0);
     --chart-5: oklch(0.269 0 0);
-    --radius: 0.75rem;
+    --radius: 0.5rem;
 
-    /* Family member accents (light) */
-    --member-coral: oklch(0.68 0.17 22);
-    --member-amber: oklch(0.76 0.14 70);
-    --member-teal: oklch(0.7 0.11 185);
-    --member-blue: oklch(0.62 0.16 255);
-    --member-pink: oklch(0.7 0.16 350);
-    --member-green: oklch(0.68 0.15 150);
+    --season: var(--season-l);
+    --season-ink: oklch(0.99 0 0);
+    --season-soft: color-mix(in oklch, var(--season) 12%, transparent);
 
-    --sidebar: oklch(0.985 0 0);
-    --sidebar-foreground: oklch(0.145 0 0);
-    --sidebar-primary: oklch(0.205 0 0);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.97 0 0);
-    --sidebar-accent-foreground: oklch(0.205 0 0);
-    --sidebar-border: oklch(0.922 0 0);
-    --sidebar-ring: oklch(0.708 0 0);
+    --member-coral: oklch(0.66 0.15 25);
+    --member-amber: oklch(0.74 0.12 75);
+    --member-teal: oklch(0.66 0.09 190);
+    --member-blue: oklch(0.6 0.12 255);
+    --member-pink: oklch(0.68 0.13 350);
+    --member-green: oklch(0.65 0.11 150);
+
+    --sidebar: var(--background);
+    --sidebar-foreground: var(--foreground);
+    --sidebar-primary: var(--primary);
+    --sidebar-primary-foreground: var(--primary-foreground);
+    --sidebar-accent: var(--secondary);
+    --sidebar-accent-foreground: var(--foreground);
+    --sidebar-border: var(--border);
+    --sidebar-ring: var(--ring);
 }
 
 .dark {
-    /* True-black grouped background with elevated dark cards */
-    --background: oklch(0.13 0.004 264);
-    --foreground: oklch(0.985 0 0);
-    --card: oklch(0.2 0.005 264);
-    --card-foreground: oklch(0.985 0 0);
-    --popover: oklch(0.2 0.005 264);
-    --popover-foreground: oklch(0.985 0 0);
-    --primary: oklch(0.95 0 0);
-    --primary-foreground: oklch(0.2 0.005 264);
-    --secondary: oklch(0.27 0.006 264);
-    --secondary-foreground: oklch(0.985 0 0);
-    --muted: oklch(0.27 0.006 264);
-    --muted-foreground: oklch(0.7 0.01 264);
-    --accent: oklch(0.32 0.006 264);
-    --accent-foreground: oklch(0.985 0 0);
-    --destructive: oklch(0.704 0.191 22.216);
-    --border: oklch(1 0 0 / 12%);
-    --input: oklch(1 0 0 / 15%);
-    --ring: oklch(0.556 0 0);
-    --chart-1: oklch(0.87 0 0);
-    --chart-2: oklch(0.556 0 0);
-    --chart-3: oklch(0.439 0 0);
-    --chart-4: oklch(0.371 0 0);
-    --chart-5: oklch(0.269 0 0);
+    /* Graphite */
+    --background: oklch(0.15 0.006 var(--tint));
+    --foreground: oklch(0.94 0.006 var(--tint));
+    --card: oklch(0.185 0.007 var(--tint));
+    --popover: oklch(0.2 0.008 var(--tint));
+    --primary: oklch(0.94 0.006 var(--tint));
+    --primary-foreground: oklch(0.16 0.006 var(--tint));
+    --secondary: oklch(0.225 0.008 var(--tint));
+    --muted: oklch(0.225 0.008 var(--tint));
+    --muted-foreground: oklch(0.66 0.01 var(--tint));
+    --accent: oklch(0.26 0.009 var(--tint));
+    --destructive: oklch(0.68 0.17 25);
+    --border: oklch(1 0 0 / 9%);
+    --hairline: oklch(1 0 0 / 7%);
+    --input: oklch(1 0 0 / 14%);
 
-    /* Family member accents (dark — slightly brighter for contrast) */
-    --member-coral: oklch(0.72 0.17 22);
-    --member-amber: oklch(0.8 0.14 75);
-    --member-teal: oklch(0.75 0.11 185);
-    --member-blue: oklch(0.68 0.16 255);
-    --member-pink: oklch(0.74 0.16 350);
-    --member-green: oklch(0.74 0.15 150);
+    --season: var(--season-d);
+    --season-ink: oklch(0.15 0.01 var(--tint));
 
-    --sidebar: oklch(0.205 0 0);
-    --sidebar-foreground: oklch(0.985 0 0);
-    --sidebar-primary: oklch(0.488 0.243 264.376);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.269 0 0);
-    --sidebar-accent-foreground: oklch(0.985 0 0);
-    --sidebar-border: oklch(1 0 0 / 10%);
-    --sidebar-ring: oklch(0.556 0 0);
+    --member-coral: oklch(0.72 0.14 25);
+    --member-amber: oklch(0.8 0.12 78);
+    --member-teal: oklch(0.74 0.09 190);
+    --member-blue: oklch(0.7 0.12 255);
+    --member-pink: oklch(0.74 0.13 350);
+    --member-green: oklch(0.73 0.11 150);
 }
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
-    }
+  }
+  html {
+    @apply font-sans bg-background;
+    color-scheme: light dark;
+    /*
+     * Fluid root size. Everything is in rem, so this one line scales the whole
+     * OS to the panel: ~16px on a 1280×800 10" tablet, ~18px on a 1920×1080
+     * 15.6" panel (landscape or portrait — vw+vh is orientation-neutral),
+     * capped at 22px on 1440p / 21"+ so it never looks bloated.
+     */
+    font-size: clamp(16px, calc(0.6vw + 0.6vh), 22px);
+    -webkit-text-size-adjust: 100%;
+  }
   body {
     @apply bg-background text-foreground;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
-    }
-  html {
-    @apply font-sans bg-background;
-    /* smooth theme transitions */
-    color-scheme: light dark;
-    }
+    font-feature-settings: "ss01", "cv11";
+    /* Kiosk: no text selection, no callouts, no rubber-band */
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    overscroll-behavior: none;
+  }
+  input, textarea, [contenteditable] {
+    user-select: text;
+    -webkit-user-select: text;
+  }
+  /* Touch: no 300ms double-tap delay, no grey tap flash, no long-press callout */
+  button, a, [role="button"], [role="switch"], [role="slider"], [role="tab"], label, summary {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    cursor: pointer;
+  }
+  /* Universal press feedback — a finger needs to see it landed. Excludes
+     hold-to-confirm controls, which draw their own progress. */
+  button:not(:disabled):not([data-hold]):active,
+  [role="button"]:active {
+    opacity: 0.62;
+    transition: opacity 0s;
+  }
+  button { transition-property: color, background-color, border-color, opacity, transform; }
+
+  /* Scrolling regions: momentum, no scroll chaining into the page */
+  * { overscroll-behavior: contain; }
+  /* Thin scrollbars that don't steal touch width (WebKitGTK draws them) */
+  * { scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 999px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+
+  /* Inputs never smaller than 16px (avoids WebKit zoom-on-focus) */
+  input, select, textarea { font-size: max(1rem, 16px); }
+  ::selection { background: var(--season-soft); }
+}
+
+@layer components {
+  /* Small system label: mono, tracked, quiet. */
+  .os-label {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    line-height: 1;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted-foreground);
+  }
+
+  /* Underline-only text field — used on setup / activation screens */
+  .os-field {
+    width: 100%;
+    background: transparent;
+    border: 0;
+    border-bottom: 1px solid var(--input);
+    padding: 0.85rem 0 0.7rem;
+    font-size: 1.25rem;
+    outline: none;
+    transition: border-color 160ms var(--ease-out-quart);
+  }
+  .os-field::placeholder { color: color-mix(in oklch, var(--muted-foreground) 70%, transparent); }
+  .os-field:focus { border-bottom-color: var(--season); }
+
+  /* Primary action: ink slab with a season-colored leading notch. */
+  .os-button {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    min-height: 3.5rem;
+    padding: 0 1.75rem 0 2rem;
+    border-radius: var(--radius);
+    background: var(--primary);
+    color: var(--primary-foreground);
+    font-weight: 550;
+    font-size: 1rem;
+    transition: opacity 160ms, transform 160ms var(--ease-out-quart);
+  }
+  .os-button::before {
+    content: "";
+    position: absolute;
+    left: 0.85rem;
+    top: 50%;
+    width: 4px;
+    height: 4px;
+    border-radius: 999px;
+    background: var(--season);
+    transform: translateY(-50%);
+  }
+  .os-button:active { transform: scale(0.985); }
+  .os-button:disabled { opacity: 0.4; pointer-events: none; }
+
+  .os-button-quiet {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-height: 3.5rem;
+    padding: 0 1.1rem;
+    border-radius: var(--radius);
+    color: var(--muted-foreground);
+    font-weight: 500;
+    transition: color 160ms, background-color 160ms;
+  }
+  @media (hover: hover) {
+    .os-button-quiet:hover { color: var(--foreground); background: var(--secondary); }
+  }
+  .os-button-quiet:disabled { opacity: 0; pointer-events: none; }
+
+  /* Selectable list row used across setup / settings (language, tz, wifi) */
+  .os-option {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    width: 100%;
+    min-height: 4rem;
+    padding: 1rem 0.25rem;
+    border-bottom: 1px solid var(--hairline);
+    text-align: left;
+    transition: color 140ms, padding 200ms var(--ease-out-quart);
+  }
+  .os-option[aria-pressed="true"] { padding-left: 1rem; }
+  .os-option[aria-pressed="true"]::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 50%;
+    width: 6px;
+    height: 6px;
+    border-radius: 999px;
+    background: var(--season);
+    transform: translateY(-50%);
+  }
 }
 
 @layer utilities {
-  /* Hide scrollbars on horizontal strips */
   .no-scrollbar {
     -ms-overflow-style: none;
     scrollbar-width: none;
@@ -172,22 +331,66 @@
     display: none;
   }
 
-  /* Search-target attention flash */
+  /* Invisible touch padding: grows a small control's tap area to ≥48px
+     without changing its look. Positions itself unless already absolute. */
+  .hit:not(.absolute):not(.fixed) { position: relative; }
+  .hit::after { content: ""; position: absolute; inset: -0.5rem; }
+
+  .font-display { font-family: var(--font-display); font-weight: 400; letter-spacing: -0.01em; }
+  .tabular { font-variant-numeric: tabular-nums; }
+
+  /* Faint dot grid — the "paper" texture behind system screens */
+  .paper-grid {
+    background-image: radial-gradient(var(--hairline) 1px, transparent 1px);
+    background-size: 1.5rem 1.5rem;
+  }
+
   .highlight-flash {
     animation: highlight-flash 2s ease-out;
   }
   @keyframes highlight-flash {
-    0% {
-      box-shadow: 0 0 0 0 var(--primary);
-      transform: scale(1);
-    }
-    12% {
-      box-shadow: 0 0 0 3px color-mix(in oklch, var(--primary) 55%, transparent);
-      transform: scale(1.02);
-    }
-    100% {
-      box-shadow: 0 0 0 0 transparent;
-      transform: scale(1);
-    }
+    0% { box-shadow: 0 0 0 0 var(--season); }
+    12% { box-shadow: 0 0 0 3px color-mix(in oklch, var(--season) 55%, transparent); }
+    100% { box-shadow: 0 0 0 0 transparent; }
+  }
+
+  /* Boot progress — a single line that sweeps, never a spinner */
+  .boot-line {
+    position: relative;
+    overflow: hidden;
+  }
+  .boot-line::after {
+    content: "";
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 32%;
+    background: var(--season);
+    animation: boot-sweep 1.6s var(--ease-out-quart) infinite;
+  }
+  @keyframes boot-sweep {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(320%); }
+  }
+
+  .rise-in { animation: rise-in 520ms var(--ease-out-quart) both; }
+  @keyframes rise-in {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: none; }
+  }
+
+  .twinkle { animation: twinkle 3.2s ease-in-out infinite; }
+  @keyframes twinkle {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.35; }
+  }
+
+  .sway { transform-origin: top center; animation: sway 6s ease-in-out infinite; }
+  @keyframes sway {
+    0%, 100% { transform: rotate(-2deg); }
+    50% { transform: rotate(2deg); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .boot-line::after, .twinkle, .sway, .rise-in { animation: none; }
   }
 }
