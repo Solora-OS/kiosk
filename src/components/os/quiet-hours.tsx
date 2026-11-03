@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react"
 import { getBrightness, setBrightness, sleepDisplay } from "@/lib/system-service"
 import { inQuietHours, useDisplayPrefs } from "@/lib/display-prefs"
+import { onWallWake } from "@/lib/wall-wake"
 
 /** How long a tap keeps the wall awake during quiet hours; each touch restarts it. */
 const WAKE_MS = 2 * 60_000
@@ -32,6 +33,16 @@ export function QuietHours() {
 
   const quiet = inQuietHours(q, new Date(now))
   const asleep = quiet && now >= awakeUntil
+
+  // A family phone walking up wakes it like a tap does.
+  useEffect(
+    () =>
+      onWallWake(() => {
+        setAwakeUntil(Date.now() + WAKE_MS)
+        setNow(Date.now())
+      }),
+    [],
+  )
 
   // While awake during quiet hours, any touch keeps it awake a little longer.
   useEffect(() => {

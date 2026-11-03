@@ -1,4 +1,4 @@
--- Lumora local SQLite schema
+-- Solora local SQLite schema
 -- Mirrors the Supabase Postgres schema exactly; all ids are UUIDs stored as TEXT.
 -- Run once at server start via migrate.ts — idempotent (CREATE TABLE IF NOT EXISTS).
 
@@ -269,7 +269,7 @@ CREATE TABLE IF NOT EXISTS kiosk_devices (
   id               TEXT PRIMARY KEY,
   household_id     TEXT REFERENCES households(id) ON DELETE CASCADE,
   device_token     TEXT NOT NULL UNIQUE,
-  device_name      TEXT NOT NULL DEFAULT 'Lumora Hub',
+  device_name      TEXT NOT NULL DEFAULT 'Solora Hub',
   pairing_code     TEXT,
   setup_complete   INTEGER NOT NULL DEFAULT 0,
   is_online        INTEGER NOT NULL DEFAULT 0,
@@ -306,7 +306,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_events_source ON events(household_id, sour
 
 -- ---------------------------------------------------------------------------
 -- calendar_provider_mappings
--- Maps an external Google calendar or Outlook category → a Lumora calendar.
+-- Maps an external Google calendar or Outlook category → a Solora calendar.
 -- external_id: Google calendarId or Outlook category displayName.
 -- calendar_id NULL = events land in the "General" calendar (auto-created).
 -- ---------------------------------------------------------------------------

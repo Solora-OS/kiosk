@@ -1,6 +1,6 @@
 # Kiosk Pairing Contract (iOS app ↔ Supabase)
 
-How a family member claims a wall-mounted Lumora kiosk to their household using
+How a family member claims a wall-mounted Solora kiosk to their household using
 the mobile app. The kiosk itself is **not a user** — it holds a secret
 `device_token` and talks to the backend only through `SECURITY DEFINER` RPCs.
 

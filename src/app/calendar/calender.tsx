@@ -66,6 +66,44 @@ function hoursOn(e: CalendarEvent, iso: string): { from: number; to: number } {
   return { from, to: Math.max(to, from + 0.5) }
 }
 
+/** Compact start time for a month cell: "9a", "5:30p". */
+function shortClock(hour: number): string {
+  const mins = Math.round(hour * 60)
+  const h = Math.floor(mins / 60) % 24
+  const m = mins % 60
+  return `${h % 12 === 0 ? 12 : h % 12}${m ? `:${String(m).padStart(2, "0")}` : ""}${h < 12 ? "a" : "p"}`
+}
+
+/**
+ * Side-by-side lanes for the timed events on `iso`, so events that overlap
+ * (two kids' practices, a repeat on top of a one-off) sit next to each other
+ * instead of drawing over one another. Keyed by `id:date`.
+ */
+function laneLayout(evs: CalendarEvent[], iso: string): Map<string, { lane: number; lanes: number }> {
+  const out = new Map<string, { lane: number; lanes: number }>()
+  const sorted = evs
+    .map((e) => ({ key: `${e.id}:${e.date}`, ...hoursOn(e, iso) }))
+    .sort((a, b) => a.from - b.from || b.to - a.to)
+  let cluster: { key: string; lane: number }[] = []
+  let laneEnds: number[] = []
+  let clusterEnd = -1
+  const flush = () => {
+    for (const c of cluster) out.set(c.key, { lane: c.lane, lanes: laneEnds.length })
+    cluster = []
+    laneEnds = []
+  }
+  for (const s of sorted) {
+    if (s.from >= clusterEnd) flush()
+    let lane = laneEnds.findIndex((end) => end <= s.from)
+    if (lane === -1) lane = laneEnds.push(s.to) - 1
+    else laneEnds[lane] = s.to
+    cluster.push({ key: s.key, lane })
+    clusterEnd = Math.max(clusterEnd, s.to)
+  }
+  flush()
+  return out
+}
+
 type ViewMode = "day" | "week" | "month"
 
 type FormState = {
@@ -785,6 +823,9 @@ function MonthView({
                 {dayEvents.map((ev) => (
                   <span key={`${ev.id}:${ev.date}`} className="flex min-w-0 items-center gap-1.5 text-[0.8rem] leading-snug">
                     <span className={cn("size-1.5 shrink-0 rounded-full", memberBg[calColor(ev.calendarId)])} />
+                    {!coversWholeDay(ev, iso) ? (
+                      <span className="shrink-0 font-mono text-[0.7rem] tabular text-muted-foreground">{shortClock(hoursOn(ev, iso).from)}</span>
+                    ) : null}
                     <span className={cn("truncate", isCurrentMonth ? "text-foreground" : "text-muted-foreground/50")}>{ev.title}</span>
                   </span>
                 ))}
@@ -826,6 +867,10 @@ function WeekView({
   const ws = startOfWeek(anchorDate)
   const days = Array.from({ length: 7 }, (_, i) => addDays(ws, i))
   const calColor = (id: string): MemberColor => calendars.find((c) => c.id === id)?.color ?? "blue"
+  const lanesByDay = new Map(days.map((d) => {
+    const iso = toISODate(d)
+    return [iso, laneLayout(expandEventsOn(events, iso).filter((e) => !coversWholeDay(e, iso)), iso)] as const
+  }))
 
   return (
     <div className="overflow-x-auto">
@@ -905,26 +950,35 @@ function WeekView({
                 )
                 return (
                   <div key={iso} className="flex-1 relative min-w-0">
-                    {dayEvs.map((ev) => (
+                    {dayEvs.map((ev) => {
+                      const { lane, lanes } = lanesByDay.get(iso)?.get(`${ev.id}:${ev.date}`) ?? { lane: 0, lanes: 1 }
+                      const { from, to } = hoursOn(ev, iso)
+                      return (
                       <div
                         key={`${ev.id}:${ev.date}`}
                         ref={register(ev.id) as React.RefCallback<HTMLDivElement>}
-                        className="absolute inset-x-0.5 cursor-pointer overflow-hidden rounded-[4px] border border-border bg-card py-1 pl-2.5 pr-1 text-[0.8rem] font-medium text-foreground transition-colors hover:border-foreground/40"
+                        className="absolute z-10 cursor-pointer overflow-hidden rounded-[4px] border border-border bg-card py-1 pl-2.5 pr-1 text-[0.8rem] font-medium text-foreground transition-colors hover:border-foreground/40"
                         style={{
-                          top: 2 + (hoursOn(ev, iso).from % 1) * 48,
-                          minHeight: Math.max(hoursOn(ev, iso).to - hoursOn(ev, iso).from, 0.5) * 48 - 4,
+                          top: 2 + (from % 1) * 48,
+                          left: `calc(${(lane / lanes) * 100}% + 2px)`,
+                          width: `calc(${100 / lanes}% - 4px)`,
+                          height: Math.max(to - from, 0.5) * 48 - 4,
                         }}
                         onClick={() => onEdit?.(ev)}
                       >
                         <span aria-hidden className={cn("absolute inset-y-1 left-1 w-[3px] rounded-full", memberBg[calColor(ev.calendarId)])} />
                         <span className="block truncate">{ev.title}</span>
+                        <span className="block truncate font-mono text-[0.7rem] font-normal tabular text-muted-foreground">
+                          {formatClock(from)}{to - from >= 1 ? ` – ${formatClock(to)}` : ""}
+                        </span>
                         {hoursOn(ev, iso).to - hoursOn(ev, iso).from > 1 && ev.location ? (
                           <span className="mt-0.5 flex items-center gap-0.5 truncate text-muted-foreground">
                             <MapPin className="size-2.5 inline" />{ev.location}
                           </span>
                         ) : null}
                       </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 )
               })}

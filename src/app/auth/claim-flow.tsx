@@ -1,7 +1,8 @@
 "use client"
 
 import { useCallback, useState } from "react"
-import { ArrowLeft, Loader2, QrCode as QrIcon, ScanLine } from "lucide-react"
+import { ArrowLeft, QrCode as QrIcon, ScanLine } from "lucide-react"
+import { OrbitLoader } from "@/components/os/orbit"
 import { api, type Invite } from "@/lib/api"
 import { useAuth } from "@/lib/auth"
 import { memberBg, roleLabels, type MemberColor } from "@/lib/data"
@@ -158,7 +159,7 @@ export function ClaimFlow({ onCancel }: { onCancel: () => void }) {
                   disabled={!code.trim() || busy}
                   className="flex items-center justify-center gap-1.5 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-50"
                 >
-                  {busy ? <Loader2 className="size-4 animate-spin" /> : <QrIcon className="size-4" />}
+                  {busy ? <OrbitLoader size={16} /> : <QrIcon className="size-4" />}
                   Find
                 </button>
               </div>
@@ -250,7 +251,7 @@ export function ClaimFlow({ onCancel }: { onCancel: () => void }) {
                 disabled={busy}
                 className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
               >
-                {busy ? <Loader2 className="size-4 animate-spin" /> : null}
+                {busy ? <OrbitLoader size={16} /> : null}
                 Join family
               </button>
             </form>

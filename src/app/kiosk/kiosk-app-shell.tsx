@@ -17,6 +17,8 @@ import { HomeView } from "@/app/home/home"
 import { getDisplayPrefs } from "@/lib/display-prefs"
 import { SlideshowScreen } from "./slideshow-screen"
 import { QuietHours } from "@/components/os/quiet-hours"
+import { WallPresence } from "@/components/os/wall-presence"
+import { onWallWake } from "@/lib/wall-wake"
 import { useStore, type TabKey } from "@/lib/store"
 import { SystemStatusBar } from "@/components/ui/reusables/system-status-bar"
 import { centralSocket } from "@/lib/central-socket"
@@ -27,6 +29,7 @@ import { patchDeviceState } from "@/lib/device-state"
 import { useKiosk } from "@/lib/kiosk-provider"
 import { SystemHeading, SystemScreen } from "@/components/os/system-screen"
 import { ErrorBoundary } from "@/components/os/error-state"
+import { TabLoading } from "@/components/os/orbit"
 
 const todaySubtitle = new Date().toLocaleDateString(undefined, {
   weekday: "long",
@@ -95,6 +98,10 @@ export function KioskAppShell() {
 
   // ── Central socket events (OTA, lock, notifications from portal) ──────────
   useEffect(() => {
+    // Security invariant: a push only triggers the Tauri updater check, which
+    // downloads from the configured endpoint and verifies the minisign
+    // signature. Never install from payload.url — a compromised central could
+    // point it anywhere.
     const unsubOta = centralSocket.onOtaPush((payload) => {
       addLog("info", "system", `OTA push received: v${payload.version} — checking updater`)
       void checkForUpdates(payload.job_id).catch(() => {
@@ -159,6 +166,9 @@ export function KioskAppShell() {
     resetIdleTimer()
   }, [resetIdleTimer])
 
+  // Someone walked up with their phone: off the slideshow, like a touch.
+  useEffect(() => onWallWake(dismissSlideshow), [dismissSlideshow])
+
   return (
     <>
       <div className="flex h-dvh flex-col overflow-hidden bg-background">
@@ -183,10 +193,7 @@ export function KioskAppShell() {
                 </ErrorBoundary>
               ) : null}
               {loading && tab !== "settings" ? (
-                <div className="flex flex-col gap-4 px-8 py-16">
-                  <p className="os-label">Loading</p>
-                  <div className="boot-line h-[2px] max-w-xs bg-hairline" />
-                </div>
+                <TabLoading tab={tab} wall className="px-8 py-6" />
               ) : tab === "home" ? null : tab === "calendar" ? (
                 <ErrorBoundary resetKey={tab}>
                   <CalendarView />
@@ -213,6 +220,7 @@ export function KioskAppShell() {
       )}
 
       <QuietHours />
+      <WallPresence />
 
       {maintenanceLock.locked && (
         <div className="fixed inset-0 z-[9999]">

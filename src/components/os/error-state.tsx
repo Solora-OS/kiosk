@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils"
 import { SeasonCorner } from "@/components/season/ornaments"
 
 /*
- * Error moments — same voice as the rest of Lumora: quiet, editorial, honest.
+ * Error moments — same voice as the rest of Solora: quiet, editorial, honest.
  *
  *   inline  sits inside a view (a failed load, a failed save). Hairline frame,
  *           a destructive dot as the only alarm, one retry.

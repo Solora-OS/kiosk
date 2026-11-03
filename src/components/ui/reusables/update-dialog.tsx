@@ -6,9 +6,9 @@ import {
   ShieldCheck,
   Calendar,
   Hash,
-  FileText,
-  Loader2,
+  FileText
 } from "lucide-react"
+import { OrbitLoader } from "@/components/os/orbit"
 import {
   Dialog,
   DialogContent,
@@ -178,7 +178,7 @@ export function UpdateDialog() {
           <Button onClick={() => void handleInstall()} disabled={installing} className="flex-1 gap-2">
             {installing ? (
               <>
-                <Loader2 className="size-4 animate-spin" data-icon="inline-start" />
+                <OrbitLoader size={16} />
                 Installing…
               </>
             ) : (

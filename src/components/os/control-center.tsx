@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react"
-import { Loader2, Lock, MoonStar, Power, RefreshCw, RotateCw, Sparkles, SunMedium, Volume2, VolumeX, Wifi, WifiOff, X } from "lucide-react"
+import { Lock, MoonStar, Power, RefreshCw, RotateCw, Sparkles, SunMedium, Volume2, VolumeX, Wifi, WifiOff, X } from "lucide-react"
+import { OrbitLoader } from "@/components/os/orbit"
 import { cn } from "@/lib/utils"
 import { useTheme, type Theme } from "@/components/theme-provider"
 import { useSeason } from "@/components/season-provider"
@@ -292,7 +293,7 @@ function WifiTile({ current, onCurrent }: { current: string | null; onCurrent: (
                     className="h-12 flex-1 rounded-md bg-secondary px-4 outline-none focus:ring-2 focus:ring-season/40"
                   />
                   <button type="submit" disabled={busy || !pwd} className="h-12 rounded-md bg-foreground px-5 font-medium text-background disabled:opacity-40">
-                    {busy ? <Loader2 className="size-4 animate-spin" /> : "Join"}
+                    {busy ? <OrbitLoader size={16} /> : "Join"}
                   </button>
                 </form>
               ) : null}

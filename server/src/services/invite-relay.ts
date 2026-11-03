@@ -18,7 +18,7 @@ import path from "path"
 import { getHubJwt } from "../lib/central-registry"
 
 const CENTRAL_API_URL = (process.env.CENTRAL_API_URL ?? "http://localhost:4000").replace(/\/$/, "")
-const HUB_PORT = process.env.LUMORA_PORT ?? process.env.PORT ?? "4000"
+const HUB_PORT = process.env.SOLORA_PORT ?? process.env.LUMORA_PORT ?? process.env.PORT ?? "4000"
 const LOCAL_URL = `http://127.0.0.1:${HUB_PORT}/api/v1`
 const KEY_FILE = path.join(process.env.HOME ?? ".", ".lumora", "invite-ecdh.key")
 

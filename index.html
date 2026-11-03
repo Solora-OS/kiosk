@@ -20,9 +20,31 @@
         if (dark) document.documentElement.classList.add("dark");
       } catch (e) {}
     </script>
+    <style>
+      /* Boot frame: the exact last frame of the Plymouth splash
+         (os/rootfs/usr/share/plymouth/themes/solora), drawn before any JS so
+         the hand-off from Linux boot to the app is invisible. Geometry is in
+         Plymouth's 1080p units and scales with the panel height, as Plymouth does.
+         main.tsx fades it out once React has painted. */
+      #boot { position: fixed; inset: 0; z-index: 2147483647; background: #0a0a0f; transition: opacity 500ms ease-out; }
+      #boot.boot-done { opacity: 0; pointer-events: none; }
+      #boot svg { position: absolute; left: 50%; top: 50%; width: 27.778vh; height: 27.778vh; transform: translate(-50%, -50%); }
+      #boot .sun { animation: boot-breathe 3.8s ease-in-out infinite alternate; }
+      @keyframes boot-breathe { to { opacity: 0.94; } }
+      @media (prefers-reduced-motion: reduce) { #boot .sun { animation: none; } }
+    </style>
   </head>
 
   <body>
+    <div id="boot" aria-hidden="true">
+      <svg viewBox="0 0 300 300">
+        <circle cx="150" cy="150" r="110" fill="none" stroke="#3A4766" stroke-width="8" />
+        <circle class="sun" cx="150" cy="150" r="57" fill="#FFB547" />
+        <circle cx="150" cy="40" r="29" fill="#FF6B4A" />
+        <circle cx="260" cy="150" r="24" fill="#FFF4E6" />
+        <circle cx="72.22" cy="227.78" r="20" fill="#7FD1C3" />
+      </svg>
+    </div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

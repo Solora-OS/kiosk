@@ -38,3 +38,11 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
     </ThemeProvider>
   </React.StrictMode>,
 );
+
+// Fade out the boot frame from index.html once React's first screen has painted.
+requestAnimationFrame(() => requestAnimationFrame(() => {
+  const boot = document.getElementById("boot")
+  if (!boot) return
+  boot.classList.add("boot-done")
+  setTimeout(() => boot.remove(), 600)
+}))

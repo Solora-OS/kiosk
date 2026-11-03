@@ -3,7 +3,7 @@
 /**
  * WiFi service abstraction.
  *
- * The Lumora setup wizard shows a fully custom WiFi UI — users never see the
+ * The Solora setup wizard shows a fully custom WiFi UI — users never see the
  * Ubuntu / NetworkManager system dialogs. The actual network management runs in
  * the Tauri Rust backend (see `wifi_scan` / `wifi_connect` / `wifi_status` in
  * `src-tauri/src/lib.rs`), which will talk to NetworkManager on Linux.

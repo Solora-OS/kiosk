@@ -39,14 +39,18 @@ function rowToInvite(r: Record<string, unknown>): Invite {
 // POST /invites — create invite (authenticated)
 router.post("/", requireAuth, (req: Request, res: Response) => {
   const { householdId } = (req as AuthRequest).user
-  const { name, role = "adult", color = "blue", dob, memberId, email } = req.body as {
+  const { name, role = "adult", color = "blue", dob, email } = req.body as {
     name?: string
     role?: string
     color?: string
     dob?: string
     memberId?: string
+    member_id?: string
     email?: string
   }
+  // The kiosk has sent snake_case; reading only memberId made every invite for an
+  // existing member insert a second, pending copy of them.
+  const memberId = (req.body.memberId ?? req.body.member_id ?? undefined) as string | undefined
 
   if (!name?.trim()) {
     res.status(400).json({ error: "name is required." })
@@ -57,6 +61,11 @@ router.post("/", requireAuth, (req: Request, res: Response) => {
   let finalMemberId = memberId
 
   if (finalMemberId) {
+    const exists = db.prepare("SELECT 1 FROM members WHERE id = ? AND household_id = ?").get(finalMemberId, householdId)
+    if (!exists) {
+      res.status(404).json({ error: "That member no longer exists." })
+      return
+    }
     // Update existing member slot to pending
     const patch: unknown[] = []
     const sets: string[] = ["pending = 1"]
@@ -237,7 +246,7 @@ router.get("/:tokenOrCode", (req: Request, res: Response) => {
   })
 })
 
-// POST /invites/claim — link a Lumora account to a pending member slot.
+// POST /invites/claim — link a Solora account to a pending member slot.
 // The client must have already signed up / signed in with central and passes
 // the resulting access_token here; the hub never sees the password.
 router.post("/claim", async (req: Request, res: Response) => {

@@ -1,5 +1,5 @@
 /**
- * index.ts — Lumora local server entry point.
+ * index.ts — Solora local server entry point.
  *
  * Starts Express + Socket.IO on PORT (default 4000).
  * Binds to 0.0.0.0 so the API is reachable from phones/tablets on the LAN.
@@ -35,8 +35,10 @@ import { snapshotRouter } from "./routes/snapshot"
 import { kioskRouter } from "./routes/kiosk"
 import { calendarProvidersRouter } from "./routes/calendar-providers"
 import { activityLogsRouter } from "./routes/activity-logs"
+import { supportRouter } from "./routes/support"
 import { icsLinkRouter, icsRouter } from "./routes/ics"
 import { hubCommandRouter } from "./routes/hub-command"
+import { wallRouter } from "./routes/wall"
 import { hubInfoRouter } from "./routes/hub"
 import { transferRouter } from "./routes/transfer"
 import { rewardsRouter } from "./routes/rewards"
@@ -73,7 +75,7 @@ startCalendarLinkScheduler() // iCal links (school, league), re-read hourly
 // in lumora_central_socket_io/src/events/hub.ts), so it never delivered anything and
 // falsely marked jobs "acknowledged" before the kiosk received them.
 
-const PORT = Number(process.env.LUMORA_PORT ?? 4000)
+const PORT = Number(process.env.SOLORA_PORT ?? process.env.LUMORA_PORT ?? 4000)
 
 // ---------------------------------------------------------------------------
 // Express app
@@ -158,8 +160,10 @@ app.use("/api/v1/kiosk", kioskRouter)
 app.use("/api/v1/kiosk-devices", kioskRouter)
 app.use("/api/v1/calendar-providers", calendarProvidersRouter)
 app.use("/api/v1/activity-logs", activityLogsRouter)
+app.use("/api/v1/support", supportRouter)
 app.use("/api/v1/hub", hubCommandRouter)
 app.use("/api/v1/hub", hubInfoRouter)
+app.use("/api/v1/wall", wallRouter)
 app.use("/api/v1/transfer", transferRouter)
 app.use("/api/v1/rewards", rewardsRouter)
 app.use("/api/v1/away", awayRouter)
@@ -288,7 +292,7 @@ app.use((err: Error & { status?: number; type?: string }, _req: Request, res: Re
     res.status(400).json({ error: "That request wasn't valid JSON." })
     return
   }
-  console.error("[lumora] Unhandled error:", err)
+  console.error("[solora] Unhandled error:", err)
   res.status(500).json({ error: "Something went wrong." })
 })
 
@@ -346,8 +350,8 @@ ensureCentralRegistration()
 // ---------------------------------------------------------------------------
 
 httpServer.listen(PORT, "0.0.0.0", () => {
-  console.log(`[lumora] Server listening on http://0.0.0.0:${PORT}`)
-  console.log(`[lumora] API base: http://0.0.0.0:${PORT}/api/v1`)
+  console.log(`[solora] Server listening on http://0.0.0.0:${PORT}`)
+  console.log(`[solora] API base: http://0.0.0.0:${PORT}/api/v1`)
   startMdnsAdvertisement(PORT)
   // A new hub shows its setup code on screen from first boot.
   const { n } = getDb().prepare("SELECT COUNT(*) AS n FROM households").get() as { n: number }
@@ -356,7 +360,7 @@ httpServer.listen(PORT, "0.0.0.0", () => {
 
 // Graceful shutdown
 process.on("SIGTERM", () => {
-  console.log("[lumora] SIGTERM received — shutting down")
+  console.log("[solora] SIGTERM received — shutting down")
   stopMdnsAdvertisement()
   httpServer.close(() => {
     getDb().close()
@@ -365,7 +369,7 @@ process.on("SIGTERM", () => {
 })
 
 process.on("SIGINT", () => {
-  console.log("[lumora] SIGINT received — shutting down")
+  console.log("[solora] SIGINT received — shutting down")
   stopMdnsAdvertisement()
   httpServer.close(() => {
     getDb().close()

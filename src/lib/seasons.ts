@@ -1,5 +1,5 @@
 /**
- * Seasons — Lumora's theming layer.
+ * Seasons — Solora's theming layer.
  *
  * The base UI is deliberately colorless (paper / graphite). A season supplies
  * the one accent color, a hue tint for the paper, an optional ambient effect

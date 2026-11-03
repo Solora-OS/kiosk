@@ -3,7 +3,8 @@
   "app": {
     "windows": [
       {
-        "title": "lumora_kiosk (dev)",
+        "title": "Solora (dev)",
+        "backgroundColor": "#0a0a0f",
         "width": 1024,
         "height": 700,
         "fullscreen": false,

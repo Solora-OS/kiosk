@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type CSSProperties } from "react"
 import { Check, LayoutGrid, Plus, RotateCcw, X } from "lucide-react"
+import { TabLoading } from "@/components/os/orbit"
 import {
   DndContext, DragOverlay, KeyboardSensor, PointerSensor, closestCenter, useSensor, useSensors,
   type DragEndEvent, type DragStartEvent,
@@ -75,10 +76,7 @@ export function HomeView() {
 
   if (!widgets) {
     return (
-      <div className="flex flex-col gap-4 px-8 py-16">
-        <p className="os-label">Loading</p>
-        <div className="boot-line h-[2px] max-w-xs bg-hairline" />
-      </div>
+      <TabLoading tab="home" wall className="px-8 py-6" />
     )
   }
 

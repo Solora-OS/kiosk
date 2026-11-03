@@ -4,7 +4,7 @@ import { ArrowBigUp, ChevronDown, Delete } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 /**
- * Lumora's on-screen keyboard.
+ * Solora's on-screen keyboard.
  *
  * The kiosk has no desktop and no OS keyboard, so any text field focused by a
  * finger raises this. It types into the focused element with the native value

@@ -1,6 +1,6 @@
-# Lumora Kiosk Setup Guide
+# Solora Kiosk Setup Guide
 
-This guide covers deploying the Lumora Kiosk application with full Supabase integration for realtime sync between the kiosk and iOS app.
+This guide covers deploying the Solora Kiosk application with full Supabase integration for realtime sync between the kiosk and iOS app.
 
 ## Overview
 
@@ -37,7 +37,7 @@ The kiosk application is designed to run as a permanent display device that:
 
 ## Prerequisites
 
-1. **Supabase Project**: A Supabase project with Lumora schema already set up
+1. **Supabase Project**: A Supabase project with Solora schema already set up
 2. **Admin Account**: A household admin user with email/password authentication
 3. **Realtime Enabled**: All tables must have replication enabled for realtime
 4. **Deployment Platform**: Vercel, Netlify, or similar (or run locally)

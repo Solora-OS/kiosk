@@ -3,10 +3,10 @@
 import { ensureRegistered, getDeviceToken } from "./kiosk-session"
 
 /**
- * Device Registration service ("Lumora Cloud enrollment").
+ * Device Registration service ("Solora Cloud enrollment").
  *
  * This is the abstraction the startup flow uses for step 2 — registering the
- * device with Lumora Cloud (MDM). Today it is backed by the existing Supabase
+ * device with Solora Cloud (MDM). Today it is backed by the existing Supabase
  * `kiosk_register` RPC, which is the source of truth for device enrollment.
  *
  * The UI never calls `kiosk_register` directly; it goes through this service.
@@ -26,7 +26,7 @@ export function isDeviceRegistered(): boolean {
 }
 
 /**
- * Ensure this device is enrolled with Lumora Cloud.
+ * Ensure this device is enrolled with Solora Cloud.
  *
  * Idempotent: if the device is already registered the existing token is
  * returned. On first launch it enrolls via the backend and persists the token.

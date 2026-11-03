@@ -1,5 +1,5 @@
 /**
- * account-tokens.ts — verifies user access tokens issued by Lumora central.
+ * account-tokens.ts — verifies user access tokens issued by Solora central.
  *
  * Central is the identity provider (it replaced Supabase Auth). It signs
  * access tokens with ES256 and publishes the public keys at

@@ -1,7 +1,8 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import { Wifi, WifiLow, WifiHigh, Lock, Loader2, Check, RefreshCw, ChevronRight } from "lucide-react"
+import { Wifi, WifiLow, WifiHigh, Lock, Check, RefreshCw, ChevronRight } from "lucide-react"
+import { OrbitLoader } from "@/components/os/orbit"
 import {
   scanNetworks,
   connect as wifiConnect,
@@ -155,7 +156,7 @@ export function WifiStep({
                         disabled={connecting || !password}
                         className="os-button"
                       >
-                        {connecting ? <Loader2 className="size-4 animate-spin" /> : null}
+                        {connecting ? <OrbitLoader size={16} /> : null}
                         {connecting ? "Joining" : "Join network"}
                       </button>
                       <button

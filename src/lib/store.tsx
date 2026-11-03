@@ -491,9 +491,7 @@ export function StoreProvider({ children, kioskMode = false }: { children: React
       dob: member.dob,
       email: member.account,
     })
-    // Mark the existing member as pending rather than doing a full re-sync.
-    // A full listMembers() re-sync causes the server's newly-created pending
-    // slot to appear alongside the original member, duplicating the row.
+    // The invite marks this same member pending on the hub; mirror that here.
     setMembers((prev) =>
       prev.map((m) => (m.id === member.id ? { ...m, pending: true } : m)),
     )

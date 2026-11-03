@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import { Check, Flame, Gift, Plus, Star, X } from "lucide-react"
+import { TabLoading } from "@/components/os/orbit"
 import { api } from "@/lib/api"
 import type { Member, Reward, RewardsSummary } from "@/lib/data"
 import { cn } from "@/lib/utils"
@@ -62,10 +63,7 @@ export function RewardsShelf() {
 
   if (!summary) {
     return (
-      <div className="flex flex-col gap-4 py-10">
-        <p className="os-label">Loading</p>
-        <div className="boot-line h-[2px] max-w-xs bg-hairline" />
-      </div>
+      <TabLoading tab="rewards" wall className="py-4" />
     )
   }
 

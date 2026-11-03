@@ -1,7 +1,7 @@
 /**
  * routes/auth.ts — hub side of account sign-in.
  *
- * User identity is owned by Lumora central (POST /auth/signup, /auth/login…).
+ * User identity is owned by Solora central (POST /auth/signup, /auth/login…).
  * The hub validates central's access tokens and provisions a local user +
  * household row on first sign-in.
  *
@@ -70,7 +70,7 @@ router.post("/session", async (req: Request, res: Response) => {
     .get(accountId) as { id: string; household_id: string; name: string; email: string } | undefined
 
   if (!user) {
-    // First sign-in — require the hub's one-time setup code so no other Lumora
+    // First sign-in — require the hub's one-time setup code so no other Solora
     // account on the network can provision a household here. It's shown on the
     // hub's screen (see lib/setup-code.ts).
     if (!setupCodeMatches(setupCode)) {

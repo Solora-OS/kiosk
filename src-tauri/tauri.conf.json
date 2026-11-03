@@ -13,6 +13,7 @@
     "windows": [
       {
         "title": "Solora",
+        "backgroundColor": "#0a0a0f",
         "fullscreen": true,
         "decorations": false,
         "alwaysOnTop": true,
@@ -42,7 +43,7 @@
     "updater": {
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IERDNTNBOEU3NDY1QjAwQkQKUldTOUFGdEc1NmhUM0Z4WTArTTVmVng4L0lMVVQxWlM1eW02S043cUZzUDlIMVgybzBUUmtGaVoK",
       "endpoints": [
-        "https://github.com/lincon07/lumora_kiosk/releases/latest/download/latest.json"
+        "https://179-236-254-241.sslip.io/updates/{{target}}/{{arch}}/{{current_version}}"
       ]
     }
   }

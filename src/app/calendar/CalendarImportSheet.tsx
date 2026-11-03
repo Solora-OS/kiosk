@@ -3,11 +3,12 @@
 /**
  * CalendarImportSheet — shown after connecting a Google/Microsoft provider.
  * Lets the user map each external calendar (Google) or category (Outlook)
- * to a Lumora calendar. Unmapped → "General" calendar (auto-created on sync).
+ * to a Solora calendar. Unmapped → "General" calendar (auto-created on sync).
  */
 
 import { useEffect, useState } from "react"
-import { Loader2, ChevronDown } from "lucide-react"
+import { ChevronDown } from "lucide-react"
+import { OrbitLoader, SkeletonRows } from "@/components/os/orbit"
 import { BottomSheet, Field, inputClass } from "@/components/ui/reusables/bottom-sheet"
 import { LOCAL_API_BASE, tokenStore } from "@/lib/local-api"
 import type { Calendar, MemberColor } from "@/lib/data"
@@ -16,7 +17,7 @@ import type { Calendar, MemberColor } from "@/lib/data"
 type ServerCalendar = { id: string; name: string; color: MemberColor; memberIds: string[] }
 
 type ExternalCalendar = { id: string; name: string; color?: string }
-type MappingState = Record<string, string | ""> // externalId → lumoraCalendarId | ""
+type MappingState = Record<string, string | ""> // externalId → soloraCalendarId | ""
 
 async function apiGet<T>(path: string): Promise<T> {
   const token = tokenStore.get()
@@ -138,7 +139,7 @@ export function CalendarImportSheet({
           disabled={saving}
           className="flex w-full items-center justify-center gap-2 rounded-md bg-primary py-3 text-sm font-semibold text-primary-foreground disabled:opacity-50"
         >
-          {saving ? <Loader2 className="size-4 animate-spin" /> : null}
+          {saving ? <OrbitLoader size={16} /> : null}
           {saving ? "Saving…" : "Save mapping"}
         </button>
       }
@@ -149,9 +150,7 @@ export function CalendarImportSheet({
       </p>
 
       {loading ? (
-        <div className="flex items-center justify-center py-10">
-          <Loader2 className="size-5 animate-spin text-muted-foreground" />
-        </div>
+        <SkeletonRows rows={4} lead="size-2.5 rounded-full" />
       ) : externals.length === 0 ? (
         <p className="py-6 text-center text-sm text-muted-foreground">
           No {provider === "google" ? "calendars" : "categories"} found.

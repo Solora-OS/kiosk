@@ -10,7 +10,7 @@ import { LOCAL_API_BASE } from "@/lib/local-api"
 
 /**
  * Full-screen pairing experience shown on the wall display while the kiosk
- * is unclaimed. A household member visits the Lumora web app on the same
+ * is unclaimed. A household member visits the Solora web app on the same
  * network and enters the display code (or scans the QR) to add this screen.
  *
  * The pairing code is issued by the local lumora-server after device

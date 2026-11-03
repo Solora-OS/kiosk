@@ -14,7 +14,7 @@ import { AuthProvider, useAuth } from "./lib/auth";
 import { AuthScreen } from "./app/auth/auth-screen";
 import { kioskConfig } from "./lib/kiosk";
 import { KioskRoot } from "./app/kiosk/kiosk-root";
-import { Loader2 } from "lucide-react";
+import { OrbitLoader, TabLoading } from "./components/os/orbit";
 
 const todaySubtitle = new Date().toLocaleDateString(undefined, {
   weekday: "long",
@@ -47,9 +47,7 @@ function AppShell() {
 
         <main className="flex-1 overflow-auto">
           {loading && tab !== "settings" ? (
-            <div className="flex items-center justify-center py-24">
-              <Loader2 className="size-6 animate-spin text-muted-foreground" />
-            </div>
+            <TabLoading tab={tab} wall className="px-4 py-4" />
           ) : (
             <div className="mx-auto max-w-6xl px-4 py-4">
               {tab === "calendar" && <CalendarView />}
@@ -73,7 +71,7 @@ function Gate() {
   if (status === "loading") {
     return (
       <div className="flex min-h-dvh items-center justify-center bg-background">
-        <Loader2 className="size-6 animate-spin text-muted-foreground" />
+        <OrbitLoader size={36} />
       </div>
     )
   }

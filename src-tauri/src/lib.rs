@@ -1,5 +1,7 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 
+mod beacon;
+
 use serde::{Deserialize, Serialize};
 use std::process::Command;
 
@@ -8,7 +10,7 @@ fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
 }
 
-/// A WiFi network as surfaced to the Lumora setup UI.
+/// A WiFi network as surfaced to the Solora setup UI.
 ///
 /// Produced by parsing `nmcli` output on Linux (NetworkManager).
 /// The shape MUST stay in sync with `WifiNetwork` in `src/lib/wifi-service.ts`.
@@ -693,7 +695,7 @@ async fn screen_orientation_set(rotation: String) -> Result<(), String> {
 
 // ─── System controls (volume, brightness, display, power) ────────────────────
 //
-// Lumora replaces the desktop entirely, so these are the only way the family
+// Solora replaces the desktop entirely, so these are the only way the family
 // changes sound, screen and power. Every command degrades gracefully when the
 // underlying tool is missing (dev machines, minimal images).
 
@@ -926,6 +928,8 @@ pub fn run() {
             system_display_sleep,
             system_display_wake,
             system_power,
+            beacon::wall_beacon_start,
+            beacon::wall_beacon_stop,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

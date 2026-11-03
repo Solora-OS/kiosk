@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// Lumora local API client
+// Solora local API client
 //
 // Replaces all Supabase / cloud adapters. Talks exclusively to the local
 // Express + Socket.IO server running at http://<kiosk-ip>:4000 (systemd
@@ -7,7 +7,7 @@
 // to http://localhost:4000.
 //
 // Auth flow:
-//   1. signUp / signIn authenticate against Lumora central (account.ts),
+//   1. signUp / signIn authenticate against Solora central (account.ts),
 //      then POST the resulting access_token to /auth/session, which
 //      provisions (first sign-in) or resolves the local user + household.
 //   2. The access_token is stored in localStorage under "lumora.token" and
@@ -30,7 +30,7 @@ import { io, type Socket } from "socket.io-client"
 import * as account from "./account"
 import type { AccountSession } from "./account"
 import type {
-  LumoraApi,
+  SoloraApi,
   ApiMember,
   User,
   Household,
@@ -70,11 +70,11 @@ import type {
  *  to localhost:4000, so we use an empty string (same-origin) — this avoids
  *  all CORS / access-control errors in the browser preview.
  *
- *  In production (Tauri or a custom deploy) VITE_LUMORA_SERVER_URL must be
+ *  In production (Tauri or a custom deploy) VITE_SOLORA_SERVER_URL must be
  *  set to the full server address, e.g. "http://192.168.1.10:4000".
  */
 export const LOCAL_API_BASE =
-  import.meta.env.VITE_LUMORA_SERVER_URL?.replace(/\/$/, "") ??
+  import.meta.env.VITE_SOLORA_SERVER_URL?.replace(/\/$/, "") ??
   "http://127.0.0.1:4000";
 
 const API = `${LOCAL_API_BASE}/api/v1`;
@@ -360,10 +360,19 @@ export type HubCommandEvent = HubCommandPayload
 type LiveListener = (event: LiveEvent) => void
 type HubCommandListener = (cmd: HubCommandEvent) => void
 
+/** A family member as the hub names them in wall events. */
+export type WallMember = { id: string; name: string; color: MemberColor }
+/** Wall events from the hub (server/src/routes/wall.ts), for the walls in `deviceIds`. */
+export type WallEvent =
+  | { type: "approach"; deviceIds: string[]; member: WallMember }
+  | { type: "throw"; deviceIds: string[]; kind: "photo" | "list"; id: string; from: WallMember }
+type WallListener = (event: WallEvent) => void
+
 class LiveSocket {
   private socket: Socket | null = null
   private listeners = new Set<LiveListener>()
   private hubCommandListeners = new Set<HubCommandListener>()
+  private wallListeners = new Set<WallListener>()
   private householdId: string | null = null
 
   connect(householdId: string) {
@@ -400,6 +409,15 @@ class LiveSocket {
     this.socket.on("hub:command", (cmd: HubCommandEvent) => {
       for (const l of this.hubCommandListeners) l(cmd)
     })
+
+    // Only on this socket: the cloud relay doesn't carry wall events, and the
+    // phone that sent them is standing in the same room as this hub anyway.
+    this.socket.on("wall:approach", (e: Omit<Extract<WallEvent, { type: "approach" }>, "type">) => {
+      for (const l of this.wallListeners) l({ type: "approach", ...e })
+    })
+    this.socket.on("wall:throw", (e: Omit<Extract<WallEvent, { type: "throw" }>, "type">) => {
+      for (const l of this.wallListeners) l({ type: "throw", ...e })
+    })
   }
 
   disconnect() {
@@ -419,6 +437,12 @@ class LiveSocket {
   subscribeHubCommand(cb: HubCommandListener): () => void {
     this.hubCommandListeners.add(cb)
     return () => this.hubCommandListeners.delete(cb)
+  }
+
+  /** Subscribe to wall approach / throw events. Returns an unsubscribe function. */
+  subscribeWall(cb: WallListener): () => void {
+    this.wallListeners.add(cb)
+    return () => this.wallListeners.delete(cb)
   }
 
   private emit(event: LiveEvent) {
@@ -490,10 +514,10 @@ export async function reportDisplayState(state: DisplayStateReport): Promise<voi
 }
 
 // ---------------------------------------------------------------------------
-// LumoraApi implementation backed by the local server
+// SoloraApi implementation backed by the local server
 // ---------------------------------------------------------------------------
 
-export function createLocalApi(): LumoraApi {
+export function createLocalApi(): SoloraApi {
   return {
     // ----- auth -----
     async signUp(input: SignUpInput) {
@@ -602,7 +626,7 @@ export function createLocalApi(): LumoraApi {
     // ----- invites -----
     async createInvite(input: CreateInviteInput) {
       const row = await req<Row>("/invites", "POST", {
-        member_id: input.memberId ?? null,
+        memberId: input.memberId ?? null,
         name: input.name.trim(),
         role: input.role,
         color: input.color,
@@ -623,7 +647,7 @@ export function createLocalApi(): LumoraApi {
       await req(`/invites/${id}`, "DELETE")
     },
     async claimInvite(input: ClaimInviteInput) {
-      // The invitee may or may not have a Lumora account yet.
+      // The invitee may or may not have a Solora account yet.
       const session = await account.signInOrSignUp({
         email: input.email.trim().toLowerCase(),
         password: input.password,
@@ -870,7 +894,7 @@ export function createLocalApi(): LumoraApi {
         title: input.title,
         body: input.body ?? null,
         time: input.time ?? null,
-        member_id: input.memberId || null,
+        memberId: input.memberId || null,
       })
       return toNotification(row)
     },

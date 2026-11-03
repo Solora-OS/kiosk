@@ -3,7 +3,7 @@
  *
  * Two token kinds are accepted:
  *  - Device tokens (kiosk/hub):  HS256, signed with on-disk secret at ~/.lumora/.secret
- *  - User tokens (central):      ES256, signed by Lumora central (see lib/account-tokens.ts)
+ *  - User tokens (central):      ES256, signed by Solora central (see lib/account-tokens.ts)
  *
  * Detection: account tokens have iss="lumora-central", aud="lumora-users".
  * Device tokens have no iss field.
@@ -43,13 +43,46 @@ export function signRefreshToken(payload: Omit<JwtPayload, "iat" | "exp">, expir
   } as jwt.SignOptions)
 }
 
-/** Verify and decode a device access token. Throws on invalid/expired tokens and on refresh tokens. */
+/** Verify and decode a device access token. Throws on invalid/expired tokens and on refresh / presence tokens. */
 export function verifyToken(token: string): JwtPayload {
   const payload = jwt.verify(token, getOrCreateSecret(), {
     algorithms: ["HS256"],
   }) as JwtPayload
   if (payload.typ === "refresh") throw new jwt.JsonWebTokenError("Refresh tokens can't be used for access.")
+  if (payload.typ === "presence") throw new jwt.JsonWebTokenError("Presence passes only work at the wall.")
   return payload
+}
+
+/**
+ * A phone's long-lived presence pass (routes/wall.ts): lets the phone's own
+ * Bluetooth code say "I'm at the wall" while the app is closed, and nothing
+ * else. Every other route and the socket refuse it (verifyToken).
+ */
+export function signPresenceToken(user: { userId: string; householdId: string }): string {
+  return jwt.sign({ sub: user.userId, householdId: user.householdId, role: "member", typ: "presence" }, getOrCreateSecret(), {
+    algorithm: "HS256",
+    expiresIn: "365d",
+  } as jwt.SignOptions)
+}
+
+/** requireAuth, but also accepting a presence pass. Only for POST /wall/near. */
+export function requireAuthOrPresence(req: Request, res: Response, next: NextFunction): void {
+  const header = req.headers.authorization
+  const token = header?.startsWith("Bearer ") ? header.slice(7).trim() : ""
+  let payload: JwtPayload | null = null
+  try {
+    if (token && !isAccountToken(token)) payload = jwt.verify(token, getOrCreateSecret(), { algorithms: ["HS256"] }) as JwtPayload
+  } catch { /* not ours: requireAuth answers */ }
+  if (payload?.typ !== "presence") {
+    requireAuth(req, res, next)
+    return
+  }
+  if (!memberStillLinked(payload)) {
+    res.status(401).json({ error: "This phone has been signed out of the household." })
+    return
+  }
+  ;(req as AuthRequest).user = { ...payload, userId: payload.sub }
+  next()
 }
 
 /**

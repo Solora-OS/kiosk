@@ -1,6 +1,6 @@
 import { check, type Update } from '@tauri-apps/plugin-updater';
 import { relaunch } from '@tauri-apps/plugin-process';
-import { centralSocket } from './central-socket';
+import { centralSocket, getCentralToken } from './central-socket';
 
 /**
  * Hub (kiosk device) actions and activity log.
@@ -123,6 +123,20 @@ export function addLog(level: HubLogLevel, source: string, message: string) {
   }
   logs = [entry, ...logs].slice(0, 200)
   emit()
+  if (level === "warning" || level === "error") sendToCentral(level, source, message)
+}
+
+// Warnings and errors also go to central as device logs, so Solora Support
+// can read them once the family grants access (and only then). These are the
+// display's own system messages, never household content. Capped at 20 a
+// minute so a failure loop can't flood central.
+let sentThisMinute = 0
+let minuteStart = 0
+function sendToCentral(level: "warning" | "error", source: string, message: string) {
+  const now = Date.now()
+  if (now - minuteStart > 60_000) { minuteStart = now; sentThisMinute = 0 }
+  if (++sentThisMinute > 20) return
+  centralSocket.emitLog(level === "warning" ? "warn" : "error", `[${source}] ${message}`.slice(0, 4000))
 }
 
 export function clearLogs() {
@@ -195,7 +209,11 @@ export function reloadDisplay(): void {
  */
 export async function checkForUpdates(jobId?: string): Promise<boolean> {
   try {
-    const update = await check()
+    // Central answers the updater (central/src/routes/releases.ts). The device
+    // token tells it which hub this is, so it can hold back releases still
+    // rolling out to other rings; without one, only fully released versions come.
+    const token = getCentralToken()
+    const update = await check(token ? { headers: { Authorization: `Bearer ${token}` } } : undefined)
     if (!update) {
       addLog("info", "updates", "No update available — already on latest version")
       // We were told to check for a specific push but are already current — the
@@ -223,6 +241,7 @@ export async function checkForUpdates(jobId?: string): Promise<boolean> {
     }
     emitUpdate()
     addLog("success", "updates", `Update available: v${update.version}`)
+    scheduleQuietInstall(update.rawJson?.install_window)
     return true
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
@@ -230,6 +249,47 @@ export async function checkForUpdates(jobId?: string): Promise<boolean> {
     if (jobId) void centralSocket.reportOtaResult(jobId, false, undefined, message)
     throw error
   }
+}
+
+// ---- Quiet-hours install ----------------------------------------------------
+
+type InstallWindow = { start: string; end: string }
+let _quietTimer: ReturnType<typeof setInterval> | null = null
+
+const toMinutes = (hhmm: string) => {
+  const [h, m] = hhmm.split(":").map(Number)
+  return h * 60 + m
+}
+
+/** Whether `now` (local time) falls in the window; windows may cross midnight. */
+export function inInstallWindow(w: InstallWindow, now = new Date()): boolean {
+  const t = now.getHours() * 60 + now.getMinutes()
+  const start = toMinutes(w.start), end = toMinutes(w.end)
+  return start <= end ? t >= start && t < end : t >= start || t < end
+}
+
+/**
+ * Releases from central carry an install window (default 02:00–05:00). While
+ * an update is pending, check every 5 minutes and install it on our own once
+ * we're inside the window, so displays update overnight without anyone
+ * tapping. The Install button still works any time.
+ */
+function scheduleQuietInstall(raw: unknown): void {
+  const w = raw as Partial<InstallWindow> | undefined
+  if (!w || typeof w.start !== "string" || typeof w.end !== "string" || !/^\d\d:\d\d$/.test(w.start) || !/^\d\d:\d\d$/.test(w.end)) return
+  const window = { start: w.start, end: w.end }
+  if (_quietTimer) clearInterval(_quietTimer)
+  const tick = () => {
+    if (!pendingUpdate) {
+      if (_quietTimer) { clearInterval(_quietTimer); _quietTimer = null }
+      return
+    }
+    if (!inInstallWindow(window)) return
+    addLog("info", "updates", `Installing v${pendingUpdate.version} during quiet hours (${window.start}–${window.end})`)
+    void installUpdate().catch(() => {})
+  }
+  _quietTimer = setInterval(tick, 5 * 60 * 1000)
+  tick()
 }
 
 // ---- Real-time update polling ---------------------------------------------

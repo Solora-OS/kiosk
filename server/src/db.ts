@@ -41,7 +41,7 @@ export function getOrCreateSecret(): string {
   const { randomBytes } = require("crypto") as typeof import("crypto")
   const secret = randomBytes(64).toString("hex")
   fs.writeFileSync(SECRET_FILE, secret, { encoding: "utf8", mode: 0o600 })
-  console.log("[lumora] Generated new HMAC secret at", SECRET_FILE)
+  console.log("[solora] Generated new HMAC secret at", SECRET_FILE)
   return secret
 }
 
@@ -99,7 +99,7 @@ function migrate(db: Database.Database): void {
   }
 
   addColumnSafe("users",  "supabase_id",      "TEXT") // legacy — superseded by account_id
-  addColumnSafe("users",  "account_id",       "TEXT") // Lumora central account id
+  addColumnSafe("users",  "account_id",       "TEXT") // Solora central account id
   db.exec("CREATE UNIQUE INDEX IF NOT EXISTS users_account_id_key ON users (account_id) WHERE account_id IS NOT NULL")
   addColumnSafe("events", "source",          "TEXT")
   addColumnSafe("events", "source_event_id", "TEXT")
@@ -136,7 +136,7 @@ function migrate(db: Database.Database): void {
   addColumnSafe("notifications", "ref", "TEXT")
   repairEventTimes(db)
 
-  console.log("[lumora] Database schema applied:", DB_PATH)
+  console.log("[solora] Database schema applied:", DB_PATH)
 }
 
 /**

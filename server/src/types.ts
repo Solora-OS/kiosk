@@ -1,5 +1,5 @@
 /**
- * types.ts — shared TypeScript types for the Lumora local server.
+ * types.ts — shared TypeScript types for the Solora local server.
  *
  * These mirror the frontend types in src/lib/data.ts and src/lib/api.ts.
  * Keep them in sync when the frontend contract changes.
@@ -9,7 +9,8 @@
 // Domain types (mirror frontend data.ts)
 // ---------------------------------------------------------------------------
 
-export type MemberColor = "coral" | "amber" | "teal" | "blue" | "pink" | "green"
+/** A theme preset, or a custom "#rrggbb" picked by hand. */
+export type MemberColor = "coral" | "amber" | "teal" | "blue" | "pink" | "green" | `#${string}`
 export type MemberRole = "admin" | "adult" | "teen" | "child"
 export type PermissionArea = "calendar" | "chores" | "lists" | "meals" | "members" | "hub"
 
@@ -202,7 +203,7 @@ export type JwtPayload = {
   name?: string         // absent for kiosk tokens
   role?: "kiosk" | "member" | "admin"
   /** "refresh" marks a refresh token, which is never accepted as an access token. */
-  typ?: "refresh"
+  typ?: "refresh" | "presence"
   iat?: number
   exp?: number
 }
@@ -244,6 +245,12 @@ export type DisplayState = {
   slideshowIdleMins?: number | null
   asleep?: boolean
 }
+
+/** What a phone can throw onto the wall it's standing at (routes/wall.ts). */
+export type WallThrowKind = "photo" | "list"
+
+/** A family member, as a wall shows them when they walk up or throw something. */
+export type WallMember = { id: string; name: string; color: string }
 
 // ---------------------------------------------------------------------------
 // Socket.IO event map
@@ -287,6 +294,11 @@ export type ServerToClientEvents = {
 
   "hub:command": (cmd: HubCommand) => void
   "display:state": (payload: { deviceId: string; state: DisplayState; updatedAt: string }) => void
+
+  /** A phone is standing at these walls (Bluetooth); they wake for it. */
+  "wall:approach": (payload: { deviceIds: string[]; member: WallMember }) => void
+  /** Pinch to throw: show this photo or list full screen on these walls. */
+  "wall:throw": (payload: { deviceIds: string[]; kind: WallThrowKind; id: string; from: WallMember }) => void
 }
 
 /** Events emitted FROM clients TO the server (currently none needed server-side). */

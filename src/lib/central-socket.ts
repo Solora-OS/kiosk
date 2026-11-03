@@ -24,6 +24,20 @@ const CENTRAL_API_URL =
   (import.meta.env.VITE_CENTRAL_API_URL as string | undefined)?.replace(/\/$/, "") ??
   "http://localhost:4000"
 
+let cachedVersion: string | null | undefined
+
+/** This build's version from Tauri, or null outside the app (browser dev). */
+async function appVersion(): Promise<string | null> {
+  if (cachedVersion !== undefined) return cachedVersion
+  try {
+    const { getVersion } = await import("@tauri-apps/api/app")
+    cachedVersion = await getVersion()
+  } catch {
+    cachedVersion = null
+  }
+  return cachedVersion
+}
+
 const CENTRAL_TOKEN_KEY = "lumora.central.token"
 const CENTRAL_DEVICE_ID_KEY = "lumora.central.device_id"
 
@@ -362,11 +376,15 @@ class CentralSocket {
   onDisconnect(cb: DisconnectListener)   { this.disconnectListeners.add(cb);   return () => this.disconnectListeners.delete(cb) }
 
   // ─── Heartbeat ─────────────────────────────────────────────────────────────
+  // Every 30 s, and right after connecting. Central keeps app_version per
+  // device: the console's Fleet view and rollout health (displays on a
+  // version, displays gone quiet) depend on it. The kiosk has no real Wi-Fi
+  // or temperature reading, so it doesn't invent one.
   private startHeartbeat() {
     this.stopHeartbeat()
-    this.heartbeatTimer = setInterval(() => {
-      this.emitHeartbeat()
-    }, 30_000) // every 30 s
+    const beat = () => { void appVersion().then((v) => this.emitHeartbeat(v ? { app_version: v } : undefined)) }
+    beat()
+    this.heartbeatTimer = setInterval(beat, 30_000)
   }
 
   private stopHeartbeat() {

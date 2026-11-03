@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// account.ts — Lumora account sign-in against central (replaces supabase.ts).
+// account.ts — Solora account sign-in against central (replaces supabase.ts).
 //
 // Central is the identity provider. It returns a short-lived access token,
 // which the hub verifies offline (server/src/lib/account-tokens.ts), and a

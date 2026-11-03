@@ -11,6 +11,10 @@ import { getDb } from "../db"
 import { getCentralKioskCredentials } from "./central-registry"
 import { registerRemoteRpc } from "../services/remote-rpc"
 import { registerInviteRpc } from "../services/invite-relay"
+import {
+  onSupportRequest, recordSoloraAction, setSupportHubJwt, syncSoloraActions,
+  type HouseholdGrant, type SoloraAction,
+} from "../services/solora-support"
 
 const CENTRAL_SOCKET_URL = process.env.CENTRAL_SOCKET_URL ?? "http://localhost:5001"
 const CENTRAL_API_URL    = process.env.CENTRAL_API_URL    ?? "http://localhost:4000"
@@ -53,6 +57,7 @@ export function connectHubToCentral(hubJwt: string): void {
   }
 
   _hubJwt = hubJwt
+  setSupportHubJwt(hubJwt)
 
   _socket = io(CENTRAL_SOCKET_URL, {
     auth:        { token: hubJwt },
@@ -71,7 +76,13 @@ export function connectHubToCentral(hubJwt: string): void {
     sendRestHeartbeat(hubJwt)
     // Then every 60 seconds
     _heartbeatTimer = setInterval(() => sendRestHeartbeat(hubJwt), 60_000)
+    // Anything Solora did while this hub was offline.
+    syncSoloraActions().catch((e) => console.warn("[central] Solora activity sync failed:", (e as Error).message))
   })
+
+  // What Solora does to this hub, live, so the family sees it in Privacy & support.
+  _socket.on("manufacturer:action", (a: SoloraAction) => recordSoloraAction(a))
+  _socket.on("support:request", (grant: HouseholdGrant) => onSupportRequest(grant))
 
   _socket.on("disconnect", (reason: string) => {
     console.log("[central-socket] Hub disconnected from central socket:", reason)

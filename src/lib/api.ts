@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// Lumora API — contract types + active adapter
+// Solora API — contract types + active adapter
 //
 // All data flow is now local-only. The Supabase and in-memory mock adapters
 // have been removed. The single active adapter is `createLocalApi()` from
@@ -126,7 +126,7 @@ export type ClaimInviteInput = {
 
 export type ApiError = { error: string }
 
-export interface LumoraApi {
+export interface SoloraApi {
   signUp(input: SignUpInput): Promise<Session & { token: string }>
   signIn(input: SignInInput): Promise<Session & { token: string }>
   /** Kiosk-only: ask hub server to sign in using server-side credentials. No password in frontend. */
@@ -232,7 +232,7 @@ export const syncGuard = {
 }
 
 /** Method names that change server state (vs. read-only list*/
-const MUTATING_METHODS = new Set<keyof LumoraApi>([
+const MUTATING_METHODS = new Set<keyof SoloraApi>([
   "createMember", "updateMember", "deleteMember",
   "createInvite", "deleteInvite", "claimInvite",
   "createCalendar", "updateCalendar", "deleteCalendar",
@@ -248,9 +248,9 @@ const MUTATING_METHODS = new Set<keyof LumoraApi>([
   "createPhoto", "uploadPhoto", "deletePhoto",
 ])
 
-function withMutationGuard(adapter: LumoraApi): LumoraApi {
+function withMutationGuard(adapter: SoloraApi): SoloraApi {
   const wrapped = {} as Record<string, unknown>
-  for (const key of Object.keys(adapter) as (keyof LumoraApi)[]) {
+  for (const key of Object.keys(adapter) as (keyof SoloraApi)[]) {
     const fn = adapter[key]
     if (typeof fn === "function" && MUTATING_METHODS.has(key)) {
       wrapped[key] = (...args: unknown[]) => {
@@ -263,11 +263,11 @@ function withMutationGuard(adapter: LumoraApi): LumoraApi {
       wrapped[key] = fn
     }
   }
-  return wrapped as unknown as LumoraApi
+  return wrapped as unknown as SoloraApi
 }
 
 // ----- Active adapter -------------------------------------------------------
 
 import { createLocalApi } from "./local-api"
 
-export const api: LumoraApi = withMutationGuard(createLocalApi())
+export const api: SoloraApi = withMutationGuard(createLocalApi())

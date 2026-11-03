@@ -3,6 +3,7 @@
 import { useSeason } from "@/components/season-provider"
 import { SeasonCorner, SeasonMark } from "@/components/season/ornaments"
 import { Wordmark } from "@/components/os/wordmark"
+import { OrbitMark } from "@/components/os/orbit"
 
 /**
  * Boot screen.
@@ -24,6 +25,7 @@ export function SplashScreen({ message = "Starting up" }: { message?: string }) 
       </div>
 
       <div className="relative pb-14">
+        <OrbitMark animate className="mb-8 size-28" />
         <Wordmark className="rise-in block text-[8.5rem] lg:text-[11rem]" />
         <p className="rise-in mt-4 flex items-center gap-3 font-display text-3xl italic text-muted-foreground [animation-delay:120ms]">
           <SeasonMark className="text-2xl not-italic" />

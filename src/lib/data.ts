@@ -1,10 +1,18 @@
-export type MemberColor =
-  | "coral"
-  | "amber"
-  | "teal"
-  | "blue"
-  | "pink"
-  | "green"
+/** The six theme colors; they shift with light and dark mode. */
+export const presetColors = ["coral", "amber", "teal", "blue", "pink", "green"] as const
+export type PresetColor = (typeof presetColors)[number]
+/** A theme preset, or a custom color picked by hand as "#rrggbb". */
+export type MemberColor = PresetColor | `#${string}`
+
+export function isPresetColor(c: string | undefined): c is PresetColor {
+  return !!c && (presetColors as readonly string[]).includes(c)
+}
+
+/** A CSS color for any member color, for inline styles. */
+export function memberColorCss(c: MemberColor | undefined): string {
+  if (isPresetColor(c)) return `var(--member-${c})`
+  return c && /^#[0-9a-f]{6}$/i.test(c) ? c : "var(--member-blue)"
+}
 
 export type MemberRole = "admin" | "adult" | "teen" | "child"
 
@@ -88,34 +96,69 @@ export function formatDob(dob?: string): string | null {
   return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })
 }
 
-// Tailwind class maps so colors are statically analyzable
-export const memberBg: Record<MemberColor, string> = {
+// Tailwind class maps so preset colors are statically analyzable. A custom
+// "#rrggbb" color gets a class written into the page the first time it's used,
+// so every `memberBg[color]` lookup works for both.
+const customRules = new Set<string>()
+let customSheet: CSSStyleSheet | null = null
+
+function customClass(kind: "bg" | "text" | "soft", color: string): string {
+  if (!/^#[0-9a-f]{6}$/i.test(color)) return ""
+  const hex = color.slice(1).toLowerCase()
+  const cls = `mc-${kind}-${hex}`
+  if (!customRules.has(cls) && typeof document !== "undefined") {
+    customRules.add(cls)
+    if (!customSheet) {
+      const el = document.createElement("style")
+      el.id = "member-custom-colors"
+      document.head.appendChild(el)
+      customSheet = el.sheet
+    }
+    const rule =
+      kind === "bg" ? `background-color:#${hex}`
+        : kind === "text" ? `color:#${hex}`
+          : `background-color:color-mix(in oklab,#${hex} 14%,transparent);color:#${hex}`
+    customSheet?.insertRule(`.${cls}{${rule}}`, customSheet.cssRules.length)
+  }
+  return cls
+}
+
+function colorClasses(kind: "bg" | "text" | "soft", presets: Record<PresetColor, string>): Record<MemberColor, string> {
+  return new Proxy(presets, {
+    get: (target, key) => {
+      if (typeof key !== "string") return undefined
+      return Object.prototype.hasOwnProperty.call(target, key) ? target[key as PresetColor] : customClass(kind, key)
+    },
+  }) as Record<MemberColor, string>
+}
+
+export const memberBg = colorClasses("bg", {
   coral: "bg-member-coral",
   amber: "bg-member-amber",
   teal: "bg-member-teal",
   blue: "bg-member-blue",
   pink: "bg-member-pink",
   green: "bg-member-green",
-}
+})
 
-export const memberText: Record<MemberColor, string> = {
+export const memberText = colorClasses("text", {
   coral: "text-member-coral",
   amber: "text-member-amber",
   teal: "text-member-teal",
   blue: "text-member-blue",
   pink: "text-member-pink",
   green: "text-member-green",
-}
+})
 
 // soft tinted background using color-mix for event chips
-export const memberSoft: Record<MemberColor, string> = {
+export const memberSoft = colorClasses("soft", {
   coral: "bg-member-coral/12 text-member-coral",
   amber: "bg-member-amber/15 text-member-amber",
   teal: "bg-member-teal/15 text-member-teal",
   blue: "bg-member-blue/12 text-member-blue",
   pink: "bg-member-pink/12 text-member-pink",
   green: "bg-member-green/15 text-member-green",
-}
+})
 
 /** A named calendar (e.g. Family, Friends, Work) that owns events. */
 export type Calendar = {

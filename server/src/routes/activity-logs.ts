@@ -15,6 +15,10 @@ export type LogAction =
   | "list.create" | "list.delete"
   | "provider.connect" | "provider.disconnect"
   | "hub.restart" | "hub.factory_reset"
+  // Solora's own actions on this hub, recorded by services/solora-support.ts
+  | `solora.${string}`
+  | "support.granted" | "support.denied" | "support.revoked"
+  | "device.reported_lost" | "device.found"
 
 type LogInput = {
   householdId: string

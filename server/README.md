@@ -1,6 +1,6 @@
 # lumora-server
 
-Local Express + Socket.IO server for the Lumora kiosk hub.
+Local Express + Socket.IO server for the Solora kiosk hub.
 All household data is stored in SQLite at `$HOME/.lumora/lumora.db`.
 Photos are stored as files in `$HOME/.lumora/photos/`.
 

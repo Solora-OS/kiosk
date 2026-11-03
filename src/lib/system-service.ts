@@ -1,7 +1,7 @@
 "use client"
 
 /**
- * System service — the OS-level controls Lumora owns instead of the desktop:
+ * System service — the OS-level controls Solora owns instead of the desktop:
  * output volume, screen brightness, display sleep and power.
  *
  * Backed by Tauri commands in `src-tauri/src/lib.rs`:

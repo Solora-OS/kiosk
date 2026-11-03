@@ -53,7 +53,7 @@ type NormalisedEvent = {
   start_hour: number
   end_hour: number
   location: string | null
-  calendar_id: string | null  // Lumora calendar id from mapping
+  calendar_id: string | null  // Solora calendar id from mapping
 }
 
 // ----- Token refresh --------------------------------------------------------
@@ -139,7 +139,7 @@ function isoToDate(iso: string): { date: string; time: string | null; hour: numb
 }
 
 /**
- * Lumora's start/end fields for a provider event. Providers give all-day
+ * Solora's start/end fields for a provider event. Providers give all-day
  * events an exclusive end date (a one-day event ends the next day), and a timed
  * event that ends exactly at midnight ends at hour 24 of the previous day.
  */
@@ -173,7 +173,7 @@ function eventSpan(startIso: string, endIso: string, allDay: boolean) {
 async function fetchGoogleEventsForCalendar(
   token: string,
   googleCalendarId: string,
-  lumoraCalendarId: string | null,
+  soloraCalendarId: string | null,
 ): Promise<NormalisedEvent[]> {
   const now = new Date()
   const past = new Date(now)
@@ -216,7 +216,7 @@ async function fetchGoogleEventsForCalendar(
         title: e.summary ?? "(No title)",
         ...span,
         location: e.location ?? null,
-        calendar_id: lumoraCalendarId,
+        calendar_id: soloraCalendarId,
       }
     })
 }

@@ -1,5 +1,5 @@
 [Unit]
-Description=Lumora Local Hub Server
+Description=Solora Local Hub Server
 Documentation=https://github.com/lincon07/lumora_kiosk
 After=network.target
 Wants=network-online.target
@@ -25,7 +25,7 @@ StartLimitBurst=5
 
 # Environment
 Environment=NODE_ENV=production
-Environment=LUMORA_PORT=4000
+Environment=SOLORA_PORT=4000
 
 # Security hardening
 NoNewPrivileges=true

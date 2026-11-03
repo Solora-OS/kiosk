@@ -15,7 +15,7 @@ import { SystemHeading, SystemScreen } from "@/components/os/system-screen"
  * Root for the kiosk experience (a wall-mounted family display).
  *
  * Drives the full appliance startup flow as a state machine so the user never
- * sees Linux/Ubuntu, desktop, or app restarts — just smooth Lumora screens:
+ * sees Linux/Ubuntu, desktop, or app restarts — just smooth Solora screens:
  *
  *   splash → registering (MDM enroll) → setup wizard → activate (first hub)
  *     or pairing (additional display) → home dashboard
@@ -58,7 +58,7 @@ function KioskGate() {
     return <SplashScreen message="Starting up" />
   }
 
-  // Step 2 — registering with Lumora Cloud (with retry on failure).
+  // Step 2 — registering with Solora Cloud (with retry on failure).
   if (phase === "registering") {
     return (
       <RegisteringScreen error={registrationError} onRetry={() => void retryRegistration()} />

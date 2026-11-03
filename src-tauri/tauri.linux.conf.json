@@ -3,7 +3,8 @@
   "app": {
     "windows": [
       {
-        "title": "lumora_kiosk",
+        "title": "Solora",
+        "backgroundColor": "#0a0a0f",
         "fullscreen": false,
         "decorations": false,
         "alwaysOnTop": false,

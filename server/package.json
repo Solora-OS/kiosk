@@ -1,7 +1,7 @@
 {
-  "name": "lumora-server",
+  "name": "solora-server",
   "version": "1.0.0",
-  "description": "Lumora local hub server — Express REST API + Socket.IO, backed by SQLite",
+  "description": "Solora local hub server — Express REST API + Socket.IO, backed by SQLite",
   "private": true,
   "type": "commonjs",
   "main": "dist/index.js",

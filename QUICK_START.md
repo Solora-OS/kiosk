@@ -1,4 +1,4 @@
-# Lumora Kiosk - Quick Start Guide
+# Solora Kiosk - Quick Start Guide
 
 Get your kiosk up and running in 10 minutes.
 

@@ -29,7 +29,6 @@ import {
   UserCheck,
   Copy,
   Check,
-  Loader2,
   QrCode as QrCodeIcon,
   MonitorSmartphone,
   Link2Off,
@@ -45,8 +44,9 @@ import {
   Wrench,
   ShieldAlert,
   Tablet,
-  type LucideIcon,
+  type LucideIcon
 } from "lucide-react"
+import { OrbitLoader, SkeletonBlock } from "@/components/os/orbit"
 import {
   roleLabels,
   calculateAge,
@@ -450,7 +450,7 @@ function CentralConnectionSection() {
             disabled={busy || connected}
             className="flex flex-1 items-center justify-center gap-2 rounded-md bg-primary py-2.5 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-40"
           >
-            {busy ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
+            {busy ? <OrbitLoader size={16} /> : <RefreshCw className="size-4" />}
             Reconnect
           </button>
           <button
@@ -459,7 +459,7 @@ function CentralConnectionSection() {
             disabled={busy}
             className="flex flex-1 items-center justify-center gap-2 rounded-md bg-secondary py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-secondary/70 disabled:opacity-40"
           >
-            {busy ? <Loader2 className="size-4 animate-spin" /> : <RotateCcw className="size-4" />}
+            {busy ? <OrbitLoader size={16} /> : <RotateCcw className="size-4" />}
             Re-register
           </button>
         </div>
@@ -558,7 +558,7 @@ function HubActionsSection() {
           onClick={onCheckUpdates}
           trailing={
             checking ? (
-              <Loader2 className="size-4 animate-spin text-muted-foreground" />
+              <OrbitLoader size={16} className="text-muted-foreground" />
             ) : pendingUpdate ? (
               <span className="flex items-center gap-1.5 rounded-full bg-member-green/15 px-2.5 py-1 text-[0.75rem] font-semibold text-member-green">
                 <DownloadCloud className="size-3" />
@@ -961,9 +961,7 @@ function InviteSheet({
     <BottomSheet open={open} onClose={onClose} title={`Invite ${member?.name ?? "member"}`}>
       <div className="flex flex-col items-center text-center">
         {busy ? (
-          <div className="flex h-56 items-center justify-center">
-            <Loader2 className="size-6 animate-spin text-muted-foreground" />
-          </div>
+          <SkeletonBlock className="size-56 rounded-xl" label="Making an invite code" />
         ) : error ? (
           <div className="w-full space-y-3">
             <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm font-medium text-destructive">{error}</p>
@@ -1051,7 +1049,7 @@ function InviteSheet({
                 className="flex flex-1 items-center justify-center gap-2 rounded-md bg-destructive/10 py-2.5 text-sm font-semibold text-destructive transition-colors hover:bg-destructive/15 disabled:opacity-50"
               >
                 {cancelling ? (
-                  <Loader2 className="size-4 animate-spin" />
+                  <OrbitLoader size={16} />
                 ) : (
                   <Trash2 className="size-4" />
                 )}
@@ -1395,7 +1393,7 @@ function FamilyMembersSection() {
             disabled={!quickName.trim() || quickBusy}
             className="flex w-full items-center justify-center gap-2 rounded-md bg-primary py-3 text-sm font-semibold text-primary-foreground disabled:opacity-40"
           >
-            {quickBusy ? <Loader2 className="size-4 animate-spin" /> : <QrCodeIcon className="size-4" />}
+            {quickBusy ? <OrbitLoader size={16} /> : <QrCodeIcon className="size-4" />}
             Create &amp; get invite code
           </button>
         }
@@ -1590,7 +1588,7 @@ function FactoryResetDialog({ open, onClose }: { open: boolean; onClose: () => v
             >
               {busy ? (
                 <>
-                  <Loader2 className="size-4 animate-spin" />
+                  <OrbitLoader size={16} />
                   Resetting...
                 </>
               ) : (
@@ -1709,7 +1707,7 @@ function WifiSection() {
             disabled={scanning}
             className="flex items-center gap-1.5 rounded-full bg-secondary px-3 py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-secondary/70 disabled:opacity-40"
           >
-            {scanning ? <Loader2 className="size-3.5 animate-spin" /> : <RefreshCw className="size-3.5" />}
+            {scanning ? <OrbitLoader size={14} /> : <RefreshCw className="size-3.5" />}
             {scanning ? "Scanning…" : "Rescan"}
           </button>
         </div>
@@ -1721,7 +1719,7 @@ function WifiSection() {
         <ul className="max-h-[55vh] divide-y divide-hairline overflow-y-auto overscroll-contain rounded-md bg-background">
           {scanning && networks.length === 0 ? (
             <li className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground">
-              <Loader2 className="size-4 animate-spin" />
+              <OrbitLoader size={16} />
               Scanning…
             </li>
           ) : networks.length === 0 ? (
@@ -1745,7 +1743,7 @@ function WifiSection() {
                       </span>
                     </span>
                     {isConnecting ? (
-                      <Loader2 className="size-4 shrink-0 animate-spin text-muted-foreground" />
+                      <OrbitLoader size={16} className="shrink-0 text-muted-foreground" />
                     ) : net.connected ? (
                       <Check className="size-4 shrink-0 text-member-green" />
                     ) : (
@@ -1771,7 +1769,7 @@ function WifiSection() {
             disabled={!password.trim() || !!connecting}
             className="flex w-full items-center justify-center gap-2 rounded-md bg-primary py-3 text-sm font-semibold text-primary-foreground disabled:opacity-40"
           >
-            {connecting ? <Loader2 className="size-4 animate-spin" /> : null}
+            {connecting ? <OrbitLoader size={16} /> : null}
             {connecting ? "Connecting…" : "Connect"}
           </button>
         }
@@ -2038,7 +2036,7 @@ function LanguageRegionSection({ initialOrientation }: { initialOrientation?: st
           onClick={() => { setLangSearch(""); setLangSheetOpen(true) }}
           trailing={
             applying ? (
-              <Loader2 className="size-4 animate-spin text-muted-foreground" />
+              <OrbitLoader size={16} className="text-muted-foreground" />
             ) : (
               <ChevronRight className="size-4 text-muted-foreground" />
             )
@@ -2052,7 +2050,7 @@ function LanguageRegionSection({ initialOrientation }: { initialOrientation?: st
           onClick={() => { setTzSearch(""); setTzSheetOpen(true) }}
           trailing={
             applying ? (
-              <Loader2 className="size-4 animate-spin text-muted-foreground" />
+              <OrbitLoader size={16} className="text-muted-foreground" />
             ) : (
               <ChevronRight className="size-4 text-muted-foreground" />
             )
@@ -2066,7 +2064,7 @@ function LanguageRegionSection({ initialOrientation }: { initialOrientation?: st
           onClick={() => setOrientationSheetOpen(true)}
           trailing={
             applying ? (
-              <Loader2 className="size-4 animate-spin text-muted-foreground" />
+              <OrbitLoader size={16} className="text-muted-foreground" />
             ) : (
               <ChevronRight className="size-4 text-muted-foreground" />
             )
@@ -2244,7 +2242,7 @@ function SlideshowSection({ initialIdleMins }: { initialIdleMins: number | null 
                 : `Starts after ${current} min${current === 1 ? "" : "s"} of inactivity`}
             </span>
           </span>
-          {saving && <Loader2 className="size-4 animate-spin text-muted-foreground" />}
+          {saving && <OrbitLoader size={16} className="text-muted-foreground" />}
         </div>
         <div className="flex flex-wrap gap-1.5 border-t border-hairline px-4 py-3">
           {IDLE_OPTIONS.map((opt) => {

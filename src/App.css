@@ -9,7 +9,7 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * Lumora design language
+ * Solora design language
  * ──────────────────────
  * Paper & graphite. Almost no color: one accent, owned by the active season
  * (see src/lib/seasons.ts). Three voices:
@@ -378,6 +378,13 @@
     to { opacity: 1; transform: none; }
   }
 
+  /* Pinch to throw (components/os/wall-presence.tsx): flies up from the phone. */
+  .wall-throw-in { animation: wall-throw-in 560ms var(--ease-out-quart) both; }
+  @keyframes wall-throw-in {
+    from { opacity: 0; transform: translateY(40vh) scale(0.25); }
+    to { opacity: 1; transform: none; }
+  }
+
   .twinkle { animation: twinkle 3.2s ease-in-out infinite; }
   @keyframes twinkle {
     0%, 100% { opacity: 1; }
@@ -390,7 +397,37 @@
     50% { transform: rotate(2deg); }
   }
 
+
+  /* Family orbit (components/os/orbit.tsx). Rotations pivot on the sun. */
+  .orbit-spin, .orbit-spin-slow, .orbit-drift, .orbit-settle { transform-box: view-box; transform-origin: 50px 50px; }
+  .orbit-spin { animation: orbit-turn 1.1s linear infinite; }
+  .orbit-drift { animation: orbit-turn 48s linear infinite; }
+  .orbit-settle { animation: orbit-settle 1.1s var(--ease-out-quart) both; }
+  .orbit-pulse { animation: orbit-pulse 1.4s ease-in-out infinite; }
+  .orbit-late { animation: rise-in 420ms var(--ease-out-quart) 600ms both; }
+  .orbit-spin-slow { animation: orbit-turn 2.4s linear infinite; }
+  /* Loading placeholders: fade in one after another, then a soft shimmer sweeps across. */
+  .skel {
+    background: linear-gradient(90deg, var(--muted) 35%, color-mix(in oklch, var(--muted), var(--foreground) 7%) 50%, var(--muted) 65%);
+    background-size: 200% 100%;
+    animation: rise-in 380ms var(--ease-out-quart) both, skel-shimmer 1.6s ease-in-out infinite;
+    animation-delay: var(--d, 0ms), var(--d, 0ms);
+  }
+  @keyframes skel-shimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+  @keyframes orbit-turn { to { transform: rotate(360deg); } }
+  @keyframes orbit-settle {
+    from { transform: rotate(-240deg) scale(0.4); opacity: 0; }
+    60% { opacity: 1; }
+    to { transform: none; opacity: 1; }
+  }
+  @keyframes orbit-pulse {
+    0%, 100% { opacity: 0.55; }
+    50% { opacity: 1; }
+  }
+
   @media (prefers-reduced-motion: reduce) {
-    .boot-line::after, .twinkle, .sway, .rise-in { animation: none; }
+    .boot-line::after, .twinkle, .sway, .rise-in,
+    .orbit-drift, .orbit-settle, .orbit-pulse, .orbit-late, .orbit-spin-slow, .skel { animation: none; }
+    .orbit-spin { animation-duration: 3s; }
   }
 }

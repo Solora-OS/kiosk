@@ -1,7 +1,8 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Loader2, RefreshCw, Trash2, CalendarDays, ChefHat, Users, Link2, Settings2, List } from "lucide-react"
+import { RefreshCw, Trash2, CalendarDays, ChefHat, Users, Link2, Settings2, List } from "lucide-react"
+import { SkeletonRows } from "@/components/os/orbit"
 import { LOCAL_API_BASE, tokenStore } from "@/lib/local-api"
 import { cn } from "@/lib/utils"
 
@@ -104,9 +105,7 @@ export function ActivityLog({ onClose }: { onClose: () => void }) {
 
       <div>
         {loading && entries.length === 0 ? (
-          <div className="flex items-center justify-center py-16">
-            <Loader2 className="size-5 animate-spin text-muted-foreground" />
-          </div>
+          <SkeletonRows rows={6} className="rounded-md border border-border px-4" />
         ) : error ? (
           <div className="p-6 text-center text-sm text-destructive">{error}</div>
         ) : entries.length === 0 ? (
