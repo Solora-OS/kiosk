@@ -1,0 +1,6 @@
+{
+  "status": 401,
+  "body": {
+    "error": "Invalid or expired token. Sign in again."
+  }
+}

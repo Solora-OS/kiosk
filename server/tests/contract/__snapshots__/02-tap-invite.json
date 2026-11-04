@@ -1,0 +1,17 @@
+{
+  "status": 200,
+  "body": {
+    "code": "<code>",
+    "color": "blue",
+    "createdAt": "<time>",
+    "expiresAt": "<time>",
+    "householdId": "<id1>",
+    "householdName": "The Okafor-Reyes Family",
+    "id": "<id2>",
+    "memberId": "<id3>",
+    "memberName": "Mateo",
+    "name": "Mateo",
+    "role": "child",
+    "token": "<token>"
+  }
+}

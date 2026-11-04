@@ -12,6 +12,7 @@ import { getDb } from "../db"
 import { requireAuth, type AuthRequest } from "../middleware/auth"
 import { managesChores } from "../lib/household-member"
 import { hubToday } from "./chores"
+import { logActivity } from "./activity-logs"
 
 export const awayRouter = Router()
 awayRouter.use(requireAuth)
@@ -46,6 +47,7 @@ awayRouter.put("/", (req: Request, res: Response) => {
   const householdId = (req as AuthRequest).user.householdId!
   getDb().prepare("UPDATE households SET away_from = ?, away_until = ?, away_label = ? WHERE id = ?")
     .run(from, until, typeof label === "string" && label.trim() ? label.trim().slice(0, 60) : null, householdId)
+  logActivity(req, { action: "away.set", resourceType: "household", resourceName: typeof label === "string" ? label.trim().slice(0, 60) : "", metadata: { from, until } })
   res.json(current(householdId))
 })
 
@@ -53,5 +55,6 @@ awayRouter.delete("/", (req: Request, res: Response) => {
   if (!parentOnly(req, res)) return
   getDb().prepare("UPDATE households SET away_from = NULL, away_until = NULL, away_label = NULL WHERE id = ?")
     .run((req as AuthRequest).user.householdId!)
+  logActivity(req, { action: "away.end", resourceType: "household" })
   res.status(204).end()
 })

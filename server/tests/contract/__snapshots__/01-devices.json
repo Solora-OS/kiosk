@@ -1,0 +1,23 @@
+{
+  "status": 200,
+  "body": [
+    {
+      "battery_pct": null,
+      "device_id": "<id1>",
+      "device_name": "Hallway Wall",
+      "household_id": "<id2>",
+      "last_heartbeat": "<time>",
+      "ping_ms": 12,
+      "wifi_signal": 70
+    },
+    {
+      "battery_pct": null,
+      "device_id": "<id3>",
+      "device_name": "Kitchen Wall",
+      "household_id": "<id2>",
+      "last_heartbeat": "<time>",
+      "ping_ms": null,
+      "wifi_signal": null
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+{
+  "status": 403,
+  "body": {
+    "error": "You can only spend your own points."
+  }
+}

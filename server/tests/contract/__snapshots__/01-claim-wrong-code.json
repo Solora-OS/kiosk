@@ -1,0 +1,6 @@
+{
+  "status": 404,
+  "body": {
+    "error": "Display code not found. Check the code shown on the screen you're adding."
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "status": 200,
+  "body": {
+    "ok": true,
+    "pairing_code": "<pairing_code>"
+  }
+}

@@ -7,6 +7,7 @@
  * adding one entry here.
  */
 
+import { WeatherMotion } from "./weather-motion"
 import { useEffect, useState, type ReactNode } from "react"
 import {
   CalendarDays, Check, Clock3, Cloud, CloudDrizzle, CloudFog, CloudLightning, CloudRain, CloudSnow, CloudSun, Flame, Gift,
@@ -446,7 +447,9 @@ function WeatherWidget({ widget, editing, onConfig }: WidgetProps) {
   const now = weatherLook(forecast.code)
   const wide = widget.size !== "s"
   return (
-    <Tile title={place} icon={MapPin}>
+    // isolate: the motion canvas sits above the tile's background but under its text.
+    <Tile title={place} icon={MapPin} className="relative isolate">
+      <WeatherMotion code={forecast.code} />
       <div className={cn("flex h-full", wide ? "items-end gap-6" : "flex-col justify-end")}>
         <div className="min-w-0">
           <now.icon className="size-9 text-season" strokeWidth={1.5} />

@@ -18,8 +18,19 @@ import { broadcast } from "../broadcaster"
 import { getDb } from "../db"
 import { manages } from "../lib/household-member"
 import type { DisplayState, HubCommand } from "../types"
+import { logActivity } from "./activity-logs"
 
 export const hubCommandRouter = Router()
+
+const COMMAND_LABELS: Record<string, string> = {
+  restart: "restarted the wall display",
+  reload: "reloaded the wall display",
+  clear_cache: "cleared the wall display's cache",
+  display_sleep: "put the wall display to sleep",
+  display_wake: "woke the wall display",
+  set_orientation: "rotated the wall display",
+  set_theme: "changed the wall display's theme",
+}
 
 const VALID_ORIENTATIONS = new Set(["normal", "left", "right", "inverted", "portrait"])
 const VALID_THEMES = new Set(["light", "dark", "system"])
@@ -88,6 +99,10 @@ hubCommandRouter.post("/command", requireAuth, (req, res) => {
     return
   }
 
+  // Only the commands a family would want to look back on; sliders (volume,
+  // brightness) would fill the log with every drag.
+  const label = COMMAND_LABELS[cmd.type as string]
+  if (label) logActivity(req, { action: "hub.command", resourceType: "hub", resourceName: label, metadata: { type: cmd.type } })
   broadcast(householdId, "hub:command", cmd)
   res.json({ ok: true, command: cmd })
 })

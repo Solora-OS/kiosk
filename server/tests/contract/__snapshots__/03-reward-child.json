@@ -1,0 +1,6 @@
+{
+  "status": 403,
+  "body": {
+    "error": "Only a parent can add rewards."
+  }
+}

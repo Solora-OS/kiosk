@@ -4,14 +4,31 @@ import { useTheme } from "@/components/theme-provider"
 import type { SeasonEffect } from "@/lib/seasons"
 
 /**
- * Ambient particles for the active season. Deliberately sparse — a wall
+ * Ambient particles for the active season. Sparse on purpose — a wall
  * display is looked at all day, so this should read as weather, not a
- * screensaver. Rendered on a canvas above content with pointer-events off.
+ * screensaver. Drawn over the page content (pointer-events off, see-through)
+ * but only inside the app's content area: the element marked
+ * [data-effects-area], minus anything marked [data-effects-avoid="top"] or
+ * [data-effects-avoid="bottom"]. So the header, status bar, side nav and
+ * bottom nav always stay clear. Kept identical in mobile/ and kiosk/.
  */
 
 type P = { x: number; y: number; vx: number; vy: number; r: number; a: number; rot: number; vr: number; t: number }
 
-const COUNT: Record<SeasonEffect, number> = { none: 0, snow: 46, leaves: 9, hearts: 7, embers: 22 }
+const COUNT: Record<SeasonEffect, number> = { none: 0, snow: 56, leaves: 16, hearts: 11, embers: 28 }
+
+/** The visible part of the content area, clear of the header and bottom nav. */
+function effectsBox(): { left: number; top: number; width: number; height: number } {
+  let left = 0, top = 0, right = window.innerWidth, bottom = window.innerHeight
+  const area = document.querySelector("[data-effects-area]")?.getBoundingClientRect()
+  if (area) {
+    left = Math.max(left, area.left); right = Math.min(right, area.right)
+    top = Math.max(top, area.top); bottom = Math.min(bottom, area.bottom)
+  }
+  document.querySelectorAll('[data-effects-avoid="top"]').forEach((el) => { top = Math.max(top, el.getBoundingClientRect().bottom) })
+  document.querySelectorAll('[data-effects-avoid="bottom"]').forEach((el) => { bottom = Math.min(bottom, el.getBoundingClientRect().top) })
+  return { left, top, width: Math.max(0, right - left), height: Math.max(0, bottom - top) }
+}
 
 /** Resolve any CSS color (oklch, var()) to something canvas understands. */
 function resolveColor(css: string): string {
@@ -46,14 +63,21 @@ export function SeasonEffects({ density = 1 }: { density?: number }) {
     let w = 0
     let h = 0
     const resize = () => {
-      w = canvas.clientWidth
-      h = canvas.clientHeight
+      const box = effectsBox()
+      Object.assign(canvas.style, { left: `${box.left}px`, top: `${box.top}px`, width: `${box.width}px`, height: `${box.height}px` })
+      if (Math.round(box.width) === w && Math.round(box.height) === h) return
+      w = Math.round(box.width)
+      h = Math.round(box.height)
       canvas.width = w * dpr
       canvas.height = h * dpr
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
     }
     resize()
     window.addEventListener("resize", resize)
+    // Scrolling (the page on a phone, the content pane on the wall) and layout
+    // changes move the area, so follow it.
+    window.addEventListener("scroll", resize, { capture: true, passive: true })
+    const follow = setInterval(resize, 1000)
 
     const dark = document.documentElement.classList.contains("dark")
     const accent = resolveColor("var(--season)")
@@ -128,11 +152,14 @@ export function SeasonEffects({ density = 1 }: { density?: number }) {
 
     return () => {
       cancelAnimationFrame(raf)
+      clearInterval(follow)
       window.removeEventListener("resize", resize)
+      window.removeEventListener("scroll", resize, { capture: true })
       ctx.clearRect(0, 0, w, h)
     }
   }, [effect, density, season.id, resolvedTheme])
 
   if (effect === "none") return null
-  return <canvas ref={ref} aria-hidden className="pointer-events-none fixed inset-0 z-[60] size-full" />
+  // Above cards, below the header, navs, sheets and dialogs (z-30 and up).
+  return <canvas ref={ref} aria-hidden className="pointer-events-none fixed inset-0 z-20" />
 }

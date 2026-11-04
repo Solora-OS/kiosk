@@ -1,0 +1,6 @@
+{
+  "status": 403,
+  "body": {
+    "error": "Only whoever added this event, or a parent, can change it."
+  }
+}

@@ -1,5 +1,14 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 
+// On Android the Linux system commands below are compiled out and
+// android_system.rs provides the same names; their helpers go unused there.
+#![cfg_attr(target_os = "android", allow(dead_code, unused_imports))]
+
+#[cfg(target_os = "android")]
+mod android_system;
+#[cfg(not(target_os = "ios"))]
+mod hub;
+mod apk_update;
 mod beacon;
 
 use serde::{Deserialize, Serialize};
@@ -113,6 +122,7 @@ fn nmcli_wifi_list(rescan: &str) -> std::io::Result<std::process::Output> {
 ///
 /// All Command::new calls are wrapped in spawn_blocking so they never block
 /// the Tokio executor thread.
+#[cfg(not(target_os = "android"))]
 #[tauri::command]
 async fn wifi_scan() -> Result<Vec<WifiNetwork>, String> {
     let output = tokio::task::spawn_blocking(|| {
@@ -159,6 +169,7 @@ async fn wifi_scan() -> Result<Vec<WifiNetwork>, String> {
 ///
 /// The blocking nmcli call is run in spawn_blocking so it doesn't stall the
 /// Tokio runtime — nmcli can take several seconds to complete a handshake.
+#[cfg(not(target_os = "android"))]
 #[tauri::command]
 async fn wifi_connect(ssid: String, password: Option<String>) -> Result<bool, String> {
     // Clone into owned Strings so they can be moved into the blocking closure.
@@ -255,6 +266,7 @@ fn humanise_nmcli_error(raw: &str) -> String {
 ///
 /// Reads the active device list from `nmcli` and returns the connection name
 /// for any device of type `wifi` that is in the `connected` state.
+#[cfg(not(target_os = "android"))]
 #[tauri::command]
 async fn wifi_status() -> Result<Option<String>, String> {
     let output = tokio::task::spawn_blocking(|| {
@@ -311,6 +323,7 @@ struct LocaleResult {
 /// Parses the `System Locale: LANG=…` line.  Falls back to reading the LANG
 /// environment variable, and finally to "en_US.UTF-8" if neither is set.
 /// All syscalls run in spawn_blocking.
+#[cfg(not(target_os = "android"))]
 #[tauri::command]
 async fn locale_get() -> Result<LocaleResult, String> {
     let output = tokio::task::spawn_blocking(|| Command::new("localectl").arg("status").output())
@@ -357,6 +370,7 @@ async fn locale_get() -> Result<LocaleResult, String> {
 ///   3. Direct write to /etc/locale.conf — last resort; survives a reboot.
 ///
 /// All blocking calls are wrapped in spawn_blocking.
+#[cfg(not(target_os = "android"))]
 #[tauri::command]
 async fn locale_set(lang: String) -> Result<bool, String> {
     let lang_owned = lang.clone();
@@ -418,6 +432,7 @@ struct TimezoneResult {
 ///
 /// Falls back to reading /etc/timezone or the TZ env var if timedatectl is
 /// not available. All blocking calls run in spawn_blocking.
+#[cfg(not(target_os = "android"))]
 #[tauri::command]
 async fn timezone_get() -> Result<TimezoneResult, String> {
     let output = tokio::task::spawn_blocking(|| Command::new("timedatectl").arg("show").output())
@@ -463,6 +478,7 @@ async fn timezone_get() -> Result<TimezoneResult, String> {
 ///      distros / containers that lack systemd may rely on this alone).
 ///
 /// All blocking calls run in spawn_blocking.
+#[cfg(not(target_os = "android"))]
 #[tauri::command]
 async fn timezone_set(timezone: String) -> Result<bool, String> {
     let tz_owned = timezone.clone();
@@ -579,6 +595,7 @@ async fn factory_reset(app: tauri::AppHandle) -> Result<(), String> {
 ///
 /// These are the standard 3×3 affine matrices used by Xorg for input device
 /// coordinate transformation (Coordinate Transformation Matrix property).
+#[cfg(not(target_os = "android"))]
 #[tauri::command]
 async fn screen_orientation_set(rotation: String) -> Result<(), String> {
     // "portrait" is an alias for "right" (90° CW) — kept for setup-wizard
@@ -714,6 +731,7 @@ fn sh(cmd: &str, args: &[&str]) -> Option<String> {
 }
 
 /// Read output volume. Tries PipeWire (`wpctl`) then ALSA (`amixer`).
+#[cfg(not(target_os = "android"))]
 #[tauri::command]
 async fn system_volume_get() -> Result<AudioState, String> {
     tokio::task::spawn_blocking(|| {
@@ -743,6 +761,7 @@ async fn system_volume_get() -> Result<AudioState, String> {
     .map_err(|e| e.to_string())?
 }
 
+#[cfg(not(target_os = "android"))]
 #[tauri::command]
 async fn system_volume_set(volume: u8) -> Result<(), String> {
     let v = volume.min(100);
@@ -761,6 +780,7 @@ async fn system_volume_set(volume: u8) -> Result<(), String> {
     .map_err(|e| e.to_string())?
 }
 
+#[cfg(not(target_os = "android"))]
 #[tauri::command]
 async fn system_mute_set(muted: bool) -> Result<(), String> {
     tokio::task::spawn_blocking(move || {
@@ -793,6 +813,7 @@ fn read_u32(path: std::path::PathBuf) -> Option<u32> {
 
 /// Screen brightness 0-100, or None when the panel isn't software-dimmable
 /// (most HDMI monitors).
+#[cfg(not(target_os = "android"))]
 #[tauri::command]
 async fn system_brightness_get() -> Result<Option<u8>, String> {
     tokio::task::spawn_blocking(|| {
@@ -811,6 +832,7 @@ async fn system_brightness_get() -> Result<Option<u8>, String> {
     .map_err(|e| e.to_string())?
 }
 
+#[cfg(not(target_os = "android"))]
 #[tauri::command]
 async fn system_brightness_set(level: u8) -> Result<(), String> {
     let level = level.clamp(5, 100);
@@ -830,6 +852,7 @@ async fn system_brightness_set(level: u8) -> Result<(), String> {
     .map_err(|e| e.to_string())?
 }
 
+#[cfg(not(target_os = "android"))]
 #[tauri::command]
 async fn system_display_sleep() -> Result<(), String> {
     tokio::task::spawn_blocking(|| {
@@ -842,6 +865,7 @@ async fn system_display_sleep() -> Result<(), String> {
 }
 
 /// Turn the panel back on after a DPMS sleep (remote "wake" from a phone).
+#[cfg(not(target_os = "android"))]
 #[tauri::command]
 async fn system_display_wake() -> Result<(), String> {
     tokio::task::spawn_blocking(|| {
@@ -855,6 +879,7 @@ async fn system_display_wake() -> Result<(), String> {
 
 /// Power off or reboot the whole device. Requires polkit to allow the kiosk
 /// user `org.freedesktop.login1.power-off` / `reboot` (granted by the image).
+#[cfg(not(target_os = "android"))]
 #[tauri::command]
 async fn system_power(action: String) -> Result<(), String> {
     let verb = match action.as_str() {
@@ -900,8 +925,20 @@ fn get_utc_offset_string(timezone: &str) -> String {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
-        .plugin(tauri_plugin_updater::Builder::new().build())
+    let builder = tauri::Builder::default();
+    // Desktop updates go through the Tauri updater; Android has none, so
+    // apk_update.rs installs APKs itself.
+    #[cfg(desktop)]
+    let builder = builder.plugin(tauri_plugin_updater::Builder::new().build());
+    #[cfg(target_os = "android")]
+    let builder = builder.plugin(apk_update::init()).plugin(android_system::init());
+    // The household hub runs in this app (src/hub.rs).
+    #[cfg(not(target_os = "ios"))]
+    let builder = builder.setup(|app| {
+        hub::start(app.handle());
+        Ok(())
+    });
+    builder
         // .plugin(tauri_plugin_haptics::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_notification::init())
@@ -911,25 +948,81 @@ pub fn run() {
         .plugin(tauri_plugin_store::Builder::default().build())
         .invoke_handler(tauri::generate_handler![
             greet,
+            #[cfg(not(target_os = "android"))]
             wifi_scan,
+            #[cfg(target_os = "android")]
+            android_system::wifi_scan,
+            #[cfg(not(target_os = "android"))]
             wifi_connect,
+            #[cfg(target_os = "android")]
+            android_system::wifi_connect,
+            #[cfg(not(target_os = "android"))]
             wifi_status,
+            #[cfg(target_os = "android")]
+            android_system::wifi_status,
+            #[cfg(not(target_os = "android"))]
             locale_get,
+            #[cfg(target_os = "android")]
+            android_system::locale_get,
+            #[cfg(not(target_os = "android"))]
             locale_set,
+            #[cfg(target_os = "android")]
+            android_system::locale_set,
+            #[cfg(not(target_os = "android"))]
             timezone_get,
+            #[cfg(target_os = "android")]
+            android_system::timezone_get,
+            #[cfg(not(target_os = "android"))]
             timezone_set,
+            #[cfg(target_os = "android")]
+            android_system::timezone_set,
+            #[cfg(not(target_os = "android"))]
             screen_orientation_set,
+            #[cfg(target_os = "android")]
+            android_system::screen_orientation_set,
             factory_reset,
+            #[cfg(not(target_os = "android"))]
             system_volume_get,
+            #[cfg(target_os = "android")]
+            android_system::system_volume_get,
+            #[cfg(not(target_os = "android"))]
             system_volume_set,
+            #[cfg(target_os = "android")]
+            android_system::system_volume_set,
+            #[cfg(not(target_os = "android"))]
             system_mute_set,
+            #[cfg(target_os = "android")]
+            android_system::system_mute_set,
+            #[cfg(not(target_os = "android"))]
             system_brightness_get,
+            #[cfg(target_os = "android")]
+            android_system::system_brightness_get,
+            #[cfg(not(target_os = "android"))]
             system_brightness_set,
+            #[cfg(target_os = "android")]
+            android_system::system_brightness_set,
+            #[cfg(not(target_os = "android"))]
             system_display_sleep,
+            #[cfg(target_os = "android")]
+            android_system::system_display_sleep,
+            #[cfg(not(target_os = "android"))]
             system_display_wake,
+            #[cfg(target_os = "android")]
+            android_system::system_display_wake,
+            #[cfg(not(target_os = "android"))]
             system_power,
+            #[cfg(target_os = "android")]
+            android_system::system_power,
+            #[cfg(not(target_os = "android"))]
             beacon::wall_beacon_start,
+            #[cfg(target_os = "android")]
+            android_system::wall_beacon_start,
+            #[cfg(not(target_os = "android"))]
             beacon::wall_beacon_stop,
+            #[cfg(target_os = "android")]
+            android_system::wall_beacon_stop,
+            apk_update::update_target,
+            apk_update::apk_update_install,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -18,6 +18,7 @@ import { callerMember, managesChores } from "../lib/household-member"
 import { memberPoints } from "../services/points"
 import { choreManagers, notifyMembers } from "../services/notify"
 import { hubToday } from "./chores"
+import { logActivity, writeLog } from "./activity-logs"
 
 export const rewardsRouter = Router()
 rewardsRouter.use(requireAuth)
@@ -64,6 +65,7 @@ rewardsRouter.post("/", (req: Request, res: Response) => {
   const id = uuidv4()
   getDb().prepare("INSERT INTO rewards (id, household_id, title, cost, icon) VALUES (?, ?, ?, ?, ?)")
     .run(id, user.householdId, r.title, r.cost, r.icon)
+  logActivity(req, { action: "reward.create", resourceType: "reward", resourceId: id, resourceName: r.title, metadata: { cost: r.cost } })
   res.status(201).json({ id, ...r, icon: r.icon ?? undefined })
 })
 
@@ -82,7 +84,9 @@ rewardsRouter.patch("/:id", (req: Request, res: Response) => {
 rewardsRouter.delete("/:id", (req: Request, res: Response) => {
   const user = (req as AuthRequest).user
   if (!managesChores(user)) { res.status(403).json({ error: "Only a parent can remove rewards." }); return }
+  const gone = getDb().prepare("SELECT title FROM rewards WHERE id = ? AND household_id = ?").get(req.params.id, user.householdId) as { title: string } | undefined
   getDb().prepare("DELETE FROM rewards WHERE id = ? AND household_id = ?").run(req.params.id, user.householdId)
+  if (gone) logActivity(req, { action: "reward.delete", resourceType: "reward", resourceId: req.params.id, resourceName: gone.title })
   res.status(204).end()
 })
 
@@ -125,6 +129,8 @@ rewardsRouter.post("/:id/redeem", (req: Request, res: Response) => {
       ref: `redemption:${r.id}`,
     })
   }
+  // Whoever spends the points is who asked, even when a parent or the wall taps for them.
+  writeLog({ householdId, actorId: memberId, action: "reward.redeem", resourceType: "reward", resourceId: r.id, resourceName: r.title, metadata: { cost: r.cost } })
   res.status(201).json(r)
 })
 
@@ -138,6 +144,8 @@ function decide(status: "approved" | "declined") {
     ).run(status, new Date().toISOString(), req.params.id, user.householdId)
     if (changed.changes === 0) { res.status(404).json({ error: "That request was already handled." }); return }
     const r = toRedemption(db.prepare("SELECT * FROM redemptions WHERE id = ?").get(req.params.id) as Row)
+    const forName = (db.prepare("SELECT name FROM members WHERE id = ?").get(r.memberId) as { name: string } | undefined)?.name ?? ""
+    logActivity(req, { action: status === "approved" ? "reward.approve" : "reward.decline", resourceType: "reward", resourceId: r.id, resourceName: r.title, metadata: { for: forName } })
     notifyMembers(user.householdId!, [r.memberId], status === "approved"
       ? { title: `${r.title}: yes!`, body: `${r.cost} points spent. Enjoy.`, ref: `redemption:${r.id}` }
       : { title: `${r.title}: not this time`, body: `Your ${r.cost} points are back.`, ref: `redemption:${r.id}` })

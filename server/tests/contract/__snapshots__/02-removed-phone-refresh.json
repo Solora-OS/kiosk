@@ -1,0 +1,6 @@
+{
+  "status": 401,
+  "body": {
+    "error": "This phone has been signed out of the household."
+  }
+}

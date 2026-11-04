@@ -1,0 +1,15 @@
+{
+  "status": 200,
+  "body": {
+    "household": {
+      "id": "<id1>",
+      "name": "The Okafor-Reyes Family"
+    },
+    "isKiosk": true,
+    "user": {
+      "email": null,
+      "id": "<id2>",
+      "name": "Kitchen Wall"
+    }
+  }
+}

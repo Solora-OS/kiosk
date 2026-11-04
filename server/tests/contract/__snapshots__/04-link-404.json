@@ -1,0 +1,6 @@
+{
+  "status": 400,
+  "body": {
+    "error": "The calendar's website answered 404. Check the link is the subscription (iCal) one."
+  }
+}

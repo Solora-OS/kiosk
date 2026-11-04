@@ -82,16 +82,11 @@ import {
   checkForUpdates,
   clearCache,
   factoryReset,
-  getLogs,
-  subscribeLogs,
-  clearLogs,
-  relativeTime,
   startUpdatePolling,
   stopUpdatePolling,
   getPendingUpdate,
   subscribeUpdate,
   isHubDevice,
-  type HubLogLevel,
 } from "@/lib/hub"
 import { sendHubCommand } from "@/lib/local-api"
 import {
@@ -113,7 +108,7 @@ import { patchDeviceState } from "@/lib/device-state"
 import { AppearanceSection, SoundDisplaySection } from "@/app/settings/appearance-section"
 import { HomeScreenSection, InterfaceSection } from "@/app/settings/interface-section"
 import { CalendarImportSheet } from "@/app/calendar/CalendarImportSheet"
-import { ActivityLog } from "@/app/settings/ActivityLog"
+import { ActivitySheet } from "@/app/settings/activity-sheet"
 import { LOCAL_API_BASE, tokenStore } from "@/lib/local-api"
 import { centralSocket, getCentralToken } from "@/lib/central-socket"
 import { getLocalDeviceId, saveTimezone } from "@/lib/kiosk-session"
@@ -297,58 +292,6 @@ function PushNotificationsSection() {
         ) : null}
       </div>
     </section>
-  )
-}
-
-const logLevelMeta: Record<HubLogLevel, { icon: LucideIcon; className: string }> = {
-  info: { icon: Info, className: "text-member-blue" },
-  success: { icon: CheckCircle2, className: "text-member-green" },
-  warning: { icon: AlertTriangle, className: "text-member-amber" },
-  error: { icon: AlertTriangle, className: "text-destructive" },
-}
-
-function HistoryLogsSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const logs = useSyncExternalStore(subscribeLogs, getLogs, getLogs)
-
-  return (
-    <BottomSheet open={open} onClose={onClose} title="Activity logs">
-      <div className="flex items-center justify-between">
-        <p className="text-xs text-muted-foreground">{logs.length} recent events</p>
-        <button
-          type="button"
-          onClick={() => clearLogs()}
-          disabled={logs.length === 0}
-          className="flex items-center gap-1.5 rounded-full bg-secondary px-3 py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-secondary/70 disabled:opacity-40"
-        >
-          <Eraser className="size-3.5" />
-          Clear
-        </button>
-      </div>
-      <ul className="max-h-[55vh] divide-y divide-hairline overflow-y-auto overscroll-contain rounded-md bg-background">
-        {logs.length === 0 ? (
-          <li className="px-4 py-10 text-center text-sm text-muted-foreground">No log entries</li>
-        ) : (
-          logs.map((entry) => {
-            const meta = logLevelMeta[entry.level]
-            const Icon = meta.icon
-            return (
-              <li key={entry.id} className="flex items-start gap-3 px-4 py-3">
-                <Icon className={cn("mt-0.5 size-4 shrink-0", meta.className)} />
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                      {entry.source}
-                    </span>
-                    <span className="shrink-0 text-[0.75rem] text-muted-foreground">{relativeTime(entry.time)}</span>
-                  </div>
-                  <p className="text-sm leading-snug">{entry.message}</p>
-                </div>
-              </li>
-            )
-          })
-        )}
-      </ul>
-    </BottomSheet>
   )
 }
 
@@ -543,8 +486,8 @@ function HubActionsSection() {
       <div className="divide-y divide-hairline overflow-hidden rounded-md border border-hairline bg-card">
         <ActionRow
           icon={ScrollText}
-          label="Activity logs"
-          description="View recent hub events"
+          label="Activity"
+          description="Who did what at home, and this display's log"
           onClick={() => setLogsOpen(true)}
         />
         <ActionRow
@@ -592,7 +535,7 @@ function HubActionsSection() {
         ) : null}
       </div>
 
-      <HistoryLogsSheet open={logsOpen} onClose={() => setLogsOpen(false)} />
+      <ActivitySheet open={logsOpen} onClose={() => setLogsOpen(false)} />
 
       <ConfirmDialog
         open={confirmRestart}
@@ -2348,8 +2291,8 @@ function CalendarIntegrationSection() {
         ) : null}
         <ActionRow
           icon={ScrollText}
-          label="Activity log"
-          description="View recent actions on this hub"
+          label="Activity"
+          description="Who did what at home, and what Solora did"
           onClick={() => setActivityLogOpen(true)}
         />
       </div>
@@ -2367,9 +2310,7 @@ function CalendarIntegrationSection() {
         }}
       />
 
-      <BottomSheet open={activityLogOpen} onClose={() => setActivityLogOpen(false)} title="Activity Log">
-        <ActivityLog onClose={() => setActivityLogOpen(false)} />
-      </BottomSheet>
+      <ActivitySheet open={activityLogOpen} onClose={() => setActivityLogOpen(false)} />
     </section>
   )
 }

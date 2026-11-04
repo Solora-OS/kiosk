@@ -1,0 +1,46 @@
+{
+  "status": 200,
+  "body": [
+    {
+      "allDay": false,
+      "calendarId": "<id1>",
+      "countdown": false,
+      "createdAt": "<time>",
+      "createdBy": null,
+      "date": "<day+10>",
+      "end": 19.5,
+      "endHour": 19.5,
+      "householdId": "<id2>",
+      "id": "<id3>",
+      "location": "Gym",
+      "memberIds": [],
+      "reminderMinutes": null,
+      "skipDates": [],
+      "source": "ics",
+      "start": 18,
+      "startHour": 18,
+      "time": "18:00",
+      "title": "Open house"
+    },
+    {
+      "allDay": true,
+      "calendarId": "<id1>",
+      "countdown": false,
+      "createdAt": "<time>",
+      "createdBy": null,
+      "date": "<day+20>",
+      "end": 24,
+      "endDate": "<day+24>",
+      "endHour": 24,
+      "householdId": "<id2>",
+      "id": "<id4>",
+      "memberIds": [],
+      "reminderMinutes": null,
+      "skipDates": [],
+      "source": "ics",
+      "start": 0,
+      "startHour": 0,
+      "title": "Spring break"
+    }
+  ]
+}

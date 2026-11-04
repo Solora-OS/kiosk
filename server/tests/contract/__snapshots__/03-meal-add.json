@@ -1,0 +1,17 @@
+{
+  "status": 201,
+  "body": {
+    "createdAt": "<time>",
+    "date": "2031-05-16",
+    "day": "Fri",
+    "householdId": "<id1>",
+    "id": "<id2>",
+    "ingredients": [
+      "tortillas",
+      "beans",
+      "salsa"
+    ],
+    "name": "Tacos",
+    "type": "dinner"
+  }
+}

@@ -5,6 +5,7 @@ import { requireAuth, type AuthRequest } from "../middleware/auth"
 import { callerMember, managesLists } from "../lib/household-member"
 import { broadcast } from "../broadcaster"
 import type { Checklist, ChecklistRow, ListItem } from "../types"
+import { logActivity } from "./activity-logs"
 
 const router = Router()
 router.use(requireAuth)
@@ -85,6 +86,7 @@ router.post("/", (req: Request, res: Response) => {
   const id = uuidv4()
   db.prepare("INSERT INTO lists (id, household_id, title, color) VALUES (?, ?, ?, ?)").run(id, householdId, title.trim(), color)
   const checklist = fetchChecklist(id, householdId)!
+  logActivity(req, { action: "list.create", resourceType: "list", resourceId: id, resourceName: title.trim() })
   broadcast(householdId, "lists:created", checklist)
   res.status(201).json(checklist)
 })
@@ -116,10 +118,12 @@ router.delete("/:id", (req: Request, res: Response) => {
   if (!managesLists((req as AuthRequest).user)) { res.status(403).json({ error: NOT_MANAGER }); return }
   const { id } = req.params
   const db = getDb()
-  if (!db.prepare("SELECT id FROM lists WHERE id = ? AND household_id = ?").get(id, householdId)) {
+  const gone = db.prepare("SELECT title FROM lists WHERE id = ? AND household_id = ?").get(id, householdId) as { title: string } | undefined
+  if (!gone) {
     res.status(404).json({ error: "List not found." }); return
   }
   db.prepare("DELETE FROM lists WHERE id = ? AND household_id = ?").run(id, householdId)
+  logActivity(req, { action: "list.delete", resourceType: "list", resourceId: id, resourceName: gone.title })
   broadcast(householdId, "lists:deleted", id)
   res.status(204).end()
 })

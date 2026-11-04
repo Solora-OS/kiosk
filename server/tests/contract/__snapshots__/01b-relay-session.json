@@ -1,0 +1,13 @@
+{
+  "status": 200,
+  "body": {
+    "household": {
+      "id": "<id1>",
+      "name": "The Okafor-Reyes Family"
+    },
+    "user": {
+      "email": "",
+      "id": "<id2>"
+    }
+  }
+}

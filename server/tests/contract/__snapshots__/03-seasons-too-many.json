@@ -1,0 +1,6 @@
+{
+  "status": 400,
+  "body": {
+    "error": "A house can keep up to 12 themes."
+  }
+}

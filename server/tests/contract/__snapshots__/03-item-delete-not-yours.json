@@ -1,0 +1,6 @@
+{
+  "status": 403,
+  "body": {
+    "error": "Only whoever added it, or a parent, can remove this item."
+  }
+}

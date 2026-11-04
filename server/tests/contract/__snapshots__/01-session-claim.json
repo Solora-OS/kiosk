@@ -1,0 +1,16 @@
+{
+  "status": 200,
+  "body": {
+    "household": {
+      "id": "<id1>",
+      "name": "The Okafor-Reyes Family"
+    },
+    "hubId": "<id2>",
+    "remoteKey": "<hex64>",
+    "user": {
+      "email": "maya@family.test",
+      "id": "<id3>",
+      "name": "Maya"
+    }
+  }
+}

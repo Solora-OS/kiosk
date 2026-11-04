@@ -1,0 +1,6 @@
+{
+  "status": 503,
+  "body": {
+    "error": "Central registration pending — retry in a few seconds"
+  }
+}

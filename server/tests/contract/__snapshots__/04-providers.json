@@ -1,0 +1,10 @@
+{
+  "status": 200,
+  "body": [
+    {
+      "connectedAt": "<time>",
+      "email": "maya@gmail.test",
+      "provider": "google"
+    }
+  ]
+}

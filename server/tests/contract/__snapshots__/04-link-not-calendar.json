@@ -1,0 +1,6 @@
+{
+  "status": 400,
+  "body": {
+    "error": "That link isn't a calendar. Look for an iCal or \"subscribe\" link."
+  }
+}

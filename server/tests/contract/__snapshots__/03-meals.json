@@ -1,0 +1,31 @@
+{
+  "status": 200,
+  "body": [
+    {
+      "createdAt": "<time>",
+      "date": "2031-05-17",
+      "day": "Sat",
+      "householdId": "<id1>",
+      "id": "<id2>",
+      "image": "https://example.com/t.jpg",
+      "ingredients": [
+        "tortillas"
+      ],
+      "name": "Tacos",
+      "type": "dinner"
+    },
+    {
+      "createdAt": "<time>",
+      "day": "Sun",
+      "householdId": "<id1>",
+      "id": "<id3>",
+      "ingredients": [
+        "chicken",
+        "potatoes"
+      ],
+      "memberId": "<id4>",
+      "name": "Roast",
+      "type": "lunch"
+    }
+  ]
+}

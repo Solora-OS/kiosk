@@ -1,0 +1,30 @@
+{
+  "status": 201,
+  "body": {
+    "allDay": true,
+    "calendarId": "<id1>",
+    "countdown": true,
+    "createdAt": "<time>",
+    "createdBy": "<id2>",
+    "date": "2031-07-02",
+    "end": 24,
+    "endDate": "2031-07-06",
+    "endHour": 24,
+    "householdId": "<id3>",
+    "id": "<id4>",
+    "memberIds": [
+      "<id2>",
+      "<id5>",
+      "<id6>",
+      "<id7>",
+      "<id8>",
+      "<id9>",
+      "<id10>"
+    ],
+    "reminderMinutes": null,
+    "skipDates": [],
+    "start": 0,
+    "startHour": 0,
+    "title": "Beach trip"
+  }
+}

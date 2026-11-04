@@ -1,0 +1,21 @@
+{
+  "status": 200,
+  "body": {
+    "account": "daniel@family.test",
+    "color": "green",
+    "createdAt": "<time>",
+    "householdId": "<id1>",
+    "id": "<id2>",
+    "initial": "D",
+    "name": "Daniel",
+    "pending": false,
+    "permissions": [
+      "calendar",
+      "chores",
+      "lists",
+      "meals"
+    ],
+    "role": "adult",
+    "userId": "<id3>"
+  }
+}

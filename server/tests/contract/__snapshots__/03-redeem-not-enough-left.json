@@ -1,0 +1,6 @@
+{
+  "status": 409,
+  "body": {
+    "error": "Not enough points yet: 1 of 5."
+  }
+}

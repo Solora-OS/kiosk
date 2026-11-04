@@ -38,9 +38,26 @@ tokio = { version = "1", features = ["rt"] }
 [target.'cfg(target_os = "linux")'.dependencies]
 bluer = { version = "0.17", features = ["bluetoothd"] }
 
+# Android self-update (src/apk_update.rs) checks the same minisign
+# signatures the Tauri updater does on desktop.
+[target.'cfg(target_os = "android")'.dependencies]
+minisign-verify = "0.2"
+base64 = "0.22"
+
+# The household hub runs inside the app (src/hub.rs).
+[target.'cfg(not(target_os = "ios"))'.dependencies]
+solora-hub = { path = "hub" }
+
+[dev-dependencies]
+minisign-verify = "0.2"
+base64 = "0.22"
+
 [target.'cfg(any(target_os = "android", target_os = "ios"))'.dependencies]
 tauri-plugin-haptics = "2"
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-updater = "2"
 
+
+[workspace]
+members = ["hub"]

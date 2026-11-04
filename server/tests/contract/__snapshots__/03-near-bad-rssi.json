@@ -1,0 +1,6 @@
+{
+  "status": 400,
+  "body": {
+    "error": "rssi must be a number from -127 to 0."
+  }
+}

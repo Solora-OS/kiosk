@@ -1,0 +1,16 @@
+{
+  "status": 201,
+  "body": {
+    "createdAt": "<time>",
+    "day": "Sun",
+    "householdId": "<id1>",
+    "id": "<id2>",
+    "ingredients": [
+      "chicken",
+      "potatoes"
+    ],
+    "memberId": "<id3>",
+    "name": "Roast",
+    "type": "lunch"
+  }
+}

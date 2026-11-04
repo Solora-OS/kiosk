@@ -1,0 +1,14 @@
+{
+  "status": 200,
+  "body": {
+    "body": "Checking why the wall restarted overnight. Open Settings › Privacy & support to allow or deny.",
+    "createdAt": "<time>",
+    "householdId": "<id1>",
+    "id": "<id2>",
+    "memberId": "<id3>",
+    "read": false,
+    "ref": "support",
+    "time": "",
+    "title": "Solora Support is asking for access"
+  }
+}

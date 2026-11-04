@@ -126,6 +126,28 @@ export type ClaimInviteInput = {
 
 export type ApiError = { error: string }
 
+/** One entry of the household's history (kiosk/server/src/routes/activity-logs.ts). */
+export type ActivityCategory = "calendar" | "chores" | "lists" | "meals" | "family" | "hub"
+export type ActivityEntry = {
+  id: string
+  /** The member who did it, when known (not for the wall display or Solora). */
+  actorId: string | null
+  actorName: string
+  action: string
+  category: ActivityCategory
+  /** Ready to show: "Maya added “Dentist” to the calendar". */
+  summary: string
+  /** The words `summary` starts with that name who did it ("Maya"), to set in bold. */
+  lead: string
+  bySolora: boolean
+  /** Why Solora did it, for Solora's actions. */
+  reason: string | null
+  createdAt: string
+  /** Pass the last entry's cursor as `before` to load older ones. */
+  cursor: string
+}
+export type ActivityQuery = { category?: ActivityCategory; before?: string; limit?: number }
+
 export interface SoloraApi {
   signUp(input: SignUpInput): Promise<Session & { token: string }>
   signIn(input: SignInInput): Promise<Session & { token: string }>
@@ -177,6 +199,8 @@ export interface SoloraApi {
   getAway(): Promise<Away | null>
   setAway(input: Away): Promise<Away | null>
   endAway(): Promise<void>
+  // household history (kiosk/server/src/routes/activity-logs.ts)
+  getActivity(q?: ActivityQuery): Promise<ActivityEntry[]>
   // the wall's home screen (kiosk/server/src/routes/home.ts)
   getHomeLayout(): Promise<HomeLayout | null>
   setHomeLayout(layout: HomeLayout): Promise<HomeLayout>

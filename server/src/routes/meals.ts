@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from "uuid"
 import { getDb, parseJson } from "../db"
 import { requireAuth, type AuthRequest } from "../middleware/auth"
 import { broadcast } from "../broadcaster"
-import { writeLog } from "./activity-logs"
+import { logActivity, writeLog } from "./activity-logs"
 import { manages } from "../lib/household-member"
 import type { Meal } from "../types"
 
@@ -89,6 +89,7 @@ router.patch("/:id", (req: Request, res: Response) => {
   db.prepare(`UPDATE meals SET ${sets.join(", ")} WHERE id = ? AND household_id = ?`).run(...vals)
   const updated = db.prepare("SELECT * FROM meals WHERE id = ?").get(id) as Record<string, unknown>
   const meal = rowToMeal(updated)
+  logActivity(req, { action: "meal.update", resourceType: "meal", resourceId: meal.id, resourceName: meal.name })
   broadcast(householdId, "meals:updated", meal)
   res.json(meal)
 })

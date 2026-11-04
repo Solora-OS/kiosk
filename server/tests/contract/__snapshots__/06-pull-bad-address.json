@@ -1,0 +1,6 @@
+{
+  "status": 400,
+  "body": {
+    "error": "That doesn't look like a hub address, e.g. 192.168.1.20."
+  }
+}

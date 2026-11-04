@@ -1,0 +1,6 @@
+{
+  "status": 400,
+  "body": {
+    "error": "Send a JPEG, PNG, WebP, GIF or HEIC image."
+  }
+}

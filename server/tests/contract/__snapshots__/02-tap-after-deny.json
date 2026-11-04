@@ -1,0 +1,6 @@
+{
+  "status": 404,
+  "body": {
+    "error": "This tap invite was cancelled or timed out. Ask them to tap again."
+  }
+}

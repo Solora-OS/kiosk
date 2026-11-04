@@ -1,14 +1,15 @@
 {
   "name": "solora-server",
   "version": "1.0.0",
-  "description": "Solora local hub server — Express REST API + Socket.IO, backed by SQLite",
+  "description": "Solora local hub server \u2014 Express REST API + Socket.IO, backed by SQLite",
   "private": true,
   "type": "commonjs",
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
-    "dev": "ts-node-dev --respawn --transpile-only src/index.ts"
+    "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
+    "test:contract": "node --test --test-concurrency=1 tests/contract/contract.test.mjs"
   },
   "engines": {
     "node": ">=20.0.0"

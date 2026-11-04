@@ -1,0 +1,69 @@
+{
+  "status": 200,
+  "body": [
+    {
+      "allDay": false,
+      "countdown": false,
+      "createdAt": "<time>",
+      "createdBy": null,
+      "date": "2031-05-12",
+      "end": 16.5,
+      "endHour": 16.5,
+      "householdId": "<id1>",
+      "id": "<id2>",
+      "location": "Main St",
+      "memberIds": [],
+      "reminderMinutes": 30,
+      "skipDates": [],
+      "start": 15.5,
+      "startHour": 15.5,
+      "time": "15:30",
+      "title": "Dentist"
+    },
+    {
+      "allDay": false,
+      "countdown": false,
+      "createdAt": "<time>",
+      "createdBy": "<id3>",
+      "date": "2031-05-13",
+      "end": 18.25,
+      "endHour": 18.25,
+      "householdId": "<id1>",
+      "id": "<id4>",
+      "memberIds": [],
+      "reminderMinutes": null,
+      "skipDates": [],
+      "start": 17,
+      "startHour": 17,
+      "time": "17:00",
+      "title": "Soccer"
+    },
+    {
+      "allDay": true,
+      "calendarId": "<id5>",
+      "countdown": true,
+      "createdAt": "<time>",
+      "createdBy": "<id3>",
+      "date": "2031-07-02",
+      "end": 24,
+      "endDate": "2031-07-06",
+      "endHour": 24,
+      "householdId": "<id1>",
+      "id": "<id6>",
+      "memberIds": [
+        "<id3>",
+        "<id7>",
+        "<id8>",
+        "<id9>",
+        "<id10>",
+        "<id11>",
+        "<id12>"
+      ],
+      "reminderMinutes": null,
+      "skipDates": [],
+      "start": 0,
+      "startHour": 0,
+      "title": "Beach trip"
+    }
+  ]
+}

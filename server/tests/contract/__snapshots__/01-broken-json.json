@@ -1,0 +1,6 @@
+{
+  "status": 400,
+  "body": {
+    "error": "That request wasn't valid JSON."
+  }
+}

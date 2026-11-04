@@ -1,0 +1,10 @@
+{
+  "status": 200,
+  "body": {
+    "command": {
+      "level": 43,
+      "type": "set_brightness"
+    },
+    "ok": true
+  }
+}

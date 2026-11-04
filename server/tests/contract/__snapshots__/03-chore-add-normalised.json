@@ -1,0 +1,16 @@
+{
+  "status": 201,
+  "body": {
+    "createdAt": "<time>",
+    "done": false,
+    "due": "Saturday",
+    "householdId": "<id1>",
+    "id": "<id2>",
+    "keepWhileAway": true,
+    "memberId": "<id3>",
+    "points": 5,
+    "summerDays": [],
+    "summerMode": "same",
+    "title": "Tidy room"
+  }
+}

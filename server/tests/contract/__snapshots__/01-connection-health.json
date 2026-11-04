@@ -1,0 +1,40 @@
+{
+  "status": 200,
+  "body": {
+    "central_api": {
+      "ok": true,
+      "status": 200,
+      "url": "<url>"
+    },
+    "central_socket": {
+      "ok": true,
+      "status": 200,
+      "url": "<url>"
+    },
+    "hub": {
+      "central_socket_connected": true,
+      "hub_id": "<id1>",
+      "registered_with_central": true
+    },
+    "kiosks": [
+      {
+        "central_device_id": "<id2>",
+        "central_registered": true,
+        "device_name": "Kitchen Wall",
+        "has_central_jwt": true,
+        "local_device_id": "<id3>",
+        "paired": true
+      },
+      {
+        "central_device_id": null,
+        "central_registered": false,
+        "device_name": "Hallway Wall",
+        "has_central_jwt": false,
+        "local_device_id": "<id4>",
+        "paired": false
+      }
+    ],
+    "next_steps": [],
+    "ts": "<time>"
+  }
+}

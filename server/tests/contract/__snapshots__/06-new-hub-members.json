@@ -1,0 +1,95 @@
+{
+  "status": 200,
+  "body": [
+    {
+      "account": "daniel@family.test",
+      "color": "green",
+      "createdAt": "<time>",
+      "householdId": "<id1>",
+      "id": "<id2>",
+      "initial": "D",
+      "name": "Daniel",
+      "pending": false,
+      "permissions": [
+        "calendar",
+        "chores",
+        "lists",
+        "meals"
+      ],
+      "role": "adult",
+      "userId": "<id3>"
+    },
+    {
+      "color": "yellow",
+      "createdAt": "<time>",
+      "householdId": "<id1>",
+      "id": "<id4>",
+      "initial": "L",
+      "name": "Leo",
+      "pending": false,
+      "permissions": [],
+      "role": "child",
+      "userId": "<id5>"
+    },
+    {
+      "color": "blue",
+      "createdAt": "<time>",
+      "householdId": "<id1>",
+      "id": "<id6>",
+      "initial": "L",
+      "name": "Lucia",
+      "pending": true,
+      "permissions": [],
+      "role": "child"
+    },
+    {
+      "account": "maya@family.test",
+      "color": "blue",
+      "createdAt": "<time>",
+      "householdId": "<id1>",
+      "id": "<id7>",
+      "initial": "M",
+      "name": "Maya",
+      "pending": false,
+      "permissions": [],
+      "role": "admin",
+      "userId": "<id8>"
+    },
+    {
+      "account": "rosa@family.test",
+      "color": "pink",
+      "createdAt": "<time>",
+      "householdId": "<id1>",
+      "id": "<id9>",
+      "initial": "R",
+      "name": "Rosa",
+      "pending": false,
+      "permissions": [],
+      "role": "adult",
+      "userId": "<id10>"
+    },
+    {
+      "color": "purple",
+      "createdAt": "<time>",
+      "householdId": "<id1>",
+      "id": "<id11>",
+      "initial": "S",
+      "name": "Sofia",
+      "pending": false,
+      "permissions": [],
+      "role": "teen",
+      "userId": "<id12>"
+    },
+    {
+      "color": "blue",
+      "createdAt": "<time>",
+      "householdId": "<id1>",
+      "id": "<id13>",
+      "initial": "U",
+      "name": "Uncle Ben",
+      "pending": false,
+      "permissions": [],
+      "role": "adult"
+    }
+  ]
+}

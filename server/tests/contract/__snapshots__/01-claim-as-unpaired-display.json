@@ -1,0 +1,6 @@
+{
+  "status": 403,
+  "body": {
+    "error": "Only authenticated household members can claim a device."
+  }
+}

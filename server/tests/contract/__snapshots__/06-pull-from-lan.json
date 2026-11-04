@@ -1,0 +1,6 @@
+{
+  "status": 403,
+  "body": {
+    "error": "Moving a household is only started on the new hub's own screen."
+  }
+}

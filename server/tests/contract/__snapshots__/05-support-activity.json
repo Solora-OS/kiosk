@@ -1,0 +1,68 @@
+{
+  "status": 200,
+  "body": [
+    {
+      "action": "support.granted",
+      "at": "<time>",
+      "bySolora": false,
+      "deviceName": null,
+      "id": "<id1>",
+      "reason": "Your display couldn't update; we'd like to read its logs.",
+      "summary": "Allowed Solora Support to read diagnostics for 24 hours"
+    },
+    {
+      "action": "solora.support.request",
+      "at": "<time>",
+      "bySolora": true,
+      "deviceName": null,
+      "id": "<id2>",
+      "reason": "Checking why the wall restarted overnight.",
+      "summary": "Asked for access to diagnostics"
+    },
+    {
+      "action": "solora.support.request",
+      "at": "<time>",
+      "bySolora": true,
+      "deviceName": null,
+      "id": "<id3>",
+      "reason": "Your display couldn't update; we'd like to read its logs.",
+      "summary": "Asked for access to diagnostics"
+    },
+    {
+      "action": "solora.device.report_status",
+      "at": "<time>",
+      "bySolora": true,
+      "deviceName": "Kitchen Wall",
+      "id": "<id4>",
+      "reason": "Wall reported a slow network",
+      "summary": "Checked on Kitchen Wall"
+    },
+    {
+      "action": "support.denied",
+      "at": "<time>",
+      "bySolora": false,
+      "deviceName": null,
+      "id": "<id5>",
+      "reason": "Checking why the wall restarted overnight.",
+      "summary": "Denied Solora Support's request for diagnostics"
+    },
+    {
+      "action": "support.revoked",
+      "at": "<time>",
+      "bySolora": false,
+      "deviceName": null,
+      "id": "<id6>",
+      "reason": null,
+      "summary": "Ended Solora Support's access"
+    },
+    {
+      "action": "solora.device.reboot",
+      "at": "<time>",
+      "bySolora": true,
+      "deviceName": "Kitchen Wall",
+      "id": "<id7>",
+      "reason": "Display stuck on a blank screen",
+      "summary": "Restarted Kitchen Wall"
+    }
+  ]
+}

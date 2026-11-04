@@ -1,0 +1,19 @@
+{
+  "status": 201,
+  "body": {
+    "household": {
+      "id": "<id1>",
+      "name": "The Okafor-Reyes Family"
+    },
+    "hubId": "<id2>",
+    "lanUrl": "<lanUrl>",
+    "refreshToken": "<refreshToken>",
+    "remoteKey": "<hex64>",
+    "token": "<token>",
+    "user": {
+      "email": null,
+      "id": "<id3>",
+      "name": "Sofia"
+    }
+  }
+}

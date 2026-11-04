@@ -1,0 +1,9 @@
+{
+  "status": 200,
+  "body": {
+    "householdId": "<id1>",
+    "token": "<token>",
+    "url": "<url>",
+    "webcalUrl": "<webcalUrl>"
+  }
+}

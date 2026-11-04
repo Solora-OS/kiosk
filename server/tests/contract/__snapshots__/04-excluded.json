@@ -1,0 +1,9 @@
+{
+  "status": 200,
+  "body": [
+    {
+      "eventId": "e2",
+      "provider": "google"
+    }
+  ]
+}

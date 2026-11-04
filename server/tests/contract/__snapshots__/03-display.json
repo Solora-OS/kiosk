@@ -1,0 +1,17 @@
+{
+  "status": 200,
+  "body": {
+    "displays": [
+      {
+        "deviceId": "<id1>",
+        "lastHeartbeat": "<time>",
+        "name": "Kitchen Wall",
+        "state": {
+          "brightness": 43,
+          "screen": "home"
+        },
+        "updatedAt": "<time>"
+      }
+    ]
+  }
+}

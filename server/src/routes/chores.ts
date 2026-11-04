@@ -7,6 +7,7 @@ import { recordCompletion } from "../services/points"
 import { requireAuth, type AuthRequest } from "../middleware/auth"
 import { broadcast } from "../broadcaster"
 import type { Chore } from "../types"
+import { logActivity } from "./activity-logs"
 
 const router = Router()
 router.use(requireAuth)
@@ -93,6 +94,7 @@ router.post("/", (req: Request, res: Response) => {
     summerModeColumn(summerMode), repeatDaysColumn(summerDays))
   const row = db.prepare("SELECT * FROM chores WHERE id = ?").get(id) as Record<string, unknown>
   const chore = rowToChore(row)
+  logActivity(req, { action: "chore.create", resourceType: "chore", resourceId: chore.id, resourceName: chore.title })
   broadcast(householdId, "chores:created", chore)
   res.status(201).json(chore)
 })
@@ -139,6 +141,15 @@ router.patch("/:id", (req: Request, res: Response) => {
   })()
   const updated = db.prepare("SELECT * FROM chores WHERE id = ?").get(id) as Record<string, unknown>
   const chore = rowToChore(updated)
+  // Checking off is the moment worth seeing; other edits read as "changed".
+  const toggled = body.done !== undefined && Boolean(body.done) !== wasDone
+  const onlyDone = Object.keys(body).every((k) => k === "done")
+  if (toggled || !onlyDone) {
+    logActivity(req, {
+      action: toggled ? (body.done ? "chore.complete" : "chore.uncomplete") : "chore.update",
+      resourceType: "chore", resourceId: chore.id, resourceName: chore.title,
+    })
+  }
   broadcast(householdId, "chores:updated", chore)
   res.json(chore)
 })
@@ -147,10 +158,12 @@ router.delete("/:id", (req: Request, res: Response) => {
   const householdId = (req as AuthRequest).user.householdId!
   const { id } = req.params
   const db = getDb()
-  if (!db.prepare("SELECT id FROM chores WHERE id = ? AND household_id = ?").get(id, householdId)) {
+  const gone = db.prepare("SELECT title FROM chores WHERE id = ? AND household_id = ?").get(id, householdId) as { title: string } | undefined
+  if (!gone) {
     res.status(404).json({ error: "Chore not found." }); return
   }
   db.prepare("DELETE FROM chores WHERE id = ? AND household_id = ?").run(id, householdId)
+  logActivity(req, { action: "chore.delete", resourceType: "chore", resourceId: id, resourceName: gone.title })
   broadcast(householdId, "chores:deleted", id)
   res.status(204).end()
 })

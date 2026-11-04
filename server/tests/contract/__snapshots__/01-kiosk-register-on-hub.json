@@ -1,0 +1,8 @@
+{
+  "status": 201,
+  "body": {
+    "device_token": "<jwt>",
+    "id": "<id1>",
+    "pairing_code": "<pairing_code>"
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "status": 403,
+  "body": {
+    "error": "The setup code is only shown on the hub itself."
+  }
+}

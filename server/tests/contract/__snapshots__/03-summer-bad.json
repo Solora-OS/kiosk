@@ -1,0 +1,6 @@
+{
+  "status": 400,
+  "body": {
+    "error": "Pick the first and last day of the summer break."
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "status": 200,
+  "body": {
+    "data": "<data>",
+    "mime": "image/jpeg",
+    "part": 0,
+    "parts": 2
+  }
+}

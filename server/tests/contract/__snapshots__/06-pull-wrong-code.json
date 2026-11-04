@@ -1,0 +1,6 @@
+{
+  "status": 409,
+  "body": {
+    "error": "Your old hub didn't accept that code. Check it, or start the move again on your phone."
+  }
+}

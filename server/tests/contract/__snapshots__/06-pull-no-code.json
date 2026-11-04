@@ -1,0 +1,6 @@
+{
+  "status": 400,
+  "body": {
+    "error": "Enter the transfer code from your phone."
+  }
+}

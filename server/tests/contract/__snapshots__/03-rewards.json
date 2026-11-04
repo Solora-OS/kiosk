@@ -1,0 +1,96 @@
+{
+  "status": 200,
+  "body": {
+    "points": [
+      {
+        "balance": 5,
+        "earnedThisWeek": 5,
+        "earnedToday": 5,
+        "streak": 1
+      },
+      {
+        "balance": 1,
+        "earnedThisWeek": 10,
+        "earnedToday": 10,
+        "streak": 1
+      },
+      {
+        "balance": 0,
+        "earnedThisWeek": 0,
+        "earnedToday": 0,
+        "streak": 0
+      },
+      {
+        "balance": 0,
+        "earnedThisWeek": 0,
+        "earnedToday": 0,
+        "streak": 0
+      },
+      {
+        "balance": 0,
+        "earnedThisWeek": 0,
+        "earnedToday": 0,
+        "streak": 0
+      },
+      {
+        "balance": 0,
+        "earnedThisWeek": 0,
+        "earnedToday": 0,
+        "streak": 0
+      },
+      {
+        "balance": 0,
+        "earnedThisWeek": 0,
+        "earnedToday": 0,
+        "streak": 0
+      }
+    ],
+    "redemptions": [
+      {
+        "cost": 5,
+        "createdAt": "<time>",
+        "id": "<id1>",
+        "memberId": "<id2>",
+        "rewardId": "<id3>",
+        "status": "approved",
+        "title": "Ice cream"
+      },
+      {
+        "cost": 4,
+        "createdAt": "<time>",
+        "id": "<id4>",
+        "memberId": "<id2>",
+        "rewardId": "<id5>",
+        "status": "approved",
+        "title": "Movie night"
+      },
+      {
+        "cost": 4,
+        "createdAt": "<time>",
+        "id": "<id6>",
+        "memberId": "<id2>",
+        "rewardId": "<id5>",
+        "status": "declined",
+        "title": "Movie night"
+      }
+    ],
+    "rewards": [
+      {
+        "cost": 4,
+        "id": "<id5>",
+        "title": "Movie night"
+      },
+      {
+        "cost": 5,
+        "icon": "ice-cream",
+        "id": "<id3>",
+        "title": "Ice cream"
+      },
+      {
+        "cost": 500,
+        "id": "<id7>",
+        "title": "Water park"
+      }
+    ]
+  }
+}

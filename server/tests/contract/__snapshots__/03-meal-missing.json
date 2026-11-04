@@ -1,0 +1,6 @@
+{
+  "status": 400,
+  "body": {
+    "error": "day (or date) and name are required."
+  }
+}

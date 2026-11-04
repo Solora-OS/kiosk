@@ -1,0 +1,8 @@
+{
+  "status": 200,
+  "body": {
+    "claimed": true,
+    "hub_id": "<id1>",
+    "name": "Contract Hub"
+  }
+}

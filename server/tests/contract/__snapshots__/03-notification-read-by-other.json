@@ -1,0 +1,12 @@
+{
+  "status": 200,
+  "body": {
+    "body": "Come down",
+    "createdAt": "<time>",
+    "householdId": "<id1>",
+    "id": "<id2>",
+    "read": false,
+    "time": "6:00 PM",
+    "title": "Pizza is HERE"
+  }
+}

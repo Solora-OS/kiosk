@@ -1,0 +1,6 @@
+{
+  "status": 400,
+  "body": {
+    "error": "refresh_token is required."
+  }
+}

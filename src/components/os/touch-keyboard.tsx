@@ -206,6 +206,8 @@ export function TouchKeyboard() {
       const m = mode()
       if (m === "never" || (m === "auto" && lastPointer.current === "mouse")) return
       setTarget(el)
+      // Ours replaces the system keyboard (Android would raise its own too).
+      el.inputMode = "none"
       setPage(el instanceof HTMLInputElement && (el.type === "number" || el.type === "tel") ? "symbols" : "letters")
       // Capitalise the first letter of names/titles, not emails/passwords/codes.
       const auto =

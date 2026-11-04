@@ -1,0 +1,12 @@
+{
+  "status": 200,
+  "body": {
+    "holidays": [
+      "christmas",
+      "halloween",
+      "valentines",
+      "pink-october"
+    ],
+    "themes": []
+  }
+}

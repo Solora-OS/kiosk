@@ -1,0 +1,6 @@
+{
+  "status": 409,
+  "body": {
+    "error": "This hub is already set up, so it can't take over another household."
+  }
+}

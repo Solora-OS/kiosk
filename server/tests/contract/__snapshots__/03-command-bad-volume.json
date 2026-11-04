@@ -1,0 +1,6 @@
+{
+  "status": 400,
+  "body": {
+    "error": "level must be a number 0–100."
+  }
+}

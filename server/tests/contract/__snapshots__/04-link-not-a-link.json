@@ -1,0 +1,6 @@
+{
+  "status": 400,
+  "body": {
+    "error": "That doesn't look like a link. It should start with https:// or webcal://."
+  }
+}

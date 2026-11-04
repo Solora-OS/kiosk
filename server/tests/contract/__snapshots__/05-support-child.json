@@ -1,0 +1,6 @@
+{
+  "status": 403,
+  "body": {
+    "error": "Only family admins can manage Solora's access."
+  }
+}

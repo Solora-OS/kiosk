@@ -9,6 +9,7 @@ import { getHubJwt } from "../lib/central-registry"
 import jwt from "jsonwebtoken"
 import type { Invite } from "../types"
 import { lanBaseUrl, registerRemoteInvite, unregisterRemoteInvite } from "../services/invite-relay"
+import { logActivity, writeLog } from "./activity-logs"
 
 const router = Router()
 
@@ -98,6 +99,7 @@ router.post("/", requireAuth, (req: Request, res: Response) => {
 
   const row = db.prepare("SELECT * FROM invites WHERE id = ?").get(id) as Record<string, unknown>
   registerRemoteInvite({ code, token, expiresAt })
+  logActivity(req, { action: "member.invite", resourceType: "member", resourceId: finalMemberId, resourceName: name.trim() })
   res.status(201).json(rowToInvite(row))
 })
 
@@ -339,6 +341,8 @@ router.post("/claim", async (req: Request, res: Response) => {
   const hubJwt = getHubJwt()
   const hubId = hubJwt ? (jwt.decode(hubJwt) as { sub?: string } | null)?.sub ?? null : null
 
+  // Nobody is signed in yet: the person joining is the one who did it.
+  writeLog({ householdId, actorId: invite.member_id as string, action: "member.join", resourceType: "member", resourceId: invite.member_id as string, resourceName: name.trim() })
   res.status(201).json({
     user: { id: userId, email, name: name.trim() },
     household,
@@ -396,6 +400,7 @@ router.post("/claim-device", (req: Request, res: Response) => {
   const hubJwt = getHubJwt()
   const hubId = hubJwt ? (jwt.decode(hubJwt) as { sub?: string } | null)?.sub ?? null : null
 
+  writeLog({ householdId, actorId: invite.member_id as string, action: "member.join", resourceType: "member", resourceId: invite.member_id as string, resourceName: trimmed })
   res.status(201).json({
     user: { id: userId, email: null, name: trimmed },
     household,
@@ -413,8 +418,8 @@ router.delete("/:id", requireAuth, (req: Request, res: Response) => {
   const db = getDb()
 
   const invite = db
-    .prepare("SELECT id, member_id, code, token FROM invites WHERE id = ? AND household_id = ?")
-    .get(id, householdId) as { id: string; member_id: string; code: string; token: string } | undefined
+    .prepare("SELECT id, member_id, code, token, name FROM invites WHERE id = ? AND household_id = ?")
+    .get(id, householdId) as { id: string; member_id: string; code: string; token: string; name: string } | undefined
 
   if (!invite) {
     res.status(404).json({ error: "Invite not found." })
@@ -428,6 +433,7 @@ router.delete("/:id", requireAuth, (req: Request, res: Response) => {
       .run(invite.member_id, householdId)
   })()
   unregisterRemoteInvite(invite)
+  logActivity(req, { action: "member.invite_cancel", resourceType: "member", resourceId: invite.member_id, resourceName: invite.name })
 
   res.status(204).end()
 })

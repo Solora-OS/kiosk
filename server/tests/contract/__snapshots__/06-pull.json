@@ -1,0 +1,13 @@
+{
+  "status": 200,
+  "body": {
+    "calendarsLinked": 0,
+    "chores": 2,
+    "events": 3,
+    "householdName": "The Okafor-Reyes Family",
+    "lists": 1,
+    "meals": 2,
+    "members": 7,
+    "photos": 1
+  }
+}

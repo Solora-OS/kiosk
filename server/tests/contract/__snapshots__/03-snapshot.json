@@ -1,0 +1,372 @@
+{
+  "status": 200,
+  "body": {
+    "calendars": [
+      {
+        "color": "blue",
+        "createdAt": "<time>",
+        "householdId": "<id1>",
+        "id": "<id2>",
+        "memberIds": [
+          "<id3>"
+        ],
+        "name": "Family"
+      },
+      {
+        "color": "purple",
+        "createdAt": "<time>",
+        "householdId": "<id1>",
+        "id": "<id4>",
+        "memberIds": [
+          "<id5>",
+          "<id6>"
+        ],
+        "name": "School"
+      }
+    ],
+    "chores": [
+      {
+        "createdAt": "<time>",
+        "done": true,
+        "doneOn": "<today>",
+        "due": "",
+        "householdId": "<id1>",
+        "icon": "dishes",
+        "id": "<id7>",
+        "keepWhileAway": false,
+        "memberId": "<id6>",
+        "points": 10,
+        "repeatDays": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "summerDays": [
+          1,
+          3
+        ],
+        "summerMode": "days",
+        "title": "Dishes"
+      },
+      {
+        "createdAt": "<time>",
+        "done": true,
+        "doneOn": "<today>",
+        "due": "Saturday",
+        "householdId": "<id1>",
+        "id": "<id8>",
+        "keepWhileAway": true,
+        "memberId": "<id5>",
+        "points": 5,
+        "summerDays": [],
+        "summerMode": "same",
+        "title": "Tidy room!"
+      }
+    ],
+    "events": [
+      {
+        "allDay": false,
+        "countdown": false,
+        "createdAt": "<time>",
+        "createdBy": null,
+        "date": "2031-05-12",
+        "end": 16.5,
+        "endHour": 16.5,
+        "householdId": "<id1>",
+        "id": "<id9>",
+        "location": "Main St",
+        "memberIds": [],
+        "reminderMinutes": 30,
+        "skipDates": [],
+        "start": 15.5,
+        "startHour": 15.5,
+        "time": "15:30",
+        "title": "Dentist"
+      },
+      {
+        "allDay": false,
+        "countdown": false,
+        "createdAt": "<time>",
+        "createdBy": "<id3>",
+        "date": "2031-05-13",
+        "end": 18.25,
+        "endHour": 18.25,
+        "householdId": "<id1>",
+        "id": "<id10>",
+        "memberIds": [],
+        "reminderMinutes": null,
+        "skipDates": [],
+        "start": 17,
+        "startHour": 17,
+        "time": "17:00",
+        "title": "Soccer"
+      },
+      {
+        "allDay": true,
+        "calendarId": "<id4>",
+        "countdown": true,
+        "createdAt": "<time>",
+        "createdBy": "<id3>",
+        "date": "2031-07-02",
+        "end": 24,
+        "endDate": "2031-07-06",
+        "endHour": 24,
+        "householdId": "<id1>",
+        "id": "<id11>",
+        "memberIds": [
+          "<id3>",
+          "<id12>",
+          "<id5>",
+          "<id6>",
+          "<id13>",
+          "<id14>",
+          "<id15>"
+        ],
+        "reminderMinutes": null,
+        "skipDates": [],
+        "start": 0,
+        "startHour": 0,
+        "title": "Beach trip"
+      }
+    ],
+    "lists": [
+      {
+        "color": "green",
+        "createdAt": "<time>",
+        "householdId": "<id1>",
+        "id": "<id16>",
+        "items": [
+          {
+            "addedBy": "<id3>",
+            "createdAt": "<time>",
+            "done": false,
+            "id": "<id17>",
+            "label": "Eggs",
+            "listId": "<id16>",
+            "position": 0
+          }
+        ],
+        "title": "Groceries (Costco)"
+      }
+    ],
+    "meals": [
+      {
+        "createdAt": "<time>",
+        "day": "Sun",
+        "householdId": "<id1>",
+        "id": "<id18>",
+        "ingredients": [
+          "chicken",
+          "potatoes"
+        ],
+        "memberId": "<id12>",
+        "name": "Roast",
+        "type": "lunch"
+      },
+      {
+        "createdAt": "<time>",
+        "date": "2031-05-17",
+        "day": "Sat",
+        "householdId": "<id1>",
+        "id": "<id19>",
+        "image": "https://example.com/t.jpg",
+        "ingredients": [
+          "tortillas"
+        ],
+        "name": "Tacos",
+        "type": "dinner"
+      }
+    ],
+    "members": [
+      {
+        "account": "daniel@family.test",
+        "color": "green",
+        "createdAt": "<time>",
+        "householdId": "<id1>",
+        "id": "<id12>",
+        "initial": "D",
+        "name": "Daniel",
+        "pending": false,
+        "permissions": [
+          "calendar",
+          "chores",
+          "lists",
+          "meals"
+        ],
+        "role": "adult",
+        "userId": "<id20>"
+      },
+      {
+        "color": "yellow",
+        "createdAt": "<time>",
+        "householdId": "<id1>",
+        "id": "<id6>",
+        "initial": "L",
+        "name": "Leo",
+        "pending": false,
+        "permissions": [],
+        "role": "child",
+        "userId": "<id21>"
+      },
+      {
+        "color": "blue",
+        "createdAt": "<time>",
+        "householdId": "<id1>",
+        "id": "<id15>",
+        "initial": "L",
+        "name": "Lucia",
+        "pending": true,
+        "permissions": [],
+        "role": "child"
+      },
+      {
+        "account": "maya@family.test",
+        "color": "blue",
+        "createdAt": "<time>",
+        "householdId": "<id1>",
+        "id": "<id3>",
+        "initial": "M",
+        "name": "Maya",
+        "pending": false,
+        "permissions": [],
+        "role": "admin",
+        "userId": "<id22>"
+      },
+      {
+        "account": "rosa@family.test",
+        "color": "pink",
+        "createdAt": "<time>",
+        "householdId": "<id1>",
+        "id": "<id13>",
+        "initial": "R",
+        "name": "Rosa",
+        "pending": false,
+        "permissions": [],
+        "role": "adult",
+        "userId": "<id23>"
+      },
+      {
+        "color": "purple",
+        "createdAt": "<time>",
+        "householdId": "<id1>",
+        "id": "<id5>",
+        "initial": "S",
+        "name": "Sofia",
+        "pending": false,
+        "permissions": [],
+        "role": "teen",
+        "userId": "<id24>"
+      },
+      {
+        "color": "blue",
+        "createdAt": "<time>",
+        "householdId": "<id1>",
+        "id": "<id14>",
+        "initial": "U",
+        "name": "Uncle Ben",
+        "pending": false,
+        "permissions": [],
+        "role": "adult"
+      }
+    ],
+    "notifications": [
+      {
+        "body": "Say hello on Solora.",
+        "createdAt": "<time>",
+        "householdId": "<id1>",
+        "id": "<id25>",
+        "memberId": "<id6>",
+        "read": false,
+        "ref": "member:<id26>",
+        "time": "",
+        "title": "Biscuit joined the family"
+      },
+      {
+        "body": "Say hello on Solora.",
+        "createdAt": "<time>",
+        "householdId": "<id1>",
+        "id": "<id27>",
+        "read": false,
+        "ref": "member:<id26>",
+        "time": "",
+        "title": "Biscuit joined the family"
+      },
+      {
+        "body": "5 points spent. Enjoy.",
+        "createdAt": "<time>",
+        "householdId": "<id1>",
+        "id": "<id28>",
+        "memberId": "<id6>",
+        "read": false,
+        "ref": "redemption:<id29>",
+        "time": "",
+        "title": "Ice cream: yes!"
+      },
+      {
+        "body": "",
+        "createdAt": "<time>",
+        "householdId": "<id1>",
+        "id": "<id30>",
+        "memberId": "<id6>",
+        "read": false,
+        "time": "",
+        "title": "Just for Leo"
+      },
+      {
+        "body": "Your 4 points are back.",
+        "createdAt": "<time>",
+        "householdId": "<id1>",
+        "id": "<id31>",
+        "memberId": "<id6>",
+        "read": false,
+        "ref": "redemption:<id32>",
+        "time": "",
+        "title": "Movie night: not this time"
+      }
+    ],
+    "photos": [],
+    "seasons": {
+      "holidays": [
+        "easter"
+      ],
+      "themes": [
+        {
+          "accent": {
+            "dark": "#000",
+            "light": "#fff"
+          },
+          "effect": "snow",
+          "id": "custom-1",
+          "imported": true,
+          "name": "Theme 1",
+          "ornament": "custom",
+          "ornamentSvg": "<svg/>",
+          "tagline": "",
+          "tint": 40
+        },
+        {
+          "accent": {
+            "dark": "#000",
+            "light": "#fff"
+          },
+          "effect": "none",
+          "id": "custom-2",
+          "imported": true,
+          "name": "Theme 2",
+          "ornament": "none",
+          "tagline": "",
+          "tint": 40
+        }
+      ]
+    },
+    "summer": {
+      "from": "2031-06-10",
+      "until": "2031-08-20"
+    },
+    "timeZone": "America/Chicago"
+  }
+}

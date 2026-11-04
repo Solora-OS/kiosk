@@ -1,0 +1,6 @@
+{
+  "status": 400,
+  "body": {
+    "error": "Cost must be a whole number of points."
+  }
+}

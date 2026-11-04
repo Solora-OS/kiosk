@@ -1,0 +1,6 @@
+{
+  "status": 409,
+  "body": {
+    "error": "Another phone answered this invite first. Ask them to tap again."
+  }
+}

@@ -1,0 +1,57 @@
+{
+  "status": 200,
+  "body": [
+    {
+      "body": "Say hello on Solora.",
+      "createdAt": "<time>",
+      "householdId": "<id1>",
+      "id": "<id2>",
+      "read": false,
+      "ref": "member:<id3>",
+      "time": "",
+      "title": "Biscuit joined the family"
+    },
+    {
+      "body": "5 points · approve it on the rewards shelf",
+      "createdAt": "<time>",
+      "householdId": "<id1>",
+      "id": "<id4>",
+      "memberId": "<id5>",
+      "read": false,
+      "ref": "redemption:<id6>",
+      "time": "",
+      "title": "Leo wants Ice cream"
+    },
+    {
+      "body": "4 points · approve it on the rewards shelf",
+      "createdAt": "<time>",
+      "householdId": "<id1>",
+      "id": "<id7>",
+      "memberId": "<id5>",
+      "read": false,
+      "ref": "redemption:<id8>",
+      "time": "",
+      "title": "Leo wants Movie night"
+    },
+    {
+      "body": "Come down",
+      "createdAt": "<time>",
+      "householdId": "<id1>",
+      "id": "<id9>",
+      "read": false,
+      "time": "6:00 PM",
+      "title": "Pizza is here"
+    },
+    {
+      "body": "Checking why the wall restarted overnight. Open Settings › Privacy & support to allow or deny.",
+      "createdAt": "<time>",
+      "householdId": "<id1>",
+      "id": "<id10>",
+      "memberId": "<id5>",
+      "read": false,
+      "ref": "support",
+      "time": "",
+      "title": "Solora Support is asking for access"
+    }
+  ]
+}

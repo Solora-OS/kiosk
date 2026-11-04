@@ -1,0 +1,11 @@
+{
+  "status": 200,
+  "body": {
+    "color": "green",
+    "createdAt": "<time>",
+    "householdId": "<id1>",
+    "id": "<id2>",
+    "items": [],
+    "title": "Groceries"
+  }
+}

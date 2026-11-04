@@ -1,0 +1,15 @@
+{
+  "status": 200,
+  "body": [
+    {
+      "color": "blue",
+      "createdAt": "<time>",
+      "householdId": "<id1>",
+      "id": "<id2>",
+      "memberIds": [
+        "<id3>"
+      ],
+      "name": "Family"
+    }
+  ]
+}

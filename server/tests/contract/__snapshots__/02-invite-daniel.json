@@ -1,0 +1,16 @@
+{
+  "status": 201,
+  "body": {
+    "code": "<code>",
+    "color": "green",
+    "createdAt": "<time>",
+    "email": "daniel@family.test",
+    "expiresAt": "<time>",
+    "householdId": "<id1>",
+    "id": "<id2>",
+    "memberId": "<id3>",
+    "name": "Daniel",
+    "role": "adult",
+    "token": "<token>"
+  }
+}

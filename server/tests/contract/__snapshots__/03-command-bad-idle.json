@@ -1,0 +1,6 @@
+{
+  "status": 400,
+  "body": {
+    "error": "minutes must be a number 1–60, or null to disable."
+  }
+}

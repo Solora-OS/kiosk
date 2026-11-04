@@ -1,0 +1,14 @@
+{
+  "status": 201,
+  "body": {
+    "color": "green",
+    "createdAt": "<time>",
+    "householdId": "<id1>",
+    "id": "<id2>",
+    "memberIds": [
+      "<id3>",
+      "<id4>"
+    ],
+    "name": "School"
+  }
+}

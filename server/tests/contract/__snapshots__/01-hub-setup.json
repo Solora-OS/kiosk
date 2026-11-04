@@ -1,0 +1,8 @@
+{
+  "status": 200,
+  "body": {
+    "hubUrl": "<hubUrl>",
+    "name": "Contract Hub",
+    "setupCode": "<setupCode>"
+  }
+}

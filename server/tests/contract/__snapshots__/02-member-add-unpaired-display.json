@@ -1,0 +1,6 @@
+{
+  "status": 403,
+  "body": {
+    "error": "Device is not yet linked to a household."
+  }
+}

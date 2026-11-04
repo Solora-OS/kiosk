@@ -1,0 +1,38 @@
+{
+  "status": 200,
+  "body": {
+    "holidays": [
+      "diwali",
+      "christmas"
+    ],
+    "themes": [
+      {
+        "accent": {
+          "dark": "#000",
+          "light": "#fff"
+        },
+        "effect": "snow",
+        "id": "custom-1",
+        "imported": true,
+        "name": "Theme 1",
+        "ornament": "custom",
+        "ornamentSvg": "<svg/>",
+        "tagline": "",
+        "tint": 40
+      },
+      {
+        "accent": {
+          "dark": "#000",
+          "light": "#fff"
+        },
+        "effect": "none",
+        "id": "custom-2",
+        "imported": true,
+        "name": "Theme 2",
+        "ornament": "none",
+        "tagline": "",
+        "tint": 40
+      }
+    ]
+  }
+}

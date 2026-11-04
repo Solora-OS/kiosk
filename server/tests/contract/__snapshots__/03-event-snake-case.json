@@ -1,0 +1,22 @@
+{
+  "status": 201,
+  "body": {
+    "allDay": false,
+    "countdown": false,
+    "createdAt": "<time>",
+    "createdBy": null,
+    "date": "2031-05-12",
+    "end": 16.5,
+    "endHour": 16.5,
+    "householdId": "<id1>",
+    "id": "<id2>",
+    "location": "Main St",
+    "memberIds": [],
+    "reminderMinutes": 30,
+    "skipDates": [],
+    "start": 15.5,
+    "startHour": 15.5,
+    "time": "15:30",
+    "title": "Dentist"
+  }
+}

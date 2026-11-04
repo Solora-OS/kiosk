@@ -1,0 +1,21 @@
+{
+  "status": 200,
+  "body": [
+    {
+      "caption": "Beach day",
+      "createdAt": "<time>",
+      "filename": "<id1>.png",
+      "householdId": "<id2>",
+      "id": "<id3>",
+      "src": "/photo-files/<id1>.png"
+    },
+    {
+      "caption": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "createdAt": "<time>",
+      "filename": "<id4>.jpg",
+      "householdId": "<id2>",
+      "id": "<id5>",
+      "src": "/photo-files/<id4>.jpg"
+    }
+  ]
+}

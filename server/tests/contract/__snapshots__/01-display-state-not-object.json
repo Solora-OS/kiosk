@@ -1,0 +1,6 @@
+{
+  "status": 400,
+  "body": {
+    "error": "state must be an object."
+  }
+}

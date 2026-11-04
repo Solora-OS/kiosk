@@ -1,0 +1,14 @@
+{
+  "status": 200,
+  "body": [
+    {
+      "calendarId": null,
+      "eventCount": 5,
+      "id": "<id1>",
+      "lastError": "That link isn't a calendar. Look for an iCal or \"subscribe\" link.",
+      "lastSyncedAt": "<time>",
+      "name": "Lincoln Elem.",
+      "url": "<url>"
+    }
+  ]
+}

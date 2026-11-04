@@ -29,3 +29,6 @@ dist-ssr
 !.env.example
 *.env.backup
 .env.backup
+
+# Android release builds (scripts/release-android.sh)
+/release

@@ -1,0 +1,6 @@
+{
+  "status": 409,
+  "body": {
+    "error": "This hub already has a household. Sign in instead of creating a new one."
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "status": 400,
+  "body": {
+    "error": "code, code_verifier, and redirect_uri are required."
+  }
+}

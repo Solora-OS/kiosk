@@ -1,0 +1,18 @@
+{
+  "status": 200,
+  "body": {
+    "code": "<code>",
+    "color": "green",
+    "createdAt": "<time>",
+    "email": "daniel@family.test",
+    "expiresAt": "<time>",
+    "householdId": "<id1>",
+    "householdName": "The Okafor-Reyes Family",
+    "id": "<id2>",
+    "memberId": "<id3>",
+    "memberName": "Daniel",
+    "name": "Daniel",
+    "role": "adult",
+    "token": "<token>"
+  }
+}

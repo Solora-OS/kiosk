@@ -1,0 +1,14 @@
+{
+  "status": 200,
+  "body": {
+    "calendars": [],
+    "chores": [],
+    "events": [],
+    "lists": [],
+    "meals": [],
+    "members": [],
+    "notifications": [],
+    "photos": [],
+    "timeZone": "America/Chicago"
+  }
+}

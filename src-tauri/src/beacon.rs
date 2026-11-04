@@ -13,7 +13,8 @@
 //! Location region monitoring. The two don't fit in one 31-byte packet, so
 //! they're two advertisements.
 //!
-//! Linux only (BlueZ over D-Bus). Elsewhere, and on a box with no Bluetooth
+//! Linux here (BlueZ over D-Bus); Android has its own in SystemPlugin.kt
+//! (android_system.rs). Elsewhere, and on a box with no Bluetooth
 //! adapter, `wall_beacon_start` returns an error the UI just logs.
 
 /// 6C756D6F-7261-4E10-8000-696E76697465 — "lumora" + 4E10 + "invite", next to the invite service.
@@ -85,7 +86,7 @@ mod imp {
 }
 
 /// "a1b2c3d4…" (a device id, dashes allowed) → its first 4 bytes.
-fn parse_tag(device_id: &str) -> Option<[u8; 4]> {
+pub(crate) fn parse_tag(device_id: &str) -> Option<[u8; 4]> {
     let hex: String = device_id.chars().filter(|c| c.is_ascii_hexdigit()).take(8).collect();
     if hex.len() < 8 {
         return None;
@@ -98,6 +99,7 @@ fn parse_tag(device_id: &str) -> Option<[u8; 4]> {
 }
 
 /// Start (or restart) broadcasting this display's beacon.
+#[cfg(not(target_os = "android"))]
 #[tauri::command]
 pub async fn wall_beacon_start(device_id: String) -> Result<(), String> {
     let tag = parse_tag(&device_id).ok_or("device id has no hex tag")?;
@@ -113,6 +115,7 @@ pub async fn wall_beacon_start(device_id: String) -> Result<(), String> {
     }
 }
 
+#[cfg(not(target_os = "android"))]
 #[tauri::command]
 pub fn wall_beacon_stop() {
     #[cfg(target_os = "linux")]

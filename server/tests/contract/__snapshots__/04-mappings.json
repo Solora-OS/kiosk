@@ -1,0 +1,19 @@
+{
+  "status": 200,
+  "body": [
+    {
+      "calendarId": null,
+      "externalId": "primary",
+      "externalName": "Maya (personal)",
+      "id": "<id1>",
+      "provider": "google"
+    },
+    {
+      "calendarId": null,
+      "externalId": "work",
+      "externalName": "work",
+      "id": "<id2>",
+      "provider": "google"
+    }
+  ]
+}

@@ -8,10 +8,7 @@
 import { tokenStore } from "./local-api"
 import { getLocalDeviceId } from "./kiosk-session"
 import { getCentralToken, centralSocket } from "./central-socket"
-
-const LOCAL_API_BASE =
-  (import.meta.env.VITE_SERVER_URL as string | undefined)?.replace(/\/$/, "") ??
-  "http://localhost:4000"
+import { LOCAL_API_BASE } from "./hub-address"
 
 const CENTRAL_SOCKET_URL =
   (import.meta.env.VITE_CENTRAL_SOCKET_URL as string | undefined) ??
@@ -106,7 +103,7 @@ export async function checkConnectionHealth(): Promise<ConnectionHealth> {
   const steps: string[] = []
 
   if (!hubHealth.reachable) {
-    steps.push(`Local hub unreachable at ${LOCAL_API_BASE} — check hub server is running and VITE_SERVER_URL is correct`)
+    steps.push(`Local hub unreachable at ${LOCAL_API_BASE} — check the hub is running (VITE_SOLORA_SERVER_URL, browser dev only)`)
   }
   if (hubHealth.reachable && !deviceToken) {
     steps.push("No device token — kiosk needs to register with local hub (POST /api/v1/kiosk/register). This happens automatically on first launch.")

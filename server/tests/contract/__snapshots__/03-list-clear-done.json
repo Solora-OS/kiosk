@@ -1,0 +1,21 @@
+{
+  "status": 200,
+  "body": {
+    "color": "green",
+    "createdAt": "<time>",
+    "householdId": "<id1>",
+    "id": "<id2>",
+    "items": [
+      {
+        "addedBy": "<id3>",
+        "createdAt": "<time>",
+        "done": false,
+        "id": "<id4>",
+        "label": "Oreos",
+        "listId": "<id2>",
+        "position": 0
+      }
+    ],
+    "title": "Groceries"
+  }
+}

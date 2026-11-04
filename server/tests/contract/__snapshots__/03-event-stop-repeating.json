@@ -1,0 +1,21 @@
+{
+  "status": 200,
+  "body": {
+    "allDay": false,
+    "countdown": false,
+    "createdAt": "<time>",
+    "createdBy": "<id1>",
+    "date": "2031-05-13",
+    "end": 18.25,
+    "endHour": 18.25,
+    "householdId": "<id2>",
+    "id": "<id3>",
+    "memberIds": [],
+    "reminderMinutes": null,
+    "skipDates": [],
+    "start": 17,
+    "startHour": 17,
+    "time": "17:00",
+    "title": "Soccer"
+  }
+}

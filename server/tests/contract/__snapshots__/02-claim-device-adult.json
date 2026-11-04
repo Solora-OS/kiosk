@@ -1,0 +1,6 @@
+{
+  "status": 403,
+  "body": {
+    "error": "Adults join with an email address."
+  }
+}

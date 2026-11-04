@@ -15,6 +15,14 @@
 
 set -euo pipefail
 
+# The kiosk app runs the hub itself now (README.md); this service would take
+# the same port 4000 and the same ~/.lumora.
+if [[ "${SOLORA_NODE_HUB:-}" != "1" ]]; then
+  echo "The hub runs inside the kiosk app now; this Node server is reference only." >&2
+  echo "Set SOLORA_NODE_HUB=1 to install it anyway (then run the app with SOLORA_HUB=off)." >&2
+  exit 1
+fi
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SERVER_DIR="$(dirname "$SCRIPT_DIR")"
 CURRENT_USER="${SUDO_USER:-$USER}"

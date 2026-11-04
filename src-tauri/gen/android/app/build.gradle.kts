@@ -15,14 +15,32 @@ val tauriProperties = Properties().apply {
 
 android {
     compileSdk = 36
-    namespace = "com.lincolnpek.lumoraios"
+    namespace = "com.peakl.lumora_kiosk"
     defaultConfig {
         manifestPlaceholders["usesCleartextTraffic"] = "false"
-        applicationId = "com.lincolnpek.lumoraios"
+        applicationId = "com.peakl.lumora_kiosk"
         minSdk = 24
         targetSdk = 36
         versionCode = tauriProperties.getProperty("tauri.android.versionCode", "1").toInt()
         versionName = tauriProperties.getProperty("tauri.android.versionName", "1.0")
+    }
+    // Release signing reads the key from gen/android/keystore.properties
+    // (never committed). Every release must use this same key: Android refuses
+    // an update signed by a different one. Without the file, release builds
+    // come out unsigned.
+    val keystorePropertiesFile = rootProject.file("keystore.properties")
+    if (keystorePropertiesFile.exists()) {
+        val keystoreProperties = Properties().apply {
+            keystorePropertiesFile.inputStream().use { load(it) }
+        }
+        signingConfigs {
+            create("release") {
+                keyAlias = keystoreProperties["keyAlias"] as String
+                keyPassword = keystoreProperties["password"] as String
+                storeFile = file(keystoreProperties["storeFile"] as String)
+                storePassword = keystoreProperties["password"] as String
+            }
+        }
     }
     buildTypes {
         getByName("debug") {
@@ -37,6 +55,7 @@ android {
             }
         }
         getByName("release") {
+            signingConfigs.findByName("release")?.let { signingConfig = it }
             isMinifyEnabled = true
             proguardFiles(
                 *fileTree(".") { include("**/*.pro") }

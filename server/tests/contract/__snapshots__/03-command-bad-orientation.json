@@ -1,0 +1,6 @@
+{
+  "status": 400,
+  "body": {
+    "error": "Invalid orientation. Must be one of: normal, left, right, inverted, portrait"
+  }
+}

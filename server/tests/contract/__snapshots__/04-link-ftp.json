@@ -1,0 +1,6 @@
+{
+  "status": 400,
+  "body": {
+    "error": "Calendar links start with https:// or webcal://."
+  }
+}

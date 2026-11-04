@@ -1,0 +1,14 @@
+{
+  "status": 200,
+  "body": {
+    "color": "yellow",
+    "createdAt": "<time>",
+    "householdId": "<id1>",
+    "id": "<id2>",
+    "initial": "B",
+    "name": "biscuit the dog",
+    "pending": false,
+    "permissions": [],
+    "role": "child"
+  }
+}

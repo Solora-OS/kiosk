@@ -1,0 +1,27 @@
+{
+  "status": 200,
+  "body": {
+    "counts": {
+      "activity_logs": 70,
+      "calendar_excluded_events": 1,
+      "calendar_provider_mappings": 2,
+      "calendar_providers": 0,
+      "calendars": 2,
+      "chore_completions": 2,
+      "chores": 2,
+      "events": 3,
+      "households": 1,
+      "list_items": 2,
+      "lists": 1,
+      "meals": 2,
+      "members": 7,
+      "notification_states": 17,
+      "notifications": 17,
+      "photos": 1,
+      "redemptions": 3,
+      "rewards": 2,
+      "users": 5
+    },
+    "photos": 1
+  }
+}

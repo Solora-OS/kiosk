@@ -39,6 +39,8 @@ function publish(port: number): void {
 
 /** Publishes the _lumora._tcp Bonjour service. Call once the HTTP server is listening. */
 export function startMdnsAdvertisement(port: number): void {
+  // Test hubs (tests/contract) mustn't show up on real phones on the LAN.
+  if (process.env.SOLORA_MDNS === "off") return
   _bonjour = new Bonjour()
   publish(port)
 

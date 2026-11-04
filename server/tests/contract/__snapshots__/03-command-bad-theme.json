@@ -1,0 +1,6 @@
+{
+  "status": 400,
+  "body": {
+    "error": "theme must be light, dark or system."
+  }
+}

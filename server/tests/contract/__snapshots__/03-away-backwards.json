@@ -1,0 +1,6 @@
+{
+  "status": 400,
+  "body": {
+    "error": "Pick when you leave and when you're back."
+  }
+}

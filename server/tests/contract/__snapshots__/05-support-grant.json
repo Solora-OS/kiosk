@@ -1,0 +1,17 @@
+{
+  "status": 200,
+  "body": {
+    "grant": {
+      "duration_hours": 24,
+      "ended_at": null,
+      "expires_at": "<time>",
+      "id": "<id1>",
+      "reason": "Your display couldn't update; we'd like to read its logs.",
+      "request_expires_at": "<time>",
+      "requested_at": "<time>",
+      "responded_at": "<time>",
+      "scope": "diagnostics",
+      "status": "granted"
+    }
+  }
+}

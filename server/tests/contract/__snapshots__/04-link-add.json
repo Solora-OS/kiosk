@@ -1,0 +1,12 @@
+{
+  "status": 201,
+  "body": {
+    "calendarId": "<id1>",
+    "eventCount": 6,
+    "id": "<id2>",
+    "lastError": null,
+    "lastSyncedAt": "<time>",
+    "name": "Lincoln Elementary",
+    "url": "<url>"
+  }
+}

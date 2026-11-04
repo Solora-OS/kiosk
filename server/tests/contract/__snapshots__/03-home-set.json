@@ -1,0 +1,20 @@
+{
+  "status": 200,
+  "body": {
+    "widgets": [
+      {
+        "id": "clock",
+        "size": "s",
+        "type": "clock"
+      },
+      {
+        "config": {
+          "days": 3
+        },
+        "id": "cal",
+        "size": "full",
+        "type": "calendar"
+      }
+    ]
+  }
+}

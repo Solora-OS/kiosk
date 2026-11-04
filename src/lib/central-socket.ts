@@ -11,10 +11,7 @@
 
 import { io, type Socket } from "socket.io-client"
 import { tokenStore } from "./local-api"
-
-const LOCAL_API_BASE =
-  (import.meta.env.VITE_SERVER_URL as string | undefined)?.replace(/\/$/, "") ??
-  "http://localhost:4000"
+import { LOCAL_API_BASE } from "./hub-address"
 
 const CENTRAL_SOCKET_URL =
   import.meta.env.VITE_CENTRAL_SOCKET_URL?.replace(/\/$/, "") ??

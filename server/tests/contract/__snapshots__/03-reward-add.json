@@ -1,0 +1,9 @@
+{
+  "status": 201,
+  "body": {
+    "cost": 5,
+    "icon": "ice-cream",
+    "id": "<id1>",
+    "title": "Ice cream"
+  }
+}

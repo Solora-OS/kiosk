@@ -1,0 +1,6 @@
+{
+  "status": 500,
+  "body": {
+    "error": "Google credentials not configured on server."
+  }
+}

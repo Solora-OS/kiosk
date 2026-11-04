@@ -1,0 +1,7 @@
+{
+  "status": 201,
+  "body": {
+    "expiresAt": "<time>",
+    "ticket": "<ticket>"
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "status": 400,
+  "body": {
+    "error": "That link points at this hub itself."
+  }
+}

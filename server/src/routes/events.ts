@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from "uuid"
 import { getDb, parseJson, toBool } from "../db"
 import { requireAuth, type AuthRequest } from "../middleware/auth"
 import { broadcast } from "../broadcaster"
-import { writeLog } from "./activity-logs"
+import { logActivity, writeLog } from "./activity-logs"
 import { callerMember, manages } from "../lib/household-member"
 import type { CalendarEvent } from "../types"
 
@@ -155,6 +155,7 @@ router.post("/", (req: Request, res: Response) => {
   )
   const row = db.prepare("SELECT * FROM events WHERE id = ?").get(id) as Record<string, unknown>
   const event = rowToEvent(row)
+  logActivity(req, { action: "event.create", resourceType: "event", resourceId: event.id, resourceName: event.title })
   broadcast(householdId, "events:created", event)
   res.status(201).json(event)
 })
@@ -201,6 +202,7 @@ router.patch("/:id", (req: Request, res: Response) => {
   db.prepare(`UPDATE events SET ${sets.join(", ")} WHERE id = ? AND household_id = ?`).run(...vals)
   const updated = db.prepare("SELECT * FROM events WHERE id = ?").get(id) as Record<string, unknown>
   const event = rowToEvent(updated)
+  logActivity(req, { action: "event.update", resourceType: "event", resourceId: event.id, resourceName: event.title })
   broadcast(householdId, "events:updated", event)
   res.json(event)
 })

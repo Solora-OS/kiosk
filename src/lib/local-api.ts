@@ -1,10 +1,9 @@
 // ---------------------------------------------------------------------------
 // Solora local API client
 //
-// Replaces all Supabase / cloud adapters. Talks exclusively to the local
-// Express + Socket.IO server running at http://<kiosk-ip>:4000 (systemd
-// service: lumora-server). During development VITE_LOCAL_API_URL defaults
-// to http://localhost:4000.
+// Replaces all Supabase / cloud adapters. Talks exclusively to the household
+// hub (HTTP + Socket.IO), which runs inside the app on port 4000; see
+// hub-address.ts.
 //
 // Auth flow:
 //   1. signUp / signIn authenticate against Solora central (account.ts),
@@ -41,6 +40,7 @@ import type {
   CreateInviteInput,
   ClaimInviteInput,
   Invite,
+  ActivityEntry,
 } from "./api"
 import type {
   Calendar,
@@ -64,18 +64,9 @@ import type {
 // Config
 // ---------------------------------------------------------------------------
 
-/** Base URL of the local Express server.
- *
- *  In development the Vite proxy forwards /api, /socket.io and /photo-files
- *  to localhost:4000, so we use an empty string (same-origin) — this avoids
- *  all CORS / access-control errors in the browser preview.
- *
- *  In production (Tauri or a custom deploy) VITE_SOLORA_SERVER_URL must be
- *  set to the full server address, e.g. "http://192.168.1.10:4000".
- */
-export const LOCAL_API_BASE =
-  import.meta.env.VITE_SOLORA_SERVER_URL?.replace(/\/$/, "") ??
-  "http://127.0.0.1:4000";
+/** Base URL of the household hub (hub-address.ts). */
+export { LOCAL_API_BASE } from "./hub-address";
+import { LOCAL_API_BASE } from "./hub-address";
 
 const API = `${LOCAL_API_BASE}/api/v1`;
 
@@ -803,6 +794,9 @@ export function createLocalApi(): SoloraApi {
     },
     async getAway() {
       return req<Away | null>("/away", "GET")
+    },
+    async getActivity(q) {
+      return req<ActivityEntry[]>(`/activity-logs?${new URLSearchParams(Object.entries(q ?? {}).filter(([, v]) => v !== undefined).map(([k, v]) => [k, String(v)])).toString()}`, "GET")
     },
     async setAway(input) {
       return req<Away | null>("/away", "PUT", input)

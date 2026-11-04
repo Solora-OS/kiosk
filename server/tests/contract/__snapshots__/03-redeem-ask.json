@@ -1,0 +1,12 @@
+{
+  "status": 201,
+  "body": {
+    "cost": 5,
+    "createdAt": "<time>",
+    "id": "<id1>",
+    "memberId": "<id2>",
+    "rewardId": "<id3>",
+    "status": "requested",
+    "title": "Ice cream"
+  }
+}

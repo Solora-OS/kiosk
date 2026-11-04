@@ -1,0 +1,6 @@
+{
+  "status": 409,
+  "body": {
+    "error": "No phone is waiting on this invite."
+  }
+}

@@ -22,6 +22,7 @@ import { getDb, PHOTOS_DIR } from "../db"
 import { requireAuth, type AuthRequest } from "../middleware/auth"
 import { broadcast } from "../broadcaster"
 import type { Photo } from "../types"
+import { logActivity } from "./activity-logs"
 
 const router = Router()
 router.use(requireAuth)
@@ -84,6 +85,7 @@ router.post("/", upload.single("file"), (req: Request, res: Response) => {
 
   const row = getDb().prepare("SELECT * FROM photos WHERE id = ?").get(id) as Record<string, unknown>
   const photo = rowToPhoto(row)
+  logActivity(req, { action: "photo.add", resourceType: "photo", resourceId: photo.id })
   broadcast(householdId, "photos:created", photo)
   res.status(201).json(photo)
 })
@@ -152,6 +154,7 @@ router.post("/base64", (req: Request, res: Response) => {
     .prepare("INSERT INTO photos (id, household_id, filename, src, caption) VALUES (?, ?, ?, ?, ?)")
     .run(id, householdId, filename, `/photo-files/${filename}`, String(caption).trim().slice(0, 200))
   const photo = rowToPhoto(getDb().prepare("SELECT * FROM photos WHERE id = ?").get(id) as Record<string, unknown>)
+  logActivity(req, { action: "photo.add", resourceType: "photo", resourceId: photo.id })
   broadcast(householdId, "photos:created", photo)
   res.status(201).json(photo)
 })
@@ -178,6 +181,7 @@ router.delete("/:id", (req: Request, res: Response) => {
   }
 
   db.prepare("DELETE FROM photos WHERE id = ? AND household_id = ?").run(id, householdId)
+  logActivity(req, { action: "photo.delete", resourceType: "photo", resourceId: id })
   broadcast(householdId, "photos:deleted", id)
   res.status(204).end()
 })

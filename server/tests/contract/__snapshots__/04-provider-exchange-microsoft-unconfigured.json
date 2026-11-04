@@ -1,0 +1,6 @@
+{
+  "status": 500,
+  "body": {
+    "error": "Microsoft credentials not configured on server."
+  }
+}

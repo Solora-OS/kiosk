@@ -1,0 +1,24 @@
+{
+  "status": 200,
+  "body": [
+    {
+      "body": "Say hello on Solora.",
+      "createdAt": "<time>",
+      "householdId": "<id1>",
+      "id": "<id2>",
+      "read": false,
+      "ref": "member:<id3>",
+      "time": "",
+      "title": "Biscuit joined the family"
+    },
+    {
+      "body": "Come down",
+      "createdAt": "<time>",
+      "householdId": "<id1>",
+      "id": "<id4>",
+      "read": false,
+      "time": "6:00 PM",
+      "title": "Pizza is here"
+    }
+  ]
+}

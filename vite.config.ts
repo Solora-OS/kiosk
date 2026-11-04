@@ -8,12 +8,12 @@ const host = process.env.TAURI_DEV_HOST
 // https://vite.dev/config/
 export default defineConfig(async ({ mode }) => {
   // Load only VITE_-prefixed env vars to avoid bundling server secrets into
-  // the frontend. Set VITE_SOLORA_SERVER_URL in your .env for the hub address.
+  // the frontend.
   const env = loadEnv(mode, process.cwd(), "VITE_")
 
-  // The local Express + Socket.IO server. Defaults to localhost:4000.
-  // Override with VITE_SOLORA_SERVER_URL in .env (VITE_LUMORA_SERVER_URL still works).
-  const serverUrl = env.VITE_SOLORA_SERVER_URL || env.VITE_LUMORA_SERVER_URL || "http://localhost:4000"
+  // The household hub for browser dev (and its proxy). The app itself always
+  // uses its in-app hub on localhost:4000 (src/lib/hub-address.ts).
+  const serverUrl = env.VITE_SOLORA_SERVER_URL || "http://localhost:4000"
 
   // Inline plugin that suppresses EPIPE / ECONNRESET noise from Vite's own
   // internal WebSocket server (HMR). These errors fire when Tauri's WebView

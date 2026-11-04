@@ -1,0 +1,32 @@
+{
+  "status": 200,
+  "body": [
+    {
+      "action": "solora.support.request",
+      "at": "<time>",
+      "bySolora": true,
+      "deviceName": null,
+      "id": "<id1>",
+      "reason": "Checking why the wall restarted overnight.",
+      "summary": "Asked for access to diagnostics"
+    },
+    {
+      "action": "solora.device.report_status",
+      "at": "<time>",
+      "bySolora": true,
+      "deviceName": "Kitchen Wall",
+      "id": "<id2>",
+      "reason": "Wall reported a slow network",
+      "summary": "Checked on Kitchen Wall"
+    },
+    {
+      "action": "support.denied",
+      "at": "<time>",
+      "bySolora": false,
+      "deviceName": null,
+      "id": "<id3>",
+      "reason": "Checking why the wall restarted overnight.",
+      "summary": "Denied Solora Support's request for diagnostics"
+    }
+  ]
+}

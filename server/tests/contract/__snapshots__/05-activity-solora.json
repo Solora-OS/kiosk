@@ -1,0 +1,26 @@
+{
+  "status": 200,
+  "body": {
+    "action": "solora.device.reboot",
+    "actorId": null,
+    "actorName": "Solora",
+    "bySolora": true,
+    "category": "hub",
+    "createdAt": "<time>",
+    "cursor": "<time>",
+    "id": "<id1>",
+    "lead": "Solora",
+    "metadata": {
+      "approved": false,
+      "at": "<time>",
+      "central_id": 7,
+      "reason": "Display stuck on a blank screen",
+      "summary": "Restarted Kitchen Wall"
+    },
+    "reason": "Display stuck on a blank screen",
+    "resourceId": "<id2>",
+    "resourceName": "Kitchen Wall",
+    "resourceType": "device",
+    "summary": "Solora restarted Kitchen Wall"
+  }
+}

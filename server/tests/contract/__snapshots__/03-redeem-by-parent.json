@@ -1,0 +1,12 @@
+{
+  "status": 201,
+  "body": {
+    "cost": 4,
+    "createdAt": "<time>",
+    "id": "<id1>",
+    "memberId": "<id2>",
+    "rewardId": "<id3>",
+    "status": "approved",
+    "title": "Movie night"
+  }
+}

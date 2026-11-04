@@ -1,5 +1,14 @@
 # lumora-server
 
+> **Reference only (since 2026-11-04).** The hub now runs inside the kiosk app,
+> in Rust (`kiosk/src-tauri/hub`, see `kiosk/docs/hub-rust-port-plan.md`), on
+> the panel, Linux and macOS. Nothing installs or starts this server any more;
+> don't run `scripts/install.sh` on a hub. It stays for one release as the
+> behaviour the Rust hub is checked against (`npm run test:contract`, which runs
+> both), then goes away. Before deleting this folder, move `scripts/schema.sql`
+> into `kiosk/src-tauri/hub/` (the Rust hub embeds it) and the contract suite
+> (`tests/contract`) next to it.
+
 Local Express + Socket.IO server for the Solora kiosk hub.
 All household data is stored in SQLite at `$HOME/.lumora/lumora.db`.
 Photos are stored as files in `$HOME/.lumora/photos/`.

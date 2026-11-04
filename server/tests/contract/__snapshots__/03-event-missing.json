@@ -1,0 +1,6 @@
+{
+  "status": 400,
+  "body": {
+    "error": "title and date (yyyy-mm-dd) are required."
+  }
+}

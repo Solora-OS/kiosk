@@ -25,6 +25,15 @@ function isTauri(): boolean {
   return typeof window !== "undefined" && "__TAURI_INTERNALS__" in window
 }
 
+/** The Android wall display, which updates through apk_update.rs instead of the Tauri updater. */
+function isAndroid(): boolean {
+  return isTauri() && /Android/i.test(navigator.userAgent)
+}
+
+const CENTRAL_API_URL =
+  (import.meta.env.VITE_CENTRAL_API_URL as string | undefined)?.replace(/\/$/, "") ??
+  "http://localhost:4000"
+
 // ---- Update info ----------------------------------------------------------
 
 export type UpdateInfo = {
@@ -40,6 +49,8 @@ export type UpdateInfo = {
   signed: boolean
   /** The raw Tauri Update object so we can call .downloadAndInstall() */
   _raw: Update | null
+  /** On Android: the APK central offered, installed by apk_update_install */
+  _apk?: { url: string; signature: string }
   /** ota_push_jobs id, when this update was triggered by a central OTA push — used to report completion back */
   jobId?: string
 }
@@ -70,6 +81,7 @@ export function dismissUpdate(): void {
 
 /** Download and install the pending update, then relaunch. */
 export async function installUpdate(): Promise<void> {
+  if (pendingUpdate?._apk) return installApkUpdate(pendingUpdate)
   if (!pendingUpdate?._raw) return
   const { version, jobId } = pendingUpdate
   addLog("info", "updates", `Installing update to v${version}…`)
@@ -89,6 +101,81 @@ export async function installUpdate(): Promise<void> {
   // there's no later point at which we could still call back.
   void centralSocket.reportOtaResult(jobId, true, version)
   await relaunch()
+}
+
+// ---- Android APK updates ----------------------------------------------------
+
+type ApkInstallOutcome = { status: "installing" | "needs_confirmation" }
+
+// An APK install replaces this process, so the result is reported by the new
+// version on its next update check (reconcileApkUpdate), not here.
+const APK_PENDING_KEY = "solora.ota.apk_pending"
+
+async function installApkUpdate(update: UpdateInfo): Promise<void> {
+  const { version, jobId, _apk } = update
+  addLog("info", "updates", `Installing update to v${version}…`)
+  try {
+    localStorage.setItem(APK_PENDING_KEY, JSON.stringify({ version, jobId }))
+  } catch { /* ignore */ }
+  try {
+    const { invoke } = await import("@tauri-apps/api/core")
+    centralSocket.emitOtaProgress(0, "downloading")
+    const out = await invoke<ApkInstallOutcome>("apk_update_install", { url: _apk!.url, signature: _apk!.signature })
+    if (out.status === "needs_confirmation") {
+      addLog("warning", "updates", `v${version} is waiting for someone to tap Install (Solora isn't device owner)`)
+    }
+  } catch (error) {
+    try { localStorage.removeItem(APK_PENDING_KEY) } catch { /* ignore */ }
+    const message = error instanceof Error ? error.message : String(error)
+    addLog("error", "updates", `Update to v${version} failed: ${message}`)
+    void centralSocket.reportOtaResult(jobId, false, version, message)
+    throw error
+  }
+}
+
+/** After an APK install: report whether this process is now the version we tried to install. */
+async function reconcileApkUpdate(current: string): Promise<void> {
+  let attempt: { version: string; jobId?: string } | null = null
+  try { attempt = JSON.parse(localStorage.getItem(APK_PENDING_KEY) ?? "null") } catch { /* ignore */ }
+  if (!attempt) return
+  try { localStorage.removeItem(APK_PENDING_KEY) } catch { /* ignore */ }
+  if (attempt.version === current) {
+    addLog("success", "updates", `Updated to v${current}`)
+    void centralSocket.reportOtaResult(attempt.jobId, true, current)
+  } else {
+    addLog("error", "updates", `Update to v${attempt.version} didn't install — still on v${current}`)
+    void centralSocket.reportOtaResult(attempt.jobId, false, current, "install did not complete")
+  }
+}
+
+/** Ask central for a newer APK, as the Tauri updater does on desktop. */
+async function checkApkUpdate(token: string | null): Promise<(UpdateInfo & { installWindow?: unknown }) | null> {
+  const { invoke } = await import("@tauri-apps/api/core")
+  const { getVersion } = await import("@tauri-apps/api/app")
+  const [current, { target, arch }] = await Promise.all([
+    getVersion(),
+    invoke<{ target: string; arch: string }>("update_target"),
+  ])
+  await reconcileApkUpdate(current)
+  const res = await fetch(`${CENTRAL_API_URL}/updates/${target}/${arch}/${current}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    signal: AbortSignal.timeout(15_000),
+  })
+  if (res.status === 204) return null
+  if (!res.ok) throw new Error(`update check returned ${res.status}`)
+  const r = (await res.json()) as {
+    version: string; notes: string | null; pub_date: string | null; url: string; signature: string; install_window?: unknown
+  }
+  return {
+    version: r.version,
+    date: r.pub_date,
+    body: r.notes,
+    sha256: r.notes?.match(/SHA-256[:\s]+([a-fA-F0-9]{64})/i)?.[1] ?? null,
+    signed: true, // apk_update.rs refuses anything the updater key didn't sign
+    _raw: null,
+    _apk: { url: r.url, signature: r.signature },
+    installWindow: r.install_window,
+  }
 }
 
 export function isHubDevice(): boolean {
@@ -213,6 +300,20 @@ export async function checkForUpdates(jobId?: string): Promise<boolean> {
     // token tells it which hub this is, so it can hold back releases still
     // rolling out to other rings; without one, only fully released versions come.
     const token = getCentralToken()
+    if (isAndroid()) {
+      const apk = await checkApkUpdate(token)
+      if (!apk) {
+        addLog("info", "updates", "No update available — already on latest version")
+        if (jobId) void centralSocket.reportOtaResult(jobId, true)
+        return false
+      }
+      const { installWindow, ...info } = apk
+      pendingUpdate = { ...info, jobId }
+      emitUpdate()
+      addLog("success", "updates", `Update available: v${apk.version}`)
+      scheduleQuietInstall(installWindow)
+      return true
+    }
     const update = await check(token ? { headers: { Authorization: `Bearer ${token}` } } : undefined)
     if (!update) {
       addLog("info", "updates", "No update available — already on latest version")

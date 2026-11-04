@@ -1,0 +1,8 @@
+{
+  "status": 200,
+  "body": {
+    "cost": 4,
+    "id": "<id1>",
+    "title": "Movie night"
+  }
+}

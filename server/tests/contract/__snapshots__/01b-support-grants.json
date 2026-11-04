@@ -1,0 +1,19 @@
+{
+  "status": 200,
+  "body": {
+    "grants": [
+      {
+        "duration_hours": 72,
+        "ended_at": null,
+        "expires_at": null,
+        "id": "<id1>",
+        "reason": "Checking why the wall restarted overnight.",
+        "request_expires_at": "<time>",
+        "requested_at": "<time>",
+        "responded_at": null,
+        "scope": "diagnostics",
+        "status": "requested"
+      }
+    ]
+  }
+}

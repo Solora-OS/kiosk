@@ -1,0 +1,11 @@
+{
+  "status": 201,
+  "body": {
+    "caption": "Beach day",
+    "createdAt": "<time>",
+    "filename": "<id1>.png",
+    "householdId": "<id2>",
+    "id": "<id3>",
+    "src": "/photo-files/<id1>.png"
+  }
+}

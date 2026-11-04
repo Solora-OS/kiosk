@@ -1,0 +1,6 @@
+{
+  "status": 403,
+  "body": {
+    "error": "Only admins and members with hub access can control the display."
+  }
+}

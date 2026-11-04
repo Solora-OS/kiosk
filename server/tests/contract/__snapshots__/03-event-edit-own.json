@@ -1,0 +1,23 @@
+{
+  "status": 200,
+  "body": {
+    "allDay": false,
+    "countdown": false,
+    "createdAt": "<time>",
+    "createdBy": "<id1>",
+    "date": "2031-05-14",
+    "end": 17,
+    "endHour": 17,
+    "householdId": "<id2>",
+    "id": "<id3>",
+    "memberIds": [
+      "<id1>"
+    ],
+    "reminderMinutes": null,
+    "skipDates": [],
+    "start": 16.5,
+    "startHour": 16.5,
+    "time": "16:30",
+    "title": "Lego Club"
+  }
+}

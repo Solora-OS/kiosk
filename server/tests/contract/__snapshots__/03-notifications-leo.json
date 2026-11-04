@@ -1,0 +1,67 @@
+{
+  "status": 200,
+  "body": [
+    {
+      "body": "Say hello on Solora.",
+      "createdAt": "<time>",
+      "householdId": "<id1>",
+      "id": "<id2>",
+      "memberId": "<id3>",
+      "read": false,
+      "ref": "member:<id4>",
+      "time": "",
+      "title": "Biscuit joined the family"
+    },
+    {
+      "body": "Say hello on Solora.",
+      "createdAt": "<time>",
+      "householdId": "<id1>",
+      "id": "<id5>",
+      "read": false,
+      "ref": "member:<id4>",
+      "time": "",
+      "title": "Biscuit joined the family"
+    },
+    {
+      "body": "5 points spent. Enjoy.",
+      "createdAt": "<time>",
+      "householdId": "<id1>",
+      "id": "<id6>",
+      "memberId": "<id3>",
+      "read": false,
+      "ref": "redemption:<id7>",
+      "time": "",
+      "title": "Ice cream: yes!"
+    },
+    {
+      "body": "",
+      "createdAt": "<time>",
+      "householdId": "<id1>",
+      "id": "<id8>",
+      "memberId": "<id3>",
+      "read": false,
+      "time": "",
+      "title": "Just for Leo"
+    },
+    {
+      "body": "Your 4 points are back.",
+      "createdAt": "<time>",
+      "householdId": "<id1>",
+      "id": "<id9>",
+      "memberId": "<id3>",
+      "read": false,
+      "ref": "redemption:<id10>",
+      "time": "",
+      "title": "Movie night: not this time"
+    },
+    {
+      "body": "Come down",
+      "createdAt": "<time>",
+      "householdId": "<id1>",
+      "id": "<id11>",
+      "read": false,
+      "time": "6:00 PM",
+      "title": "Pizza is here"
+    }
+  ]
+}

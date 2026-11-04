@@ -1,4 +1,4 @@
 <resources>
-    <string name="app_name">"lumora_ios"</string>
-    <string name="main_activity_title">"lumora_ios"</string>
+    <string name="app_name">"lumora_kiosk"</string>
+    <string name="main_activity_title">"lumora_kiosk"</string>
 </resources>

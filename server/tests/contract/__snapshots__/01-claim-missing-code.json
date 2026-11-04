@@ -1,0 +1,6 @@
+{
+  "status": 400,
+  "body": {
+    "error": "pairing_code is required."
+  }
+}

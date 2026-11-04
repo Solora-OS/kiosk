@@ -1,0 +1,43 @@
+[package]
+name = "solora-hub"
+version = "0.1.0"
+edition = "2021"
+description = "The Solora household hub: the family's API, live events and link to central, in-process in the kiosk app."
+
+[lib]
+name = "solora_hub"
+path = "src/lib.rs"
+
+[[bin]]
+name = "solora-hub"
+path = "src/main.rs"
+
+[dependencies]
+axum = { version = "0.8", features = ["macros", "multipart"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "sync", "time", "signal", "fs"] }
+tower-http = { version = "0.6", features = ["cors"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["preserve_order"] }
+rusqlite = { version = "0.37", features = ["bundled"] }
+jsonwebtoken = { version = "10", default-features = false, features = ["rust_crypto"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+socketioxide = { version = "0.18", features = ["extensions", "state"] }
+tokio-tungstenite = { version = "0.27", default-features = false, features = ["connect", "rustls-tls-webpki-roots"] }
+futures-util = "0.3"
+uuid = { version = "1", features = ["v4"] }
+rand = "0.8"
+sha2 = "0.10"
+hmac = "0.12"
+hex = "0.4"
+base64 = "0.22"
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+local-ip-address = "0.6"
+anyhow = "1"
+aes-gcm = "0.10"
+p256 = { version = "0.13", features = ["ecdh"] }
+hkdf = "0.12"
+chrono-tz = "0.10"
+iana-time-zone = "0.1"
+url = "2"
+scrypt = { version = "0.11", default-features = false }
+mdns-sd = "0.13"

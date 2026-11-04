@@ -186,7 +186,7 @@ export function KioskAppShell() {
             {head.showMembers ? <MemberChips /> : null}
 
             {/* Only this element scrolls — overflow-y-auto, never x */}
-            <main className={`overflow-x-hidden ${tab === "calendar" ? "flex flex-1 flex-col overflow-hidden" : "flex-1 overflow-y-auto"}`}>
+            <main data-effects-area className={`overflow-x-hidden ${tab === "calendar" ? "flex flex-1 flex-col overflow-hidden" : "flex-1 overflow-y-auto"}`}>
               {tab === "home" && !loading ? (
                 <ErrorBoundary resetKey={tab}>
                   <HomeView />

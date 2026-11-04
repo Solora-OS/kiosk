@@ -1,0 +1,6 @@
+{
+  "status": 403,
+  "body": {
+    "error": "That setup code doesn't match. It's shown on your hub's screen."
+  }
+}

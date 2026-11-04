@@ -7,6 +7,7 @@ import { unregisterRemoteInvite } from "../services/invite-relay"
 import { notifyMembers } from "../services/notify"
 import { callerMember } from "../lib/household-member"
 import type { Member } from "../types"
+import { logActivity } from "./activity-logs"
 
 const router = Router()
 router.use(requireAuth)
@@ -83,6 +84,7 @@ router.post("/", (req: Request, res: Response) => {
 
   const row = db.prepare("SELECT * FROM members WHERE id = ?").get(id) as Record<string, unknown>
   const member = rowToMember(row)
+  logActivity(req, { action: "member.create", resourceType: "member", resourceId: member.id, resourceName: member.name })
   broadcast(householdId, "members:created", member)
   // Family news: everyone else hears about the new arrival.
   const me = callerMember((req as AuthRequest).user)?.id
@@ -133,6 +135,7 @@ router.patch("/:id", (req: Request, res: Response) => {
 
   const updated = db.prepare("SELECT * FROM members WHERE id = ?").get(id) as Record<string, unknown>
   const member = rowToMember(updated)
+  logActivity(req, { action: "member.update", resourceType: "member", resourceId: member.id, resourceName: member.name })
   broadcast(householdId, "members:updated", member)
   res.json(member)
 })
@@ -144,8 +147,8 @@ router.delete("/:id", (req: Request, res: Response) => {
   const db = getDb()
 
   const existing = db
-    .prepare("SELECT id FROM members WHERE id = ? AND household_id = ?")
-    .get(id, householdId)
+    .prepare("SELECT id, name FROM members WHERE id = ? AND household_id = ?")
+    .get(id, householdId) as { id: string; name: string } | undefined
   if (!existing) {
     res.status(404).json({ error: "Member not found." })
     return
@@ -161,6 +164,7 @@ router.delete("/:id", (req: Request, res: Response) => {
   })()
   pendingInvites.forEach(unregisterRemoteInvite)
 
+  logActivity(req, { action: "member.delete", resourceType: "member", resourceId: id, resourceName: existing.name })
   broadcast(householdId, "members:deleted", id)
   res.status(204).end()
 })

@@ -1,0 +1,11 @@
+{
+  "status": 200,
+  "body": {
+    "claimed_by": "<id1>",
+    "device_id": "<id2>",
+    "device_name": "Hallway",
+    "household_id": "<id3>",
+    "household_name": "The Okafor-Reyes Family",
+    "ok": true
+  }
+}

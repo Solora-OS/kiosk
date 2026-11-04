@@ -1,0 +1,15 @@
+{
+  "status": 200,
+  "body": {
+    "device_id": "<id1>",
+    "device_name": "Hallway Wall",
+    "found": true,
+    "household_id": "<id2>",
+    "household_name": "The Okafor-Reyes Family",
+    "language": "en",
+    "paired": true,
+    "pairing_code": null,
+    "setup_complete": true,
+    "timezone": "America/Chicago"
+  }
+}

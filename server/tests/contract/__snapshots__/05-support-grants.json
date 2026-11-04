@@ -1,0 +1,31 @@
+{
+  "status": 200,
+  "body": {
+    "grants": [
+      {
+        "duration_hours": 24,
+        "ended_at": null,
+        "expires_at": null,
+        "id": "<id1>",
+        "reason": "Your display couldn't update; we'd like to read its logs.",
+        "request_expires_at": "<time>",
+        "requested_at": "<time>",
+        "responded_at": null,
+        "scope": "diagnostics",
+        "status": "requested"
+      },
+      {
+        "duration_hours": 72,
+        "ended_at": "<time>",
+        "expires_at": null,
+        "id": "<id2>",
+        "reason": "Checking why the wall restarted overnight.",
+        "request_expires_at": "<time>",
+        "requested_at": "<time>",
+        "responded_at": "<time>",
+        "scope": "diagnostics",
+        "status": "denied"
+      }
+    ]
+  }
+}
