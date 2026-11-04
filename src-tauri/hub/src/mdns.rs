@@ -1,4 +1,4 @@
-//! Publishes this hub as _lumora._tcp on the LAN so the mobile app can find it
+//! Publishes this hub as _solora._tcp on the LAN so the mobile app can find it
 //! without knowing its IP (lib/mdns-advertise.ts).
 //!
 //! TXT records: hub_id (hub-identity.json), name, claimed. "claimed" follows
@@ -15,15 +15,17 @@ use mdns_sd::{ServiceDaemon, ServiceInfo};
 use std::sync::Arc;
 use std::time::Duration;
 
-const SERVICE_TYPE: &str = "_lumora._tcp.local.";
+const SERVICE_TYPE: &str = "_solora._tcp.local.";
+/// Phones from before the rename browse _lumora._tcp; keep answering them too.
+const LEGACY_SERVICE_TYPE: &str = "_lumora._tcp.local.";
 
-fn service(hub: &Hub, claimed: bool) -> Option<ServiceInfo> {
+fn service(hub: &Hub, service_type: &str, claimed: bool) -> Option<ServiceInfo> {
     let identity = hub.store.identity();
     let short: String = identity.id.chars().filter(char::is_ascii_alphanumeric).take(4).collect::<String>().to_uppercase();
     let instance = format!("{} {short}", identity.name);
     let host = format!("solora-{}.local.", short.to_lowercase());
     let txt = [("hub_id", identity.id.as_str()), ("name", identity.name.as_str()), ("claimed", if claimed { "1" } else { "0" })];
-    ServiceInfo::new(SERVICE_TYPE, &instance, &host, "", hub.config.port, &txt[..]).ok().map(ServiceInfo::enable_addr_auto)
+    ServiceInfo::new(service_type, &instance, &host, "", hub.config.port, &txt[..]).ok().map(ServiceInfo::enable_addr_auto)
 }
 
 /// Starts advertising (off with SOLORA_MDNS=off, as for the contract suite's hubs).
@@ -39,14 +41,17 @@ pub fn start(hub: Arc<Hub>) {
         }
     };
     let mut claimed = hub.store.households() > 0;
-    let Some(info) = service(&hub, claimed) else { return };
+    let Some(info) = service(&hub, SERVICE_TYPE, claimed) else { return };
     let fullname = info.get_fullname().to_string();
     if let Err(e) = daemon.register(info) {
         eprintln!("[mdns] not advertising: {e}");
         return;
     }
+    if let Some(legacy) = service(&hub, LEGACY_SERVICE_TYPE, claimed) {
+        let _ = daemon.register(legacy);
+    }
     let identity = hub.store.identity();
-    println!("[mdns] Advertising _lumora._tcp as \"{fullname}\" (hub_id={})", identity.id);
+    println!("[mdns] Advertising _solora._tcp as \"{fullname}\" (hub_id={})", identity.id);
     tokio::spawn(async move {
         let mut tick = tokio::time::interval(Duration::from_secs(30));
         tick.tick().await;
@@ -58,8 +63,10 @@ pub fn start(hub: Arc<Hub>) {
             }
             claimed = now;
             // Registering the same name again replaces its TXT record.
-            if let Some(info) = service(&hub, claimed) {
-                let _ = daemon.register(info);
+            for service_type in [SERVICE_TYPE, LEGACY_SERVICE_TYPE] {
+                if let Some(info) = service(&hub, service_type, claimed) {
+                    let _ = daemon.register(info);
+                }
             }
         }
     });

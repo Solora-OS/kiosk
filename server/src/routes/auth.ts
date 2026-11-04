@@ -19,8 +19,7 @@ import { v4 as uuidv4 } from "uuid"
 import crypto from "crypto"
 import fs from "fs"
 import path from "path"
-import os from "os"
-import { getDb, getOrCreateSecret } from "../db"
+import { DATA_DIR, getDb, getOrCreateSecret } from "../db"
 import { requireAuth, type AuthRequest } from "../middleware/auth"
 import { verifyAccountToken } from "../lib/account-tokens"
 import { getHubJwt } from "../lib/central-registry"
@@ -29,9 +28,12 @@ import { setupCodeMatches } from "../lib/setup-code"
 import jwt from "jsonwebtoken"
 import type { Request, Response } from "express"
 
+// Wire constant: phones keep the key derived from it, so it keeps its pre-Solora name.
+const REMOTE_ACCESS_LABEL = "lumora-remote-access"
+
 /** 32-byte AES-256-GCM key for E2E encrypting off-network relay payloads. */
 export function getRemoteKey(): Buffer {
-  return crypto.createHmac("sha256", getOrCreateSecret()).update("lumora-remote-access").digest()
+  return crypto.createHmac("sha256", getOrCreateSecret()).update(REMOTE_ACCESS_LABEL).digest()
 }
 
 const router = Router()
@@ -188,12 +190,12 @@ router.get(["/session", "/me"], requireAuth, (req: Request, res: Response) => {
 // POST /auth/kiosk-autologin
 // Called by the kiosk frontend to sign in without embedding credentials in
 // the frontend bundle. The hub server reads credentials from a secure file:
-//   ~/.lumora/kiosk-autologin.json  →  { "account_id": "<central account uuid>" }
+//   ~/.solora/kiosk-autologin.json  →  { "account_id": "<central account uuid>" }
 // The file must be created manually on the hub machine during setup.
 // Returns { enabled: false } if the file doesn't exist (no auto-login configured).
 // ---------------------------------------------------------------------------
 router.post("/kiosk-autologin", async (_req: Request, res: Response) => {
-  const configPath = path.join(os.homedir(), ".lumora", "kiosk-autologin.json")
+  const configPath = path.join(DATA_DIR, "kiosk-autologin.json")
 
   let config: { account_id?: string } = {}
   try {

@@ -1,6 +1,6 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
     <!-- Base application theme. -->
-    <style name="Theme.lumora_kiosk" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+    <style name="Theme.solora_kiosk" parent="Theme.MaterialComponents.DayNight.NoActionBar">
         <!-- The boot animation's last frame color (#0a0a0f), so the handoff to the
              web view's #boot frame (kiosk/index.html) never flashes white. -->
         <item name="android:windowBackground">@drawable/solora_boot_window</item>

@@ -9,11 +9,11 @@
 //   1. signUp / signIn authenticate against Solora central (account.ts),
 //      then POST the resulting access_token to /auth/session, which
 //      provisions (first sign-in) or resolves the local user + household.
-//   2. The access_token is stored in localStorage under "lumora.token" and
+//   2. The access_token is stored in localStorage under "solora.token" and
 //      used as the Bearer token for every request — the hub server's
 //      requireAuth middleware verifies central tokens directly (see
 //      server/src/middleware/auth.ts). On a 401 the refresh token
-//      ("lumora.refresh") is swapped at central for a new one.
+//      ("solora.refresh") is swapped at central for a new one.
 //   3. Socket.IO handshake carries the same token in auth.token.
 //
 // Live updates:
@@ -75,14 +75,14 @@ const API = `${LOCAL_API_BASE}/api/v1`;
 // Token storage (same key kept for backward compat with tokenStore in api.ts)
 // ---------------------------------------------------------------------------
 
-const TOKEN_KEY        = "lumora.token"
-const DEVICE_TOKEN_KEY = "lumora.kiosk.deviceToken"
+const TOKEN_KEY        = "solora.token"
+const DEVICE_TOKEN_KEY = "solora.kiosk.deviceToken"
 
 /** Read the kiosk device JWT directly — avoids a circular import with kiosk-session.ts. */
 export function getDeviceToken(): string | null {
   try { return localStorage.getItem(DEVICE_TOKEN_KEY) } catch { return null }
 }
-const REFRESH_KEY = "lumora.refresh"
+const REFRESH_KEY = "solora.refresh"
 
 type TokenListener = () => void
 const tokenListeners = new Set<TokenListener>()
@@ -159,8 +159,8 @@ function storeAccountSession(session: AccountSession) {
 }
 
 async function req<T>(path: string, method: string, body?: unknown, retry = true): Promise<T> {
-  // Prefer the user token (lumora.token); fall back to the kiosk device token
-  // (lumora.kiosk.deviceToken) so API calls work before the bridge in
+  // Prefer the user token (solora.token); fall back to the kiosk device token
+  // (solora.kiosk.deviceToken) so API calls work before the bridge in
   // kiosk-provider.tsx has had a chance to copy it into tokenStore.
   const token = tokenStore.get() ?? getDeviceToken()
   const res = await fetch(`${API}${path}`, {
@@ -542,7 +542,7 @@ export function createLocalApi(): SoloraApi {
     },
 
     async kioskAutoSignIn() {
-      // Calls the hub server which reads credentials from ~/.lumora/kiosk-autologin.json.
+      // Calls the hub server which reads credentials from ~/.solora/kiosk-autologin.json.
       // No credentials are ever sent from or stored in the frontend.
       try {
         const res = await req<{ token: string; user: User; household: Household } | { enabled: false }>(
@@ -927,7 +927,7 @@ export function createLocalApi(): SoloraApi {
       return toPhoto(row)
     },
     async uploadPhoto(file: File, caption = "") {
-      // Multipart POST — the server writes the file to $HOME/.lumora/photos/
+      // Multipart POST — the server writes the file to $HOME/.solora/photos/
       // and returns the photo row with a /photo-files/<filename> src URL.
       const token = tokenStore.get()
       const form = new FormData()

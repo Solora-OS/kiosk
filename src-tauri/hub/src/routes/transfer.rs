@@ -226,7 +226,7 @@ async fn find_other_hubs(hub: &Hub) -> Vec<String> {
     let me = hub.store.identity().id.clone();
     tokio::task::spawn_blocking(move || {
         let Ok(daemon) = mdns_sd::ServiceDaemon::new() else { return Vec::new() };
-        let Ok(rx) = daemon.browse("_lumora._tcp.local.") else { return Vec::new() };
+        let Ok(rx) = daemon.browse("_solora._tcp.local.") else { return Vec::new() };
         let deadline = Instant::now() + Duration::from_secs(4);
         let mut found: Vec<String> = Vec::new();
         while let Some(left) = deadline.checked_duration_since(Instant::now()) {

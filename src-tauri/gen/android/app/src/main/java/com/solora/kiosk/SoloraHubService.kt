@@ -1,4 +1,4 @@
-package com.peakl.lumora_kiosk
+package com.solora.kiosk
 
 import android.app.Notification
 import android.app.NotificationChannel
@@ -20,7 +20,7 @@ import android.os.PowerManager
  *   - a foreground service, so Android doesn't stop the app when the screen is off
  *   - a partial wake lock, so the CPU keeps answering phones (the panel is on mains)
  *   - a Wi-Fi lock, so Wi-Fi doesn't drop into power save with the screen off
- *   - a multicast lock, so mDNS queries from phones (_lumora._tcp) reach the hub
+ *   - a multicast lock, so mDNS queries from phones (_solora._tcp) reach the hub
  */
 class SoloraHubService : Service() {
   private var wake: PowerManager.WakeLock? = null

@@ -1,4 +1,4 @@
-# lumora-server
+# solora-server
 
 > **Reference only (since 2026-11-04).** The hub now runs inside the kiosk app,
 > in Rust (`kiosk/src-tauri/hub`, see `kiosk/docs/hub-rust-port-plan.md`), on
@@ -10,8 +10,8 @@
 > (`tests/contract`) next to it.
 
 Local Express + Socket.IO server for the Solora kiosk hub.
-All household data is stored in SQLite at `$HOME/.lumora/lumora.db`.
-Photos are stored as files in `$HOME/.lumora/photos/`.
+All household data is stored in SQLite at `$HOME/.solora/solora.db`.
+Photos are stored as files in `$HOME/.solora/photos/`.
 
 ## Directory layout
 
@@ -38,7 +38,7 @@ server/
 ├── scripts/
 │   ├── schema.sql            — idempotent SQLite schema (applied at startup)
 │   └── install.sh            — build + systemd install script
-├── lumora-server.service     — systemd unit template
+├── solora-server.service     — systemd unit template
 ├── package.json
 └── tsconfig.json
 ```
@@ -58,7 +58,7 @@ cd server
 bash scripts/install.sh
 ```
 
-The unit runs as `lumora-server@<username>.service` under your login user.
+The unit runs as `solora-server@<username>.service` under your login user.
 
 ## API
 

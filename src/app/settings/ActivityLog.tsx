@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { RefreshCw, Trash2, CalendarDays, ChefHat, Users, Link2, Settings2, List } from "lucide-react"
-import { SkeletonRows } from "@/components/os/orbit"
+import { SkeletonRows } from "@/components/os/loading"
 import { LOCAL_API_BASE, tokenStore } from "@/lib/local-api"
 import { cn } from "@/lib/utils"
 

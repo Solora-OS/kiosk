@@ -5,7 +5,7 @@
 //! view, phones on the Wi-Fi and central all reach it the same way.
 //!   Android: data in the app's data directory under `hub/`; SoloraHubService
 //!            keeps the process serving while the screen sleeps.
-//!   Linux, macOS: data in `~/.lumora`, where the Node hub kept it, so an existing
+//!   Linux, macOS: data in `~/.solora`, where the Node hub keeps it, so an existing
 //!            hub carries on with its family, phones and central link. The Node
 //!            hub's variables (SOLORA_PORT, CENTRAL_API_URL, HUB_NAME, ...) still
 //!            apply; SOLORA_HUB=off leaves the hub to a separate server.
@@ -26,7 +26,7 @@ const NAME: &str = match option_env!("SOLORA_HUB_NAME") {
 #[cfg(target_os = "android")]
 const OWNER_EMAIL: &str = match option_env!("SOLORA_HUB_OWNER_EMAIL") {
     Some(email) => email,
-    None => "admin@lumora.local",
+    None => "admin@solora.local",
 };
 
 #[cfg(target_os = "android")]

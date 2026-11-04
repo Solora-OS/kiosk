@@ -13,8 +13,8 @@ import crypto from "crypto"
 import { getRemoteKey } from "../routes/auth"
 import { signToken } from "../middleware/auth"
 
-// Must match the port index.ts listens on (SOLORA_PORT); LUMORA_PORT and PORT kept as legacy fallbacks.
-const HUB_PORT = process.env.SOLORA_PORT ?? process.env.LUMORA_PORT ?? process.env.PORT ?? "4000"
+// Must match the port index.ts listens on (SOLORA_PORT); PORT kept as a fallback.
+const HUB_PORT = process.env.SOLORA_PORT ?? process.env.PORT ?? "4000"
 const LOCAL_URL = `http://127.0.0.1:${HUB_PORT}/api/v1`
 
 const RELAY_ALLOWLIST = /^\/(?:snapshot|households|members|calendars|events|chores|lists|list_items|meals|notifications|photos|invites|auth\/me|kiosk-devices|rewards|away|home|calendar-links|ics-link|seasons|summer)(?:\/.*)?$/

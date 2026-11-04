@@ -1,7 +1,7 @@
 import { useTheme } from "@/components/theme-provider"
 import { Toaster as Sonner, type ToasterProps } from "sonner"
 import { CircleCheckIcon, InfoIcon, TriangleAlertIcon, OctagonXIcon } from "lucide-react"
-import { OrbitLoader } from "@/components/os/orbit"
+import { WaveLoader } from "@/components/os/loading"
 
 const Toaster = ({ ...props }: ToasterProps) => {
   const { theme = "system" } = useTheme()
@@ -24,7 +24,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
           <OctagonXIcon className="size-4" />
         ),
         loading: (
-          <OrbitLoader size={16} />
+          <WaveLoader size={16} />
         ),
       }}
       style={

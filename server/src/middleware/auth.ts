@@ -2,10 +2,10 @@
  * auth.ts — JWT authentication middleware for Express routes and Socket.IO.
  *
  * Two token kinds are accepted:
- *  - Device tokens (kiosk/hub):  HS256, signed with on-disk secret at ~/.lumora/.secret
+ *  - Device tokens (kiosk/hub):  HS256, signed with on-disk secret at ~/.solora/.secret
  *  - User tokens (central):      ES256, signed by Solora central (see lib/account-tokens.ts)
  *
- * Detection: account tokens have iss="lumora-central", aud="lumora-users".
+ * Detection: account tokens have iss="solora-central", aud="solora-users".
  * Device tokens have no iss field.
  */
 

@@ -5,7 +5,7 @@ import { SystemHeading, SystemScreen } from "@/components/os/system-screen"
 
 /**
  * "Connecting to hub server…" screen — shown while kiosk-provider registers
- * the device with the local lumora-server after the setup wizard completes.
+ * the device with the local solora-server after the setup wizard completes.
  * If the server is unreachable it flips to a retry state.
  */
 export function RegisteringScreen({
@@ -24,7 +24,7 @@ export function RegisteringScreen({
           </SystemHeading>
           <div className="max-w-xl rounded-md border border-border bg-card px-5 py-4">
             <p className="os-label mb-2">On the hub, run</p>
-            <code className="font-mono text-sm">systemctl --user start lumora-server</code>
+            <code className="font-mono text-sm">systemctl --user start solora-server</code>
           </div>
           <div>
             <button type="button" onClick={onRetry} className="os-button">

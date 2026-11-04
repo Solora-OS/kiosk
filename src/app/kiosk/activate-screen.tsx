@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { OrbitLoader } from "@/components/os/orbit"
+import { WaveLoader } from "@/components/os/loading"
 import { api } from "@/lib/api"
 import {
   claimThisDevice, fetchHubSetup, fetchKioskState, moveFromOldHub, setupQrPayload, type HubSetup, type MoveSummary,
@@ -219,7 +219,7 @@ export function ActivateScreen() {
             {error ? <p className="text-sm text-destructive">{error}</p> : null}
             <div className="mt-2 flex flex-wrap items-center justify-between gap-4">
               <button type="submit" disabled={busy} className="os-button">
-                {busy ? <OrbitLoader size={16} /> : null}
+                {busy ? <WaveLoader size={16} /> : null}
                 {busy ? "Moving your family…" : "Move to this hub"}
               </button>
               <button
@@ -240,7 +240,7 @@ export function ActivateScreen() {
               <div className="flex flex-col items-start gap-4">
                 <p className="text-sm text-destructive">{error}</p>
                 <button type="button" disabled={busy} onClick={() => void runFlow()} className="os-button">
-                  {busy ? <OrbitLoader size={16} /> : null}
+                  {busy ? <WaveLoader size={16} /> : null}
                   Try again
                 </button>
               </div>
@@ -302,7 +302,7 @@ export function ActivateScreen() {
 
             <div className="mt-2 flex flex-wrap items-center justify-between gap-4">
               <button type="submit" disabled={busy} className="os-button">
-                {busy ? <OrbitLoader size={16} /> : null}
+                {busy ? <WaveLoader size={16} /> : null}
                 {mode === "signup" ? "Activate hub" : "Sign in"}
               </button>
               <button

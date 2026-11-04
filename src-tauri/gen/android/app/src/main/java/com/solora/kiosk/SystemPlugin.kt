@@ -1,4 +1,4 @@
-package com.peakl.lumora_kiosk
+package com.solora.kiosk
 
 import android.Manifest
 import android.app.Activity
@@ -492,7 +492,7 @@ class SystemPlugin(private val activity: Activity) : Plugin(activity) {
 
 /**
  * Makes Solora eligible to be the device owner, set at the factory with
- *   adb shell dpm set-device-owner com.peakl.lumora_kiosk/.SoloraAdminReceiver
+ *   adb shell dpm set-device-owner com.solora.kiosk/.SoloraAdminReceiver
  * (only on a device with no accounts).
  */
 class SoloraAdminReceiver : DeviceAdminReceiver() {
@@ -544,8 +544,8 @@ class SoloraAdminReceiver : DeviceAdminReceiver() {
         val frame = android.graphics.Bitmap.createBitmap(side, side, android.graphics.Bitmap.Config.ARGB_8888)
         val canvas = android.graphics.Canvas(frame)
         canvas.drawColor(0xFF0A0A0F.toInt())
-        val orbit = android.graphics.BitmapFactory.decodeResource(context.resources, R.drawable.solora_boot_orbit)
-        canvas.drawBitmap(orbit, (side - orbit.width) / 2f, (side - orbit.height) / 2f, null)
+        val splash = android.graphics.BitmapFactory.decodeResource(context.resources, R.drawable.solora_boot_splash)
+        canvas.drawBitmap(splash, (side - splash.width) / 2f, (side - splash.height) / 2f, null)
         // Square and centred, so it lines up whichever way the panel is mounted.
         val wallpapers = android.app.WallpaperManager.getInstance(context)
         wallpapers.suggestDesiredDimensions(side, side)

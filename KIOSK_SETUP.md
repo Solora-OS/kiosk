@@ -121,7 +121,7 @@ REACT_APP_KIOSK_HIDE_SIGNOUT=true
 2. Connect repo to Vercel:
    - Visit https://vercel.com/new
    - Import your repository
-   - Select `lincon07/lumora_kiosk` project
+   - Select `Solora-OS/kiosk` project
 3. Add environment variables in Vercel:
    - Go to **Settings** → **Environment Variables**
    - Add all variables from Step 2
@@ -334,5 +334,5 @@ REACT_APP_KIOSK_MODE=false
 ## Support
 
 - **Supabase Docs**: https://supabase.com/docs
-- **GitHub Issues**: https://github.com/lincon07/lumora_kiosk/issues
+- **GitHub Issues**: https://github.com/Solora-OS/kiosk/issues
 - **Local Testing**: `npm run dev` for development server

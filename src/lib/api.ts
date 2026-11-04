@@ -85,7 +85,7 @@ export type SignUpInput = {
   password: string
   /** Optional household name when creating a brand-new family. */
   householdName?: string
-  /** One-time activation code shown on the hub console (~/.lumora/setup_code). Required for the very first sign-up on a hub. */
+  /** One-time activation code shown on the hub console (~/.solora/setup_code). Required for the very first sign-up on a hub. */
   setupCode?: string
 }
 

@@ -8,7 +8,7 @@
 
 import { useEffect, useState } from "react"
 import { ChevronDown } from "lucide-react"
-import { OrbitLoader, SkeletonRows } from "@/components/os/orbit"
+import { WaveLoader, SkeletonRows } from "@/components/os/loading"
 import { BottomSheet, Field, inputClass } from "@/components/ui/reusables/bottom-sheet"
 import { LOCAL_API_BASE, tokenStore } from "@/lib/local-api"
 import type { Calendar, MemberColor } from "@/lib/data"
@@ -139,7 +139,7 @@ export function CalendarImportSheet({
           disabled={saving}
           className="flex w-full items-center justify-center gap-2 rounded-md bg-primary py-3 text-sm font-semibold text-primary-foreground disabled:opacity-50"
         >
-          {saving ? <OrbitLoader size={16} /> : null}
+          {saving ? <WaveLoader size={16} /> : null}
           {saving ? "Saving…" : "Save mapping"}
         </button>
       }

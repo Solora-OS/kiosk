@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react"
 import { Heart, ImageIcon, Trash2, Upload } from "lucide-react"
-import { OrbitLoader } from "@/components/os/orbit"
+import { WaveLoader } from "@/components/os/loading"
 import { useStore } from "@/lib/store"
 import { api } from "@/lib/api"
 import { ConfirmDialog } from "@/components/ui/reusables/confirm-dialog"
@@ -82,7 +82,7 @@ export function PhotosView() {
               onClick={() => fileRef.current?.click()}
               className="flex items-center justify-center gap-2 rounded-md bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
             >
-              {uploading ? <OrbitLoader size={16} /> : <Upload className="size-4" />}
+              {uploading ? <WaveLoader size={16} /> : <Upload className="size-4" />}
               {uploading ? "Uploading…" : "Upload photos"}
             </button>
             <input
@@ -180,7 +180,7 @@ export function PhotosView() {
               uploading && "cursor-not-allowed opacity-50",
             )}
           >
-            {uploading ? <OrbitLoader size={16} /> : <Upload className="size-4" />}
+            {uploading ? <WaveLoader size={16} /> : <Upload className="size-4" />}
             {uploading ? "Uploading…" : "Upload photos"}
           </button>
           <input

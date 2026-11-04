@@ -49,23 +49,23 @@ jobs:
       - name: Upload ARM64 executable
         uses: actions/upload-artifact@v4
         with:
-          name: lumora-kiosk-linux-arm64-binary
-          path: src-tauri/target/release/lumora_kiosk
+          name: solora-kiosk-linux-arm64-binary
+          path: src-tauri/target/release/solora_kiosk
 
       - name: Upload Debian package
         uses: actions/upload-artifact@v4
         with:
-          name: lumora-kiosk-linux-arm64-deb
+          name: solora-kiosk-linux-arm64-deb
           path: src-tauri/target/release/bundle/deb/*.deb
 
       - name: Upload RPM package
         uses: actions/upload-artifact@v4
         with:
-          name: lumora-kiosk-linux-arm64-rpm
+          name: solora-kiosk-linux-arm64-rpm
           path: src-tauri/target/release/bundle/rpm/*.rpm
 
       - name: Upload AppImage
         uses: actions/upload-artifact@v4
         with:
-          name: lumora-kiosk-linux-arm64-appimage
+          name: solora-kiosk-linux-arm64-appimage
           path: src-tauri/target/release/bundle/appimage/*.AppImage

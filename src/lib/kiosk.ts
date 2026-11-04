@@ -17,7 +17,7 @@ export const kioskConfig = {
   enabled: import.meta.env.VITE_KIOSK_MODE !== "false",
 
   // Whether to attempt auto sign-in on startup via the local hub server.
-  // The server reads credentials from ~/.lumora/kiosk-autologin.json (never the frontend).
+  // The server reads credentials from ~/.solora/kiosk-autologin.json (never the frontend).
   autoSignIn: import.meta.env.VITE_KIOSK_AUTO_SIGNIN === "true",
 
   // Whether to hide the sign-out button

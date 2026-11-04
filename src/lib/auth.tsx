@@ -70,7 +70,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // If in kiosk mode and auto-signin is enabled, ask the local hub server
       // to perform sign-in using credentials stored securely on the hub machine.
       // Credentials are NEVER bundled into the frontend — the server reads them
-      // from ~/.lumora/kiosk-autologin.json and returns a session token.
+      // from ~/.solora/kiosk-autologin.json and returns a session token.
       if (kioskConfig.autoSignIn && status === "loading") {
         try {
           const res = await api.kioskAutoSignIn()

@@ -61,6 +61,25 @@ kioskRouter.post("/register", (req: Request, res: Response): void => {
   res.status(201).json({ id, device_token: deviceJwt, pairing_code: family ? null : pairingCode })
 })
 
+/**
+ * The family a display running on the hub itself belongs to. The hub's own
+ * screen is part of its family whenever there is one: it never waits for a
+ * phone to pair it, since a phone still on another hub could never find its code.
+ */
+function ownFamily(deviceId: string): string | null {
+  const db = getDb()
+  const row = db.prepare("SELECT on_hub FROM kiosk_devices WHERE id = ?").get(deviceId) as { on_hub: number } | undefined
+  if (!row?.on_hub) return null
+  const family = db.prepare("SELECT id FROM households ORDER BY created_at LIMIT 1").get() as { id: string } | undefined
+  return family?.id ?? null
+}
+
+/** A code this hub doesn't have usually means the phone is on a different hub than the screen. */
+function notFoundMessage(familyName: string | null | undefined): string {
+  const hub = familyName ? `${familyName}'s hub` : "the hub this phone uses"
+  return `That display code isn't on ${hub}. Check the code, or if the screen belongs to another hub, connect this phone to that hub first (Settings › Connect to a different hub).`
+}
+
 // ---------------------------------------------------------------------------
 // GET /state — return current pairing state for the device
 // ---------------------------------------------------------------------------
@@ -69,6 +88,11 @@ kioskRouter.get("/state", requireAuth, (req: Request, res: Response): void => {
   // The device token is validated as a Bearer JWT by requireAuth.
   // We use req.user.userId which is the device row id for kiosk tokens.
   const deviceId = req.user!.userId
+
+  const family = ownFamily(deviceId)
+  if (family) {
+    db.prepare("UPDATE kiosk_devices SET household_id = ?, pairing_code = NULL WHERE id = ? AND household_id IS NULL").run(family, deviceId)
+  }
 
   const row = db
     .prepare("SELECT * FROM kiosk_devices WHERE id = ?")
@@ -93,6 +117,7 @@ kioskRouter.get("/state", requireAuth, (req: Request, res: Response): void => {
     pairing_code: row.pairing_code ?? null,
     household_id: row.household_id ?? null,
     household_name: household?.name ?? null,
+    on_hub: !!family,
     setup_complete: !!row.setup_complete,
     language: row.language ?? null,
     timezone: row.timezone ?? null,
@@ -256,7 +281,8 @@ kioskRouter.post("/claim", requireAuth, (req: Request, res: Response): void => {
     .get(raw) as { id: string; household_id: string | null; device_name: string } | undefined
 
   if (!device) {
-    res.status(404).json({ error: "Display code not found. Check the code shown on the screen you're adding." })
+    const family = db.prepare("SELECT name FROM households WHERE id = ?").get(householdId) as { name: string } | undefined
+    res.status(404).json({ error: notFoundMessage(family?.name) })
     return
   }
 
@@ -293,6 +319,10 @@ kioskRouter.post("/claim", requireAuth, (req: Request, res: Response): void => {
 kioskRouter.post("/unpair", requireAuth, (req: Request, res: Response): void => {
   const db = getDb()
   const deviceId = req.user!.userId
+  if (ownFamily(deviceId)) {
+    res.json({ ok: true, pairing_code: null, on_hub: true })
+    return
+  }
   const newCode = genPairingCode()
 
   db.prepare(

@@ -8,7 +8,7 @@ type ThemeContextValue = {
   setTheme: (theme: Theme) => void
 }
 
-const STORAGE_KEY = "lumora-theme"
+const STORAGE_KEY = "solora-theme"
 
 const ThemeContext = createContext<ThemeContextValue | undefined>(undefined)
 

@@ -8,6 +8,8 @@ import { ctx, hub, central, signup, listen, broadcasts, snapshot, sortedBy } fro
 
 const same = (name, r) => assert.equal(snapshot(name, r), null)
 const wait = (ms) => new Promise((r) => setTimeout(r, ms))
+// Invite wire label, unchanged since before the Solora rename (see invite-relay.ts).
+const INVITE_LABEL = "lumora-invite"
 
 async function invite(body) {
   const r = await hub("POST", "/api/v1/invites", { token: ctx.mayaAccount, body })
@@ -116,7 +118,7 @@ test("tap to invite: a nearby phone answers, the inviter checks the number", asy
 
 // What the mobile app does in mobile/src/lib/invite-remote.ts.
 function remoteInvite(code) {
-  const lookup = crypto.createHash("sha256").update(`lumora-invite:${code.trim().toUpperCase()}`).digest("hex")
+  const lookup = crypto.createHash("sha256").update(`${INVITE_LABEL}:${code.trim().toUpperCase()}`).digest("hex")
   const me = crypto.createECDH("prime256v1")
   me.generateKeys()
   let key = null
@@ -126,7 +128,7 @@ function remoteInvite(code) {
       const r = await central("GET", `/invites/${lookup}`)
       if (r.status !== 200) return r
       const secret = me.computeSecret(Buffer.from(r.body.hub_pub, "base64"))
-      key = Buffer.from(crypto.hkdfSync("sha256", secret, Buffer.from("lumora-invite"), Buffer.from(lookup), 32))
+      key = Buffer.from(crypto.hkdfSync("sha256", secret, Buffer.from(INVITE_LABEL), Buffer.from(lookup), 32))
       return r
     },
     async call(payload) {

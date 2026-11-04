@@ -36,7 +36,7 @@ const procs = []
 
 // ── The hub on a device (HUB_DEVICE=1) ──────────────────────────────────────
 const DEVICE = !!process.env.HUB_DEVICE
-const PKG = "com.peakl.lumora_kiosk"
+const PKG = "com.solora.kiosk"
 const DEVICE_CENTRAL_PORT = 4290
 const ADB = process.env.ADB ?? path.join(os.homedir(), "Library/Android/sdk/platform-tools/adb")
 const adb = (...args) => execFileSync(ADB, args, { encoding: "utf8" }).trim()
@@ -165,7 +165,7 @@ export async function startHub(name) {
   start(name, cmd, args, { cwd: SERVER, env: hubEnv })
   await waitFor(`${url}/health`)
   // Registration with central happens right after listen; wait for it.
-  const file = path.join(home, ".lumora", "central.json")
+  const file = path.join(home, ".solora", "central.json")
   for (let i = 0; i < 80 && !fs.existsSync(file); i++) await new Promise((r) => setTimeout(r, 250))
   return { url, lanUrl, home, port: hubPort }
 }
@@ -205,7 +205,7 @@ function stopDeviceHub() {
 /** What the hub keeps about central in its HOME (hub id, per-display central ids). */
 export function centralFile(home = ctx.home) {
   if (DEVICE && home === ctx.home) return JSON.parse(asApp("cat hub/central.json"))
-  return JSON.parse(fs.readFileSync(path.join(home, ".lumora", "central.json"), "utf8"))
+  return JSON.parse(fs.readFileSync(path.join(home, ".solora", "central.json"), "utf8"))
 }
 
 /**

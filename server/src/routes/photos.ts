@@ -1,7 +1,7 @@
 /**
  * routes/photos.ts
  *
- * Photos are stored as files in $HOME/.lumora/photos/<id>.<ext> and served
+ * Photos are stored as files in $HOME/.solora/photos/<id>.<ext> and served
  * as static files at GET /photos/:id.  The DB stores only the filename and
  * a relative URL.
  *

@@ -1,4 +1,4 @@
-package com.peakl.lumora_kiosk
+package com.solora.kiosk
 
 import android.app.ActivityManager
 import android.app.admin.DevicePolicyManager

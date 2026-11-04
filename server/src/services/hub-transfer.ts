@@ -158,7 +158,7 @@ async function findOtherHubs(timeoutMs = 4000): Promise<string[]> {
   const self = getOrCreateHubIdentity().id
   const bonjour = new Bonjour()
   const found = new Set<string>()
-  const browser = bonjour.find({ type: "lumora" }, (service) => {
+  const browser = bonjour.find({ type: "solora" }, (service) => {
     const txt = (service.txt ?? {}) as Record<string, string>
     if (txt.hub_id === self || txt.claimed !== "1") return
     const ipv4 = (service.addresses ?? []).find((a) => /^\d+\.\d+\.\d+\.\d+$/.test(a))

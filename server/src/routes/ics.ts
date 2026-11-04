@@ -118,7 +118,7 @@ router.get("/:token", async (req: Request, res: Response) => {
 
     lines.push(
       "BEGIN:VEVENT",
-      `UID:${e.id}@lumora`,
+      `UID:${e.id}@solora`,
       `DTSTAMP:${stamp}`,
       dtStart,
       dtEnd,

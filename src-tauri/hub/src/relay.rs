@@ -20,6 +20,10 @@ use p256::elliptic_curve::sec1::ToEncodedPoint;
 use rand::RngCore;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
+
+/// Wire constant shared with every phone and the Node hub. It predates the Solora
+/// name; changing it breaks invites between versions.
+const INVITE_LABEL: &str = "lumora-invite";
 use std::sync::{Arc, OnceLock};
 use std::time::Duration;
 
@@ -145,7 +149,7 @@ pub fn invite_public_key(hub: &Hub) -> String {
 
 /// The routing key central knows an invite by: never the code itself.
 pub fn invite_lookup(token_or_code: &str) -> String {
-    hex::encode(Sha256::digest(format!("lumora-invite:{}", token_or_code.trim().to_uppercase()).as_bytes()))
+    hex::encode(Sha256::digest(format!("{INVITE_LABEL}:{}", token_or_code.trim().to_uppercase()).as_bytes()))
 }
 
 /// AES key shared with the app that sent `client_pub`, bound to the invite it asked about.
@@ -153,13 +157,13 @@ fn invite_shared_key(hub: &Hub, client_pub: &str, lookup: &str) -> Option<[u8; 3
     derive_invite_key(invite_key(hub), client_pub, lookup)
 }
 
-/// ECDH (P-256, x coordinate) then HKDF-SHA256(salt "lumora-invite", info lookup), as Node's
+/// ECDH (P-256, x coordinate) then HKDF-SHA256(salt INVITE_LABEL, info lookup), as Node's
 /// `computeSecret` + `hkdfSync` and the app's WebCrypto do.
 fn derive_invite_key(ours: &p256::SecretKey, client_pub: &str, lookup: &str) -> Option<[u8; 32]> {
     let theirs = p256::PublicKey::from_sec1_bytes(&B64.decode(client_pub).ok()?).ok()?;
     let shared = p256::ecdh::diffie_hellman(ours.to_nonzero_scalar(), theirs.as_affine());
     let mut out = [0u8; 32];
-    hkdf::Hkdf::<Sha256>::new(Some(b"lumora-invite"), shared.raw_secret_bytes()).expand(lookup.as_bytes(), &mut out).ok()?;
+    hkdf::Hkdf::<Sha256>::new(Some(INVITE_LABEL.as_bytes()), shared.raw_secret_bytes()).expand(lookup.as_bytes(), &mut out).ok()?;
     Some(out)
 }
 

@@ -60,8 +60,22 @@ async fn register(State(hub): State<Arc<Hub>>, peer: Peer, body: Body) -> Respon
     created(json!({ "id": id, "device_token": token, "pairing_code": if family.is_some() { Value::Null } else { json!(code) } }))
 }
 
+/// The family a display running on the hub itself belongs to. The hub's own
+/// screen is part of its family whenever there is one: it never waits for a
+/// phone to pair it, since a phone still on another hub could never find its code.
+fn own_family(db: &rusqlite::Connection, device_id: &str) -> Option<String> {
+    let on_hub = db.query_row("SELECT on_hub FROM kiosk_devices WHERE id = ?", [device_id], |r| r.get::<_, i64>(0)).optional().ok().flatten()? != 0;
+    if !on_hub {
+        return None;
+    }
+    db.query_row("SELECT id FROM households ORDER BY created_at LIMIT 1", [], |r| r.get(0)).optional().ok().flatten()
+}
+
 async fn state(State(hub): State<Arc<Hub>>, user: User) -> Response {
     let db = hub.store.db();
+    if let Some(family) = own_family(&db, &user.sub) {
+        db.execute("UPDATE kiosk_devices SET household_id = ?, pairing_code = NULL WHERE id = ? AND household_id IS NULL", [&family, &user.sub]).ok();
+    }
     type Row = (String, Option<String>, Option<String>, Option<String>, i64, Option<String>, Option<String>);
     let row: Option<Row> = db
         .query_row(
@@ -84,6 +98,7 @@ async fn state(State(hub): State<Arc<Hub>>, user: User) -> Response {
         "pairing_code": code,
         "household_id": household,
         "household_name": household_name,
+        "on_hub": own_family(&db, &id).is_some(),
         "setup_complete": setup_complete != 0,
         "language": language,
         "timezone": timezone,
@@ -176,7 +191,8 @@ async fn claim(State(hub): State<Arc<Hub>>, user: User, body: Body) -> Response 
         .ok()
         .flatten();
     let Some((id, existing, name)) = device else {
-        return error(404, "Display code not found. Check the code shown on the screen you're adding.");
+        let family: Option<String> = db.query_row("SELECT name FROM households WHERE id = ?", [household], |r| r.get(0)).optional().ok().flatten();
+        return error(404, &not_found_message(family.as_deref()));
     };
     if existing.as_deref().is_some_and(|h| h != household) {
         return error(409, "This hub is already claimed by a different household.");
@@ -193,7 +209,17 @@ async fn claim(State(hub): State<Arc<Hub>>, user: User, body: Body) -> Response 
     }))
 }
 
+/// A display code this hub doesn't have usually means the phone is connected to
+/// a different hub than the screen (e.g. after moving to a new hub).
+fn not_found_message(family: Option<&str>) -> String {
+    let hub = family.map(|f| format!("{f}'s hub")).unwrap_or_else(|| "the hub this phone uses".into());
+    format!("That display code isn't on {hub}. Check the code, or if the screen belongs to another hub, connect this phone to that hub first (Settings › Connect to a different hub).")
+}
+
 async fn unpair(State(hub): State<Arc<Hub>>, user: User) -> Response {
+    if own_family(&hub.store.db(), &user.sub).is_some() {
+        return ok(json!({ "ok": true, "pairing_code": Value::Null, "on_hub": true }));
+    }
     let code = pairing_code();
     hub.store.db().execute("UPDATE kiosk_devices SET household_id = NULL, pairing_code = ?, setup_complete = 0 WHERE id = ?", [&code, &user.sub]).ok();
     ok(json!({ "ok": true, "pairing_code": code }))

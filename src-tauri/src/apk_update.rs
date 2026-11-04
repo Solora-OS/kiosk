@@ -117,7 +117,7 @@ mod android {
     pub fn init<R: Runtime>() -> TauriPlugin<R> {
         Builder::new("apk-installer")
             .setup(|app, api| {
-                let handle = api.register_android_plugin("com.peakl.lumora_kiosk", "ApkInstallerPlugin")?;
+                let handle = api.register_android_plugin("com.solora.kiosk", "ApkInstallerPlugin")?;
                 app.manage(ApkInstaller(handle));
                 Ok(())
             })

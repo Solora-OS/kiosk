@@ -14,7 +14,7 @@ import { AuthProvider, useAuth } from "./lib/auth";
 import { AuthScreen } from "./app/auth/auth-screen";
 import { kioskConfig } from "./lib/kiosk";
 import { KioskRoot } from "./app/kiosk/kiosk-root";
-import { OrbitLoader, TabLoading } from "./components/os/orbit";
+import { WaveLoader, TabLoading } from "./components/os/loading";
 
 const todaySubtitle = new Date().toLocaleDateString(undefined, {
   weekday: "long",
@@ -71,7 +71,7 @@ function Gate() {
   if (status === "loading") {
     return (
       <div className="flex min-h-dvh items-center justify-center bg-background">
-        <OrbitLoader size={36} />
+        <WaveLoader size={36} />
       </div>
     )
   }

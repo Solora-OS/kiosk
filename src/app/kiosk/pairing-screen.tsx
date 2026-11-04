@@ -13,7 +13,7 @@ import { LOCAL_API_BASE } from "@/lib/local-api"
  * is unclaimed. A household member visits the Solora web app on the same
  * network and enters the display code (or scans the QR) to add this screen.
  *
- * The pairing code is issued by the local lumora-server after device
+ * The pairing code is issued by the local solora-server after device
  * registration. Once a member claims it, the polling loop in kiosk-provider
  * detects the change and advances to the "ready" phase automatically.
  */

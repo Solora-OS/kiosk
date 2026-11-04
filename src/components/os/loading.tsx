@@ -2,78 +2,17 @@ import { Fragment, type CSSProperties, type ReactNode } from "react"
 import { cn } from "@/lib/utils"
 
 /**
- * The family orbit — the app icon's sun with the household circling it.
- * Same geometry as brand/orbit-icon.svg, recoloured with theme tokens so it
- * sits on paper or graphite: the sun takes the season accent, members are ink.
+ * The loader: a few bars in the text colour, rising and falling one after
+ * another. No colour of its own, so it reads on paper, graphite and inside
+ * filled buttons alike. Under 20px it drops to three bars.
  */
-
-// Resting positions in the 100×100 box (coral top, cream right, teal lower-left on the icon).
-const MEMBERS = [
-  { cx: 50, cy: 23, r: 7, className: "fill-foreground" },
-  { cx: 77, cy: 50, r: 6, className: "fill-muted-foreground" },
-  { cx: 31, cy: 69, r: 5, className: "fill-season/60" },
-]
-
-/**
- * Full mark. `animate` swings the members into orbit once, then lets the
- * family drift slowly — for splash screens, not for loading states.
- */
-export function OrbitMark({ className, animate = false }: { className?: string; animate?: boolean }) {
+export function WaveLoader({ size = 28, label = "Loading", className }: { size?: number; label?: string; className?: string }) {
+  const bars = size < 20 ? 3 : 5
   return (
-    <svg viewBox="0 0 100 100" aria-hidden className={cn("size-16 shrink-0", className)}>
-      <circle cx="50" cy="50" r="27" fill="none" strokeWidth="2.5" className="stroke-muted-foreground/30" />
-      <circle cx="50" cy="50" r="14" className="fill-season" />
-      <g className={animate ? "orbit-drift" : undefined}>
-        {MEMBERS.map((m, i) => (
-          <g key={i} className={animate ? "orbit-settle" : undefined} style={animate ? { animationDelay: `${i * 120}ms` } : undefined}>
-            <circle cx={m.cx} cy={m.cy} r={m.r} className={m.className} />
-          </g>
-        ))}
-      </g>
-    </svg>
-  )
-}
-
-/**
- * Spinner: one member chasing round the sun with a fading trail. Detail drops
- * away as it shrinks — under 20px it's just the sun and a single dot. The
- * member takes the text colour, so it reads inside filled buttons too.
- */
-export function OrbitLoader({ size = 28, label = "Loading", className }: { size?: number; label?: string; className?: string }) {
-  const small = size < 20
-  return (
-    <span role="status" className={cn("inline-flex shrink-0", className)}>
-      <svg viewBox="0 0 100 100" width={size} height={size} aria-hidden>
-        {small ? null : <circle cx="50" cy="50" r="34" fill="none" strokeWidth="6" className="stroke-season/20" />}
-        <circle cx="50" cy="50" r={small ? 16 : 13} className="fill-season" />
-        <g className="orbit-spin">
-          <circle cx="50" cy={small ? 15 : 16} r={small ? 14 : 9} className="fill-current" />
-          {small ? null : (
-            <>
-              <circle cx="30.5" cy="22.1" r="6" className="fill-current" opacity="0.5" />
-              <circle cx="18.1" cy="38.4" r="4" className="fill-current" opacity="0.22" />
-            </>
-          )}
-        </g>
-      </svg>
+    <span role="status" className={cn("wave inline-flex shrink-0 items-center", className)} style={{ height: size, width: size, gap: size / (bars === 3 ? 6 : 9) }}>
+      {Array.from({ length: bars }, (_, i) => <i key={i} aria-hidden style={{ animationDelay: `${i * 120}ms` }} />)}
       <span className="sr-only">{label}</span>
     </span>
-  )
-}
-
-/**
- * The app icon in plain ink, turning — the one loader that sits in the middle
- * of the screen while a tab's data loads.
- */
-export function OrbitSpinner({ size = 36, className }: { size?: number; className?: string }) {
-  return (
-    <svg viewBox="0 0 100 100" width={size} height={size} aria-hidden className={cn("shrink-0 text-muted-foreground", className)}>
-      <g className="orbit-spin-slow">
-        <circle cx="50" cy="50" r="27" fill="none" strokeWidth="3" className="stroke-current" opacity="0.35" />
-        <circle cx="50" cy="50" r="14" className="fill-current" />
-        {MEMBERS.map((m, i) => <circle key={i} cx={m.cx} cy={m.cy} r={m.r} className="fill-current" opacity={[1, 0.7, 0.45][i]} />)}
-      </g>
-    </svg>
   )
 }
 
@@ -186,8 +125,8 @@ function Row({ bar, lead, tail }: { bar: Bar; lead: string; tail?: string }) {
 
 /**
  * What a tab shows while its data loads: placeholders shaped like that tab's
- * content shimmer in at once, and the spinning icon fades in at the middle of
- * the screen only if loading runs past ~600ms, so quick switches never flash it.
+ * content shimmer in at once, and the screen frosts over with the wave loader
+ * in the middle only if loading runs past ~600ms, so quick switches never flash it.
  * `wall` picks the wall display's wider layouts.
  */
 export function TabLoading({ tab, wall = false, className }: { tab?: string; wall?: boolean; className?: string }) {
@@ -199,11 +138,8 @@ export function TabLoading({ tab, wall = false, className }: { tab?: string; wal
     <div role="status" aria-busy="true" className={cn("flex flex-col gap-5", className)}>
       <span className="sr-only">Loading</span>
       <div aria-hidden className="pointer-events-none flex select-none flex-col gap-5">{shape(bar, wall)}</div>
-      <div aria-hidden className="pointer-events-none fixed inset-0 z-20 flex items-center justify-center">
-        <div className="orbit-late flex items-center gap-3 rounded-2xl bg-card/90 px-5 py-4 shadow-lg ring-1 ring-hairline backdrop-blur">
-          <OrbitSpinner size={wall ? 40 : 32} />
-          <p className="os-label">Loading</p>
-        </div>
+      <div aria-hidden className="wave-late pointer-events-none fixed inset-0 z-20 flex items-center justify-center bg-background/40 backdrop-blur-md">
+        <WaveLoader size={wall ? 44 : 36} />
       </div>
     </div>
   )

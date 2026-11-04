@@ -46,7 +46,7 @@ import {
   Tablet,
   type LucideIcon
 } from "lucide-react"
-import { OrbitLoader, SkeletonBlock } from "@/components/os/orbit"
+import { WaveLoader, SkeletonBlock } from "@/components/os/loading"
 import {
   roleLabels,
   calculateAge,
@@ -335,7 +335,7 @@ function CentralConnectionSection() {
     setBusy(true)
     try {
       centralSocket.disconnect()
-      localStorage.removeItem("lumora.central.token")
+      localStorage.removeItem("solora.central.token")
       setHasToken(false)
       setConnected(false)
       const localDeviceId = getLocalDeviceId()
@@ -391,7 +391,7 @@ function CentralConnectionSection() {
             disabled={busy || connected}
             className="flex flex-1 items-center justify-center gap-2 rounded-md bg-primary py-2.5 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-40"
           >
-            {busy ? <OrbitLoader size={16} /> : <RefreshCw className="size-4" />}
+            {busy ? <WaveLoader size={16} /> : <RefreshCw className="size-4" />}
             Reconnect
           </button>
           <button
@@ -400,7 +400,7 @@ function CentralConnectionSection() {
             disabled={busy}
             className="flex flex-1 items-center justify-center gap-2 rounded-md bg-secondary py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-secondary/70 disabled:opacity-40"
           >
-            {busy ? <OrbitLoader size={16} /> : <RotateCcw className="size-4" />}
+            {busy ? <WaveLoader size={16} /> : <RotateCcw className="size-4" />}
             Re-register
           </button>
         </div>
@@ -493,7 +493,7 @@ function HubActionsSection() {
           onClick={onCheckUpdates}
           trailing={
             checking ? (
-              <OrbitLoader size={16} className="text-muted-foreground" />
+              <WaveLoader size={16} className="text-muted-foreground" />
             ) : pendingUpdate ? (
               <span className="flex items-center gap-1.5 rounded-full bg-member-green/15 px-2.5 py-1 text-[0.75rem] font-semibold text-member-green">
                 <DownloadCloud className="size-3" />
@@ -855,7 +855,7 @@ function InviteSheet({
 
   // QR payload the claim flow understands (token + human-typable code).
   const payload = invite
-    ? JSON.stringify({ app: "lumora", token: invite.token, code: invite.code })
+    ? JSON.stringify({ app: "solora", token: invite.token, code: invite.code })
     : ""
 
   const copyCode = async () => {
@@ -870,7 +870,7 @@ function InviteSheet({
   const copyLink = async () => {
     if (!invite) return
     // Deep-link that the mobile app can intercept; falls back to a web URL.
-    const link = `lumora://invite/${invite.token}`
+    const link = `solora://invite/${invite.token}`
     try {
       await navigator.clipboard.writeText(link)
       setCopiedLink(true)
@@ -984,7 +984,7 @@ function InviteSheet({
                 className="flex flex-1 items-center justify-center gap-2 rounded-md bg-destructive/10 py-2.5 text-sm font-semibold text-destructive transition-colors hover:bg-destructive/15 disabled:opacity-50"
               >
                 {cancelling ? (
-                  <OrbitLoader size={16} />
+                  <WaveLoader size={16} />
                 ) : (
                   <Trash2 className="size-4" />
                 )}
@@ -1328,7 +1328,7 @@ function FamilyMembersSection() {
             disabled={!quickName.trim() || quickBusy}
             className="flex w-full items-center justify-center gap-2 rounded-md bg-primary py-3 text-sm font-semibold text-primary-foreground disabled:opacity-40"
           >
-            {quickBusy ? <OrbitLoader size={16} /> : <QrCodeIcon className="size-4" />}
+            {quickBusy ? <WaveLoader size={16} /> : <QrCodeIcon className="size-4" />}
             Create &amp; get invite code
           </button>
         }
@@ -1523,7 +1523,7 @@ function FactoryResetDialog({ open, onClose }: { open: boolean; onClose: () => v
             >
               {busy ? (
                 <>
-                  <OrbitLoader size={16} />
+                  <WaveLoader size={16} />
                   Resetting...
                 </>
               ) : (
@@ -1642,7 +1642,7 @@ function WifiSection() {
             disabled={scanning}
             className="flex items-center gap-1.5 rounded-full bg-secondary px-3 py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-secondary/70 disabled:opacity-40"
           >
-            {scanning ? <OrbitLoader size={14} /> : <RefreshCw className="size-3.5" />}
+            {scanning ? <WaveLoader size={14} /> : <RefreshCw className="size-3.5" />}
             {scanning ? "Scanning…" : "Rescan"}
           </button>
         </div>
@@ -1654,7 +1654,7 @@ function WifiSection() {
         <ul className="max-h-[55vh] divide-y divide-hairline overflow-y-auto overscroll-contain rounded-md bg-background">
           {scanning && networks.length === 0 ? (
             <li className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground">
-              <OrbitLoader size={16} />
+              <WaveLoader size={16} />
               Scanning…
             </li>
           ) : networks.length === 0 ? (
@@ -1678,7 +1678,7 @@ function WifiSection() {
                       </span>
                     </span>
                     {isConnecting ? (
-                      <OrbitLoader size={16} className="shrink-0 text-muted-foreground" />
+                      <WaveLoader size={16} className="shrink-0 text-muted-foreground" />
                     ) : net.connected ? (
                       <Check className="size-4 shrink-0 text-member-green" />
                     ) : (
@@ -1704,7 +1704,7 @@ function WifiSection() {
             disabled={!password.trim() || !!connecting}
             className="flex w-full items-center justify-center gap-2 rounded-md bg-primary py-3 text-sm font-semibold text-primary-foreground disabled:opacity-40"
           >
-            {connecting ? <OrbitLoader size={16} /> : null}
+            {connecting ? <WaveLoader size={16} /> : null}
             {connecting ? "Connecting…" : "Connect"}
           </button>
         }
@@ -1971,7 +1971,7 @@ function LanguageRegionSection({ initialOrientation }: { initialOrientation?: st
           onClick={() => { setLangSearch(""); setLangSheetOpen(true) }}
           trailing={
             applying ? (
-              <OrbitLoader size={16} className="text-muted-foreground" />
+              <WaveLoader size={16} className="text-muted-foreground" />
             ) : (
               <ChevronRight className="size-4 text-muted-foreground" />
             )
@@ -1985,7 +1985,7 @@ function LanguageRegionSection({ initialOrientation }: { initialOrientation?: st
           onClick={() => { setTzSearch(""); setTzSheetOpen(true) }}
           trailing={
             applying ? (
-              <OrbitLoader size={16} className="text-muted-foreground" />
+              <WaveLoader size={16} className="text-muted-foreground" />
             ) : (
               <ChevronRight className="size-4 text-muted-foreground" />
             )
@@ -1999,7 +1999,7 @@ function LanguageRegionSection({ initialOrientation }: { initialOrientation?: st
           onClick={() => setOrientationSheetOpen(true)}
           trailing={
             applying ? (
-              <OrbitLoader size={16} className="text-muted-foreground" />
+              <WaveLoader size={16} className="text-muted-foreground" />
             ) : (
               <ChevronRight className="size-4 text-muted-foreground" />
             )
@@ -2177,7 +2177,7 @@ function SlideshowSection({ initialIdleMins }: { initialIdleMins: number | null 
                 : `Starts after ${current} min${current === 1 ? "" : "s"} of inactivity`}
             </span>
           </span>
-          {saving && <OrbitLoader size={16} className="text-muted-foreground" />}
+          {saving && <WaveLoader size={16} className="text-muted-foreground" />}
         </div>
         <div className="flex flex-wrap gap-1.5 border-t border-hairline px-4 py-3">
           {IDLE_OPTIONS.map((opt) => {
@@ -2315,7 +2315,7 @@ function CalendarIntegrationSection() {
 
 type SettingsCategory = "general" | "family" | "display" | "network" | "calendars" | "maintenance" | "account"
 
-const CATEGORY_STORAGE_KEY = "lumora-settings-category"
+const CATEGORY_STORAGE_KEY = "solora-settings-category"
 
 const categoryMeta: Record<SettingsCategory, { label: string; icon: LucideIcon; description: string }> = {
   general: { label: "General", icon: Tablet, description: "This display, language, time zone and orientation." },
@@ -2423,7 +2423,7 @@ function AccountResetSection() {
           description="Remove all notification history on this hub"
           onClick={() => setConfirm("clear")}
         />
-        {kioskState.paired ? (
+        {kioskState.paired && !kioskState.onHub ? (
           <ActionRow
             icon={Link2Off}
             label="Disconnect hub"

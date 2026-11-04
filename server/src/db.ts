@@ -1,7 +1,7 @@
 /**
  * db.ts — better-sqlite3 connection and schema migration.
  *
- * Database file: $HOME/.lumora/lumora.db
+ * Database file: $HOME/.solora/solora.db
  * Schema:        ../scripts/schema.sql  (applied once at startup, idempotent)
  */
 
@@ -14,12 +14,40 @@ import path from "path"
 // Data directory
 // ---------------------------------------------------------------------------
 
-export const DATA_DIR = path.join(os.homedir(), ".lumora")
-export const DB_PATH = path.join(DATA_DIR, "lumora.db")
+/**
+ * Hubs from before the rename kept everything in ~/.lumora/lumora.db. Move that
+ * folder to ~/.solora once (leaving ~/.lumora as a link to it, for older builds
+ * and scripts), then rename the database with its -wal/-shm files.
+ */
+function moveLegacyData(dir: string): void {
+  const legacy = path.join(os.homedir(), ".lumora")
+  if (!fs.existsSync(dir) && fs.existsSync(legacy) && !fs.lstatSync(legacy).isSymbolicLink()) {
+    try {
+      fs.renameSync(legacy, dir)
+      fs.symlinkSync(dir, legacy)
+      console.log("[solora] Moved", legacy, "to", dir)
+    } catch (err) {
+      // Another hub process starting at the same moment may have moved it first.
+      if (!fs.existsSync(dir)) throw err
+    }
+  }
+  const oldDb = path.join(dir, "lumora.db")
+  if (fs.existsSync(oldDb) && !fs.existsSync(path.join(dir, "solora.db"))) {
+    // The WAL holds recent writes; it has to follow the database or they're lost.
+    for (const suffix of ["-wal", "-shm", ""]) {
+      const from = oldDb + suffix
+      if (fs.existsSync(from)) fs.renameSync(from, path.join(dir, "solora.db" + suffix))
+    }
+  }
+}
+
+export const DATA_DIR = path.join(os.homedir(), ".solora")
+moveLegacyData(DATA_DIR)
+export const DB_PATH = path.join(DATA_DIR, "solora.db")
 export const PHOTOS_DIR = path.join(DATA_DIR, "photos")
 export const SECRET_FILE = path.join(DATA_DIR, ".secret")
 
-/** Ensure $HOME/.lumora and its sub-dirs exist. */
+/** Ensure $HOME/.solora and its sub-dirs exist. */
 export function ensureDataDir(): void {
   for (const dir of [DATA_DIR, PHOTOS_DIR]) {
     if (!fs.existsSync(dir)) {

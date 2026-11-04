@@ -36,7 +36,7 @@ export function AppearanceSection() {
     const url = URL.createObjectURL(new Blob([SEASON_TEMPLATE], { type: "application/json" }))
     const a = document.createElement("a")
     a.href = url
-    a.download = "lumora-season.json"
+    a.download = "solora-season.json"
     a.click()
     URL.revokeObjectURL(url)
   }

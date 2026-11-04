@@ -1,7 +1,7 @@
 /**
  * invite-relay.ts — joining this household from outside its Wi-Fi.
  *
- * When an invite is created the hub registers SHA-256("lumora-invite:" + code)
+ * When an invite is created the hub registers SHA-256(INVITE_LABEL + ":" + code)
  * (and the same for the invite's QR token) with central, along with this hub's
  * P-256 public key. An invitee who can't reach the hub on the LAN looks the
  * invite up at central, derives a shared AES key by ECDH with that public key,
@@ -15,12 +15,16 @@ import crypto from "crypto"
 import fs from "fs"
 import os from "os"
 import path from "path"
+import { DATA_DIR } from "../db"
 import { getHubJwt } from "../lib/central-registry"
 
 const CENTRAL_API_URL = (process.env.CENTRAL_API_URL ?? "http://localhost:4000").replace(/\/$/, "")
-const HUB_PORT = process.env.SOLORA_PORT ?? process.env.LUMORA_PORT ?? process.env.PORT ?? "4000"
+const HUB_PORT = process.env.SOLORA_PORT ?? process.env.PORT ?? "4000"
 const LOCAL_URL = `http://127.0.0.1:${HUB_PORT}/api/v1`
-const KEY_FILE = path.join(process.env.HOME ?? ".", ".lumora", "invite-ecdh.key")
+const KEY_FILE = path.join(DATA_DIR, "invite-ecdh.key")
+// Wire constant shared with every phone (mobile/src/lib/invite-remote.ts) and the
+// Rust hub. It predates the Solora name; changing it breaks invites between versions.
+const INVITE_LABEL = "lumora-invite"
 
 // ----- Keys ------------------------------------------------------------------
 
@@ -47,13 +51,13 @@ export function hubInvitePublicKey(): string {
 
 /** The routing key central knows an invite by: never the code itself. */
 export function inviteLookup(tokenOrCode: string): string {
-  return crypto.createHash("sha256").update(`lumora-invite:${tokenOrCode.trim().toUpperCase()}`).digest("hex")
+  return crypto.createHash("sha256").update(`${INVITE_LABEL}:${tokenOrCode.trim().toUpperCase()}`).digest("hex")
 }
 
 /** AES-256-GCM key shared with the app that sent `clientPub`, bound to the invite it asked about. */
 function sharedKey(clientPub: string, lookup: string): Buffer {
   const secret = ecdh().computeSecret(Buffer.from(clientPub, "base64"))
-  return Buffer.from(crypto.hkdfSync("sha256", secret, Buffer.from("lumora-invite"), Buffer.from(lookup), 32))
+  return Buffer.from(crypto.hkdfSync("sha256", secret, Buffer.from(INVITE_LABEL), Buffer.from(lookup), 32))
 }
 
 function decrypt(key: Buffer, iv: string, ciphertext: string): unknown {

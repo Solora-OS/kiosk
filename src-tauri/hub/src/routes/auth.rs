@@ -24,6 +24,7 @@ pub fn router() -> Router<Arc<Hub>> {
 }
 
 /// 32-byte AES-256-GCM key for off-network relay payloads: HMAC(secret, "lumora-remote-access").
+/// The label is a wire constant from before the Solora rename: phones keep the derived key.
 pub fn remote_key(hub: &Hub) -> [u8; 32] {
     let mut mac = Hmac::<Sha256>::new_from_slice(hub.store.secret().as_bytes()).expect("any key length works");
     mac.update(b"lumora-remote-access");

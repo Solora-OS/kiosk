@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { Check, ChevronLeft } from "lucide-react"
-import { OrbitLoader } from "@/components/os/orbit"
+import { WaveLoader } from "@/components/os/loading"
 import { WifiStep } from "./wifi-step"
 import { applyLocaleSettings, type ScreenOrientation } from "@/lib/locale-service"
 import { currentNetwork } from "@/lib/wifi-service"
@@ -305,7 +305,7 @@ export function SetupWizard({
               Back
             </button>
             <button type="button" onClick={() => void next()} disabled={!canAdvance || saving} className="os-button">
-              {saving ? <OrbitLoader size={16} /> : null}
+              {saving ? <WaveLoader size={16} /> : null}
               {isLast ? (saving ? "Finishing" : "Finish setup") : "Continue"}
             </button>
           </footer>

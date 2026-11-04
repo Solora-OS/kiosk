@@ -17,9 +17,9 @@
 
 import { LOCAL_API_BASE } from "./local-api"
 
-const TOKEN_KEY      = "lumora.kiosk.deviceToken"
-const NAME_KEY       = "lumora.kiosk.deviceName"
-const DEVICE_ID_KEY  = "lumora.device.id"
+const TOKEN_KEY      = "solora.kiosk.deviceToken"
+const NAME_KEY       = "solora.kiosk.deviceName"
+const DEVICE_ID_KEY  = "solora.device.id"
 
 let _registerPromise: Promise<string | null> | null = null
 
@@ -31,6 +31,8 @@ export type KioskState = {
   pairingCode: string | null
   householdId: string | null
   householdName: string | null
+  /** This screen runs on the hub itself, so it always belongs to the hub's family. */
+  onHub: boolean
   setupComplete: boolean
   language: string | null
   timezone: string | null
@@ -44,6 +46,7 @@ const UNPAIRED: KioskState = {
   pairingCode: null,
   householdId: null,
   householdName: null,
+  onHub: false,
   setupComplete: false,
   language: null,
   timezone: null,
@@ -175,6 +178,7 @@ export async function fetchKioskState(): Promise<KioskState> {
     pairing_code?: string
     household_id?: string
     household_name?: string
+    on_hub?: boolean
     setup_complete?: boolean
     language?: string
     timezone?: string
@@ -200,6 +204,7 @@ export async function fetchKioskState(): Promise<KioskState> {
     pairingCode: row.pairing_code ?? null,
     householdId: row.household_id ?? null,
     householdName: row.household_name ?? null,
+    onHub: !!row.on_hub,
     setupComplete: !!row.setup_complete,
     language: row.language ?? null,
     timezone: row.timezone ?? null,
@@ -314,7 +319,7 @@ export async function fetchHubSetup(): Promise<HubSetup | null> {
  * Contract source: mobile/src/app/auth/find-hub-flow.tsx (parseSetupQr).
  */
 export function setupQrPayload(setup: HubSetup): string {
-  return JSON.stringify({ lumora: "setup", hub: setup.hubUrl, code: setup.setupCode })
+  return JSON.stringify({ solora: "setup", hub: setup.hubUrl, code: setup.setupCode })
 }
 
 /** What came across when this hub took over a household from an old one. */
@@ -373,8 +378,8 @@ export async function claimThisDevice(accessToken: string, pairingCode: string):
 // ---------------------------------------------------------------------------
 
 // JSON, not a deep link. The phone reads .pairing_code in Settings › Displays
-// (pair-kiosk-sheet.tsx); `lumora` and `hub` let its first-run scanner
+// (pair-kiosk-sheet.tsx); `solora` and `hub` let its first-run scanner
 // (find-hub-flow.tsx) recognise a display code and find the hub from it.
 export function buildPairingPayload(pairingCode: string, hubUrl?: string): string {
-  return JSON.stringify({ lumora: "display", hub: hubUrl ?? null, pairing_code: pairingCode })
+  return JSON.stringify({ solora: "display", hub: hubUrl ?? null, pairing_code: pairingCode })
 }

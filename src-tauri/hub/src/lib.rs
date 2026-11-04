@@ -28,7 +28,7 @@ use axum::routing::{any, get, post};
 use axum::Router;
 use std::collections::HashMap;
 use std::net::{IpAddr, SocketAddr};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, OnceLock};
 use std::time::{Duration, Instant};
 use tower_http::cors::{AllowHeaders, AllowMethods, AllowOrigin, CorsLayer};
@@ -49,12 +49,12 @@ impl Config {
         let var = |k: &str| std::env::var(k).ok().filter(|v| !v.is_empty());
         let home = var("HOME").unwrap_or_else(|| ".".into());
         Config {
-            port: var("SOLORA_PORT").or_else(|| var("LUMORA_PORT")).and_then(|p| p.parse().ok()).unwrap_or(4000),
-            data_dir: var("SOLORA_DATA_DIR").map(PathBuf::from).unwrap_or_else(|| PathBuf::from(home).join(".lumora")),
+            port: var("SOLORA_PORT").and_then(|p| p.parse().ok()).unwrap_or(4000),
+            data_dir: var("SOLORA_DATA_DIR").map(PathBuf::from).unwrap_or_else(|| store::home_data_dir(Path::new(&home))),
             central_api_url: var("CENTRAL_API_URL").unwrap_or_else(|| "http://localhost:4000".into()),
             central_socket_url: var("CENTRAL_SOCKET_URL").unwrap_or_else(|| "http://localhost:5001".into()),
             hub_name: var("HUB_NAME").unwrap_or_else(|| "Solora Hub".into()),
-            hub_owner_email: var("HUB_OWNER_EMAIL").unwrap_or_else(|| "admin@lumora.local".into()),
+            hub_owner_email: var("HUB_OWNER_EMAIL").unwrap_or_else(|| "admin@solora.local".into()),
         }
     }
 }
@@ -167,7 +167,7 @@ fn app(hub: Arc<Hub>, io_layer: socketioxide::layer::SocketIoLayer) -> Router {
 pub async fn run(config: Config, shutdown: impl std::future::Future<Output = ()> + Send + 'static) -> anyhow::Result<()> {
     let http = reqwest::Client::builder().build()?;
     let store = store::Store::open(&config.data_dir, &config.hub_name)?;
-    println!("[solora] Database schema applied: {}", config.data_dir.join("lumora.db").display());
+    println!("[solora] Database schema applied: {}", config.data_dir.join("solora.db").display());
     let hub = Arc::new(Hub {
         keys: tokens::AccountKeys::new(&config.central_api_url, http.clone()),
         central: central::Central::new(&config.central_api_url, &config.central_socket_url),

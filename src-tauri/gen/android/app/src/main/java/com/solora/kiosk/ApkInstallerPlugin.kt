@@ -1,4 +1,4 @@
-package com.peakl.lumora_kiosk
+package com.solora.kiosk
 
 import android.app.Activity
 import android.app.PendingIntent

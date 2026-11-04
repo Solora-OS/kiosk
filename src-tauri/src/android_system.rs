@@ -14,7 +14,7 @@ struct System<R: Runtime>(Arc<PluginHandle<R>>);
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
     Builder::new("solora-system")
         .setup(|app, api| {
-            let handle = api.register_android_plugin("com.peakl.lumora_kiosk", "SystemPlugin")?;
+            let handle = api.register_android_plugin("com.solora.kiosk", "SystemPlugin")?;
             app.manage(System(Arc::new(handle)));
             Ok(())
         })

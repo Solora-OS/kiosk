@@ -29,7 +29,7 @@ import { patchDeviceState } from "@/lib/device-state"
 import { useKiosk } from "@/lib/kiosk-provider"
 import { SystemHeading, SystemScreen } from "@/components/os/system-screen"
 import { ErrorBoundary } from "@/components/os/error-state"
-import { TabLoading } from "@/components/os/orbit"
+import { TabLoading } from "@/components/os/loading"
 
 const todaySubtitle = new Date().toLocaleDateString(undefined, {
   weekday: "long",

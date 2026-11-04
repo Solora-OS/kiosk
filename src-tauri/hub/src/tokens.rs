@@ -4,8 +4,8 @@
 //! - Device tokens (walls, kids' phones, refresh and presence passes): HS256,
 //!   signed with the hub's secret. Same claims as jsonwebtoken writes, so
 //!   tokens from the Node hub stay valid here and the other way round.
-//! - Account tokens: ES256 from Solora central (iss lumora-central,
-//!   aud lumora-users), checked against central's JWKS, cached by `kid`.
+//! - Account tokens: ES256 from Solora central (iss solora-central,
+//!   aud solora-users; the lumora-* names from before the rename still pass), checked against central's JWKS, cached by `kid`.
 
 use base64::Engine;
 use jsonwebtoken::{decode, decode_header, encode, errors::ErrorKind, jwk::JwkSet, Algorithm, DecodingKey, EncodingKey, Header, Validation};
@@ -14,8 +14,8 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
-const ISSUER: &str = "lumora-central";
-const AUDIENCE: &str = "lumora-users";
+const ISSUERS: [&str; 2] = ["solora-central", "lumora-central"];
+const AUDIENCES: [&str; 2] = ["solora-users", "lumora-users"];
 
 /// jsonwebtoken's `expiresIn` strings: "30s", "24h", "30d", "87600h".
 fn seconds(expires_in: &str) -> i64 {
@@ -97,7 +97,7 @@ pub fn peek(token: &str) -> Option<Map<String, Value>> {
 
 /// True if the token claims to be a central account token (cheap, unverified).
 pub fn is_account_token(token: &str) -> bool {
-    peek(token).is_some_and(|c| c.get("iss").and_then(Value::as_str) == Some(ISSUER) && c.get("aud").and_then(Value::as_str) == Some(AUDIENCE))
+    peek(token).is_some_and(|c| c.get("iss").and_then(Value::as_str).is_some_and(|i| ISSUERS.contains(&i)) && c.get("aud").and_then(Value::as_str).is_some_and(|a| AUDIENCES.contains(&a)))
 }
 
 pub struct Account {
@@ -168,8 +168,8 @@ impl AccountKeys {
         let key = self.keys.lock().unwrap().get(&kid)?.clone();
         let mut v = Validation::new(Algorithm::ES256);
         v.leeway = 0;
-        v.set_issuer(&[ISSUER]);
-        v.set_audience(&[AUDIENCE]);
+        v.set_issuer(&ISSUERS);
+        v.set_audience(&AUDIENCES);
         v.required_spec_claims = HashSet::new();
         let claims = decode::<Map<String, Value>>(token, &key, &v).ok()?.claims;
         let text = |k: &str| claims.get(k).and_then(Value::as_str).unwrap_or("").to_string();

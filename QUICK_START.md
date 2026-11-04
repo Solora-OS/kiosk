@@ -88,4 +88,4 @@ Your kiosk is now:
 
 - [Supabase Dashboard](https://app.supabase.com)
 - [Vercel Dashboard](https://vercel.com/dashboard)
-- [Project Repo](https://github.com/lincon07/lumora_kiosk)
+- [Project Repo](https://github.com/Solora-OS/kiosk)

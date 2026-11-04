@@ -31,10 +31,10 @@ the mobile app. The kiosk itself is **not a user** — it holds a secret
 The kiosk encodes this deep link in the QR code:
 
 ```
-lumora://claim-kiosk?code=<PAIRING_CODE>
+solora://claim-kiosk?code=<PAIRING_CODE>
 ```
 
-The iOS app should register the `lumora://` URL scheme (or a Universal Link
+The iOS app should register the `solora://` URL scheme (or a Universal Link
 equivalent), parse `code`, and proceed to the claim call below. If you prefer a
 Universal Link, swap the scheme but keep the `code` query parameter.
 

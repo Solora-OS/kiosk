@@ -1,21 +1,21 @@
 [Unit]
 Description=Solora Local Hub Server
-Documentation=https://github.com/lincon07/lumora_kiosk
+Documentation=https://github.com/Solora-OS/kiosk
 After=network.target
 Wants=network-online.target
 
 [Service]
 Type=simple
 
-# Run as the kiosk user (replace "lumora" with your actual Linux username)
+# Run as the kiosk user (replace "solora" with your actual Linux username)
 User=%i
 Group=%i
 
 # Working directory — server package root
-WorkingDirectory=/opt/lumora/server
+WorkingDirectory=/opt/solora/server
 
 # Node.js binary (adjust path if using nvm or a different install location)
-ExecStart=/usr/bin/node /opt/lumora/server/dist/index.js
+ExecStart=/usr/bin/node /opt/solora/server/dist/index.js
 
 # Restart on failure with a short backoff
 Restart=on-failure
@@ -31,12 +31,12 @@ Environment=SOLORA_PORT=4000
 NoNewPrivileges=true
 ProtectSystem=full
 ProtectHome=read-only
-ReadWritePaths=%h/.lumora
+ReadWritePaths=%h/.solora
 
 # Logging — captured by journald
 StandardOutput=journal
 StandardError=journal
-SyslogIdentifier=lumora-server
+SyslogIdentifier=solora-server
 
 [Install]
 WantedBy=multi-user.target

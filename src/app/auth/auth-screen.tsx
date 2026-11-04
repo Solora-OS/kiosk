@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { Apple, Sparkles } from "lucide-react"
-import { OrbitLoader } from "@/components/os/orbit"
+import { WaveLoader } from "@/components/os/loading"
 import { useAuth } from "@/lib/auth"
 import { cn } from "@/lib/utils"
 import { ClaimFlow } from "./claim-flow"
@@ -150,7 +150,7 @@ export function AuthScreen() {
             disabled={busy}
             className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
           >
-            {busy ? <OrbitLoader size={16} /> : null}
+            {busy ? <WaveLoader size={16} /> : null}
             {mode === "signin" ? "Sign in" : "Create account"}
           </button>
         </form>
@@ -168,7 +168,7 @@ export function AuthScreen() {
             disabled={appleBusy}
             className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-foreground py-3 text-sm font-semibold text-background transition-opacity hover:opacity-90 disabled:opacity-50"
           >
-            {appleBusy ? <OrbitLoader size={16} /> : <Apple className="size-4" />}
+            {appleBusy ? <WaveLoader size={16} /> : <Apple className="size-4" />}
             Continue with Apple
           </button>
         ) : null}

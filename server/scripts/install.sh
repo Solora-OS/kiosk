@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# install.sh — install and enable the lumora-server systemd service.
+# install.sh — install and enable the solora-server systemd service.
 #
 # Usage:
 #   cd server/
@@ -7,8 +7,8 @@
 #
 # What it does:
 #   1. Builds the TypeScript source (npm run build)
-#   2. Copies the compiled output to /opt/lumora/server
-#   3. Installs the systemd unit as lumora-server@<USER>.service
+#   2. Copies the compiled output to /opt/solora/server
+#   3. Installs the systemd unit as solora-server@<USER>.service
 #   4. Enables and starts the service
 #
 # Run as your normal (non-root) user — the script uses sudo only where needed.
@@ -16,7 +16,7 @@
 set -euo pipefail
 
 # The kiosk app runs the hub itself now (README.md); this service would take
-# the same port 4000 and the same ~/.lumora.
+# the same port 4000 and the same ~/.solora.
 if [[ "${SOLORA_NODE_HUB:-}" != "1" ]]; then
   echo "The hub runs inside the kiosk app now; this Node server is reference only." >&2
   echo "Set SOLORA_NODE_HUB=1 to install it anyway (then run the app with SOLORA_HUB=off)." >&2
@@ -26,11 +26,11 @@ fi
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SERVER_DIR="$(dirname "$SCRIPT_DIR")"
 CURRENT_USER="${SUDO_USER:-$USER}"
-INSTALL_DIR="/opt/lumora/server"
-SERVICE_NAME="lumora-server@${CURRENT_USER}.service"
-UNIT_FILE="${SERVER_DIR}/lumora-server.service"
+INSTALL_DIR="/opt/solora/server"
+SERVICE_NAME="solora-server@${CURRENT_USER}.service"
+UNIT_FILE="${SERVER_DIR}/solora-server.service"
 
-echo "==> Building lumora-server..."
+echo "==> Building solora-server..."
 cd "$SERVER_DIR"
 npm install
 npm run build

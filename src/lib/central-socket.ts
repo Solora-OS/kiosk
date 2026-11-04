@@ -1,10 +1,10 @@
 // ---------------------------------------------------------------------------
-// Central Socket.IO client — connects to lumora_central_socket_io
+// Central Socket.IO client — connects to the central Socket.IO server
 //
 // This REPLACES liveSocket (local hub socket) for household data sync.
 // Also handles: OTA push, device lock/unlock, portal notifications, heartbeats.
 //
-// Auth: uses the central API device JWT stored under "lumora.central.token".
+// Auth: uses the central API device JWT stored under "solora.central.token".
 // The kiosk fetches this JWT from the local hub (GET /api/v1/kiosk/central-token).
 // Set VITE_CENTRAL_SOCKET_URL to point at the central socket server.
 // ---------------------------------------------------------------------------
@@ -35,8 +35,8 @@ async function appVersion(): Promise<string | null> {
   return cachedVersion
 }
 
-const CENTRAL_TOKEN_KEY = "lumora.central.token"
-const CENTRAL_DEVICE_ID_KEY = "lumora.central.device_id"
+const CENTRAL_TOKEN_KEY = "solora.central.token"
+const CENTRAL_DEVICE_ID_KEY = "solora.central.device_id"
 
 export function getCentralToken(): string | null {
   try { return localStorage.getItem(CENTRAL_TOKEN_KEY) } catch { return null }

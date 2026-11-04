@@ -30,7 +30,8 @@ impl Store {
     pub fn open(dir: &Path, hub_name: &str) -> anyhow::Result<Store> {
         std::fs::create_dir_all(dir.join("photos"))?;
         set_private(dir);
-        let db = Connection::open(dir.join("lumora.db"))?;
+        rename_legacy_db(dir)?;
+        let db = Connection::open(dir.join("solora.db"))?;
         db.execute_batch(
             "PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON; PRAGMA synchronous = NORMAL;
              PRAGMA cache_size = -32000; PRAGMA temp_store = MEMORY; PRAGMA mmap_size = 268435456;",
@@ -99,6 +100,36 @@ fn set_private(path: &Path) {
 fn set_private(_path: &Path) {}
 
 /// Read (or generate) the 64-byte hex secret that signs device tokens.
+/// `~/.solora` for a desktop hub. One from before the rename kept its data in
+/// `~/.lumora`: it moves once, and `~/.lumora` stays behind as a link to it.
+pub fn home_data_dir(home: &Path) -> PathBuf {
+    let dir = home.join(".solora");
+    let legacy = home.join(".lumora");
+    let is_real_dir = std::fs::symlink_metadata(&legacy).is_ok_and(|m| m.is_dir());
+    if !dir.exists() && is_real_dir && std::fs::rename(&legacy, &dir).is_ok() {
+        #[cfg(unix)]
+        let _ = std::os::unix::fs::symlink(&dir, &legacy);
+        println!("[solora] Moved {} to {}", legacy.display(), dir.display());
+    }
+    dir
+}
+
+/// lumora.db (pre-rename) becomes solora.db, its -wal/-shm with it: the WAL holds
+/// recent writes and is lost if it's left behind.
+fn rename_legacy_db(dir: &Path) -> std::io::Result<()> {
+    let old = dir.join("lumora.db");
+    if !old.exists() || dir.join("solora.db").exists() {
+        return Ok(());
+    }
+    for suffix in ["-wal", "-shm", ""] {
+        let from = dir.join(format!("lumora.db{suffix}"));
+        if from.exists() {
+            std::fs::rename(from, dir.join(format!("solora.db{suffix}")))?;
+        }
+    }
+    Ok(())
+}
+
 fn secret(dir: &Path) -> anyhow::Result<String> {
     let path = dir.join(".secret");
     if let Ok(s) = std::fs::read_to_string(&path) {

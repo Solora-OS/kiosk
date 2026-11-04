@@ -90,6 +90,7 @@ const INITIAL_STATE: KioskState = {
   pairingCode: null,
   householdId: null,
   householdName: null,
+  onHub: false,
   setupComplete: false,
   language: null,
   timezone: null,
@@ -162,7 +163,7 @@ export function KioskProvider({ children }: { children: ReactNode }) {
       await withTimeout(
         ensureRegistered(deviceName),
         REGISTER_TIMEOUT_MS,
-        "Local server did not respond in time. Make sure lumora-server is running.",
+        "Local server did not respond in time. Make sure solora-server is running.",
       )
       // Bridge the device JWT into the shared tokenStore so that store.tsx
       // API calls (listChores, listEvents, etc.) send a valid Bearer token.

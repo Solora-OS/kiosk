@@ -92,7 +92,7 @@ pub async fn feed(State(hub): State<Arc<Hub>>, Path(token): Path<String>) -> Res
         let all_day = db::number(e, "all_day") != 0.0;
         let (start, end) = (db::number(e, "start_hour"), db::number(e, "end_hour"));
         lines.push("BEGIN:VEVENT".into());
-        lines.push(format!("UID:{}@lumora", db::s(e, "id")));
+        lines.push(format!("UID:{}@solora", db::s(e, "id")));
         lines.push(format!("DTSTAMP:{stamp}"));
         if all_day {
             lines.push(format!("DTSTART;VALUE=DATE:{}", date.replace('-', "")));

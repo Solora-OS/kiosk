@@ -18,6 +18,7 @@
 //! adapter, `wall_beacon_start` returns an error the UI just logs.
 
 /// 6C756D6F-7261-4E10-8000-696E76697465 — "lumora" + 4E10 + "invite", next to the invite service.
+/// The pre-Solora name stays: phones already scan for this exact UUID.
 #[cfg(target_os = "linux")]
 const WALL_SERVICE: u128 = 0x6C756D6F_7261_4E10_8000_696E76697465;
 /// Bluetooth SIG's id reserved for testing; fine for a private beacon.

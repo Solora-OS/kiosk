@@ -8,7 +8,7 @@
 //   4. Upserts them into the events table (keyed on source + source_event_id)
 //      so repeated syncs are idempotent.
 //
-// Env vars needed (set in ~/.lumora/.env or systemd unit):
+// Env vars needed (set in ~/.solora/.env or systemd unit):
 //   GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET
 //   MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET, MICROSOFT_TENANT_ID
 // ---------------------------------------------------------------------------

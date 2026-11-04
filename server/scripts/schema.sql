@@ -252,7 +252,7 @@ CREATE TABLE IF NOT EXISTS notification_states (
 CREATE TABLE IF NOT EXISTS photos (
   id           TEXT PRIMARY KEY,
   household_id TEXT NOT NULL REFERENCES households(id) ON DELETE CASCADE,
-  filename     TEXT NOT NULL,        -- basename stored under $HOME/.lumora/photos/
+  filename     TEXT NOT NULL,        -- basename stored under $HOME/.solora/photos/
   src          TEXT NOT NULL,        -- relative URL served by the API, e.g. /photos/<id>
   caption      TEXT NOT NULL DEFAULT '',
   created_at   TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))

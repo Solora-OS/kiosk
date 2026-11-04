@@ -10,10 +10,10 @@
 
 import crypto from "crypto"
 import fs from "fs"
-import os from "os"
 import path from "path"
+import { DATA_DIR } from "../db"
 
-const SETUP_CODE_PATH = path.join(os.homedir(), ".lumora", "setup_code")
+const SETUP_CODE_PATH = path.join(DATA_DIR, "setup_code")
 
 /** This hub's setup code, created and saved the first time it's asked for. */
 export function getOrCreateSetupCode(): string {

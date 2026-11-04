@@ -19,7 +19,7 @@ import {
   TriangleAlert, Users, UtensilsCrossed, type LucideIcon,
 } from "lucide-react"
 import { BottomSheet } from "@/components/ui/reusables/bottom-sheet"
-import { OrbitLoader } from "@/components/os/orbit"
+import { WaveLoader } from "@/components/os/loading"
 import { api, type ActivityCategory, type ActivityEntry } from "@/lib/api"
 import { memberBg } from "@/lib/data"
 import { clearLogs, getLogs, subscribeLogs, type HubLogEntry, type HubLogLevel } from "@/lib/hub"
@@ -146,7 +146,7 @@ function FamilyActivity({ open }: { open: boolean }) {
       {error ? (
         <EmptyState icon={TriangleAlert} title="Couldn't load activity">{error}</EmptyState>
       ) : entries === null ? (
-        <div className="flex justify-center py-12"><OrbitLoader size={22} /></div>
+        <div className="flex justify-center py-12"><WaveLoader size={22} /></div>
       ) : entries.length === 0 ? (
         <EmptyState icon={History} title="Nothing here yet">
           {category === "all" ? "When someone adds an event, finishes a chore or plans a meal, it shows up here." : `No ${CATEGORY[category].label.toLowerCase()} activity yet.`}
@@ -164,7 +164,7 @@ function FamilyActivity({ open }: { open: boolean }) {
           {more ? (
             <button type="button" disabled={busy} onClick={() => void load(entries[entries.length - 1]?.cursor)}
               className="mt-3 flex min-h-12 w-full items-center justify-center gap-2 rounded-md bg-secondary text-sm font-semibold disabled:opacity-60">
-              {busy ? <OrbitLoader size={16} /> : null}Show older
+              {busy ? <WaveLoader size={16} /> : null}Show older
             </button>
           ) : (
             <p className="py-4 text-center text-xs text-muted-foreground">That's everything.</p>

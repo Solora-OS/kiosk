@@ -2,9 +2,9 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { BUILTIN_SEASONS, seasonForDate, type Season } from "@/lib/seasons"
 import { saveHouseholdSeasons, useHouseholdSeasons } from "@/lib/household-seasons"
 
-const MODE_KEY = "lumora-season"
-const IMPORTED_KEY = "lumora-season-imported"
-const EFFECTS_KEY = "lumora-season-effects"
+const MODE_KEY = "solora-season"
+const IMPORTED_KEY = "solora-season-imported"
+const EFFECTS_KEY = "solora-season-effects"
 
 type SeasonContextValue = {
   /** "auto" or a pinned season id. */

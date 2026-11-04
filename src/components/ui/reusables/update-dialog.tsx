@@ -8,7 +8,7 @@ import {
   Hash,
   FileText
 } from "lucide-react"
-import { OrbitLoader } from "@/components/os/orbit"
+import { WaveLoader } from "@/components/os/loading"
 import {
   Dialog,
   DialogContent,
@@ -178,7 +178,7 @@ export function UpdateDialog() {
           <Button onClick={() => void handleInstall()} disabled={installing} className="flex-1 gap-2">
             {installing ? (
               <>
-                <OrbitLoader size={16} />
+                <WaveLoader size={16} />
                 Installing…
               </>
             ) : (

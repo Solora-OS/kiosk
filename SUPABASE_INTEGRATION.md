@@ -133,7 +133,7 @@ const tables = [
   "kiosk_devices",  // NEW
 ]
 
-let ch = supabase.channel("lumora-realtime")
+let ch = supabase.channel("solora-realtime")
 for (const table of tables) {
   ch = ch.on("postgres_changes", { event: "*", schema: "public", table }, scheduleSync)
 }

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react"
 import { Wifi, WifiLow, WifiHigh, Lock, Check, RefreshCw, ChevronRight } from "lucide-react"
-import { OrbitLoader } from "@/components/os/orbit"
+import { WaveLoader } from "@/components/os/loading"
 import {
   scanNetworks,
   connect as wifiConnect,
@@ -156,7 +156,7 @@ export function WifiStep({
                         disabled={connecting || !password}
                         className="os-button"
                       >
-                        {connecting ? <OrbitLoader size={16} /> : null}
+                        {connecting ? <WaveLoader size={16} /> : null}
                         {connecting ? "Joining" : "Join network"}
                       </button>
                       <button

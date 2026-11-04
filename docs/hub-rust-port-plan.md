@@ -13,11 +13,11 @@ URLs, JSON, status codes, error text, socket events, tokens and database file.
 | Size | ~8,200 lines TS: 25 route files (~120 endpoints), 9 services, 11 libs | — |
 | HTTP | Express on `0.0.0.0:4000`, `/api/v1/*`, `/photo-files`, CORS, rate limits | Must keep port 4000: phones and the kiosk web view call it |
 | Realtime | Socket.IO server, JWT auth, room `household:<id>`, `broadcast()` after every write | `mobile/src/lib/socket.ts`, `kiosk/src/lib/local-api.ts` use socket.io-client 4 |
-| Database | better-sqlite3, `scripts/schema.sql` (24 tables), 275 prepared statements, `~/.lumora/lumora.db` | No native Node addons on Android |
-| Identity | `~/.lumora/.secret` (HS256 JWT key), `hub-identity.json`, `central.json` (hub id/token, per-kiosk central JWTs), `invite-ecdh.key` | Must carry over so existing phones stay signed in |
+| Database | better-sqlite3, `scripts/schema.sql` (24 tables), 275 prepared statements, `~/.solora/solora.db` | No native Node addons on Android |
+| Identity | `~/.solora/.secret` (HS256 JWT key), `hub-identity.json`, `central.json` (hub id/token, per-kiosk central JWTs), `invite-ecdh.key` | Must carry over so existing phones stay signed in |
 | Crypto | bcryptjs, jsonwebtoken, AES-256-GCM (`token-crypto`, `remote-rpc`, `hub-transfer`, `invite-relay`), P-256 ECDH + HKDF (`invite-relay`) | — |
 | Central link | REST register/login (`central-registry.ts`), socket.io-client to central: heartbeat, `hub:relay`, `hub:rpc`, `hub:invite-rpc`, `support:request`, `manufacturer:action` | — |
-| Discovery | bonjour-service advertises `_lumora._tcp` | Android needs a Wi-Fi multicast lock |
+| Discovery | bonjour-service advertises `_solora._tcp` | Android needs a Wi-Fi multicast lock |
 | Background work | reminders, calendar sync (iCal + Google/Microsoft OAuth) on timers | Must keep running while the screen sleeps |
 | Tests | None for the hub; `FAMILY_SIMULATION_REPORT.md` was a one-off scripted run (131 calls) | — |
 
@@ -35,7 +35,7 @@ the same tests as the Node hub.
 | Express | `axum` + `tower-http` (CORS, limits) | Same routes, middleware style |
 | Socket.IO server | `socketioxide` | Speaks the socket.io v4 protocol the clients use |
 | socket.io-client (to central) | `rust_socketio` (async) | Central stays Node |
-| better-sqlite3 | `rusqlite` (`bundled`) | Same SQLite, same `schema.sql`, same `lumora.db` file |
+| better-sqlite3 | `rusqlite` (`bundled`) | Same SQLite, same `schema.sql`, same `solora.db` file |
 | jsonwebtoken | `jsonwebtoken` (HS256) | Same `.secret` → existing tokens stay valid |
 | bcryptjs | `bcrypt` | Reads/writes the same `$2a$`/`$2b$` hashes |
 | crypto (GCM, ECDH, HKDF) | `aes-gcm`, `p256`, `hkdf`, `sha2` | Byte-for-byte with Node's output |
@@ -53,7 +53,7 @@ needs a cross-compiled addon; a second runtime to keep alive and update) and
 1. **The contract is the spec.** Every endpoint keeps its path, method, request
    and response JSON (field names, nulls, ordering of lists), status codes and
    error `message` strings. Socket events keep names and payloads.
-2. **Same files, same formats.** Rust reads the existing `lumora.db`,
+2. **Same files, same formats.** Rust reads the existing `solora.db`,
    `.secret`, `hub-identity.json`, `central.json`, `invite-ecdh.key`, photo
    files. Moving a hub from Node to Rust is copying a folder.
 3. **Black-box tests first, against Node.** Nothing is ported until the
@@ -80,7 +80,7 @@ What was planned:
    invite relay, every CRUD area, photos, ICS feed, transfer, support.
 2. A socket probe that records which events each write broadcasts.
 3. Normalise ids/timestamps, then snapshot responses (`--update` to refresh).
-4. Run it in a fresh `$HOME` so it never touches `~/.lumora`.
+4. Run it in a fresh `$HOME` so it never touches `~/.solora`.
 
 Done when: the suite passes against `npm run dev` and covers all 25 route files
 (calendar-provider OAuth callbacks are stubbed, as in the simulation).
@@ -102,7 +102,7 @@ household routes (members, snapshot) to reach the Home screen.
 
 What was planned:
 
-- Crate, config (port, data dir: `~/.lumora` on Linux/Mac, app data dir on
+- Crate, config (port, data dir: `~/.solora` on Linux/Mac, app data dir on
   Android), schema apply, secret/identity files.
 - JWT + auth middleware (`requireAuth`, roles, `memberStillLinked`), rate limits, CORS.
 - Socket.IO with `socketAuth`, rooms, `broadcast()`.
@@ -190,7 +190,7 @@ Hub transfer (`routes/transfer.rs`: one open move, the XXXX-XXXX code, 10
 wrong tries cancel it, scrypt + AES-GCM sealing byte-compatible with Node,
 calendar tokens re-encrypted with the new hub's secret, `INSERT OR REPLACE`
 over the columns this schema has, unpaired displays join the household, and
-mDNS `_lumora._tcp` discovery when no address is given) and the event
+mDNS `_solora._tcp` discovery when no address is given) and the event
 reminders tick (`reminders.rs`, every minute, `reminders_sent` dedupe).
 Support, hub commands and `notify` came over in Phases 2–3.
 
@@ -205,7 +205,7 @@ nothing twice. Not exercised: mDNS discovery during a pull (the suite passes
 
 ## Phase 6 — platform glue — done 2026-11-04
 
-- **mDNS** (`hub/src/mdns.rs`): `_lumora._tcp` with the same TXT records as
+- **mDNS** (`hub/src/mdns.rs`): `_solora._tcp` with the same TXT records as
   Node (hub_id, name, claimed; re-published when claimed changes). The instance
   name adds the start of the hub id ("Solora Hub F29F") so two hubs on one
   Wi-Fi, as in a move, don't answer for each other. Seen by macOS `dns-sd`.
@@ -215,9 +215,9 @@ nothing twice. Not exercised: mDNS discovery during a pull (the suite passes
   with the screen off and in forced deep Doze. No battery-optimisation
   exemption: there's no device-owner API for it on Android 12, and Doze doesn't
   run while the panel is on mains. The emulator's hub shows up in the Mac's
-  `dns-sd -B _lumora._tcp`. Not checked: a real phone finding the panel, and
+  `dns-sd -B _solora._tcp`. Not checked: a real phone finding the panel, and
   calls out to central in Doze.
-- **Linux:** the app starts the same hub (`src/hub.rs`) on `~/.lumora`, the
+- **Linux:** the app starts the same hub (`src/hub.rs`) on `~/.solora`, the
   Node hub's folder, with the Node hub's variables, so an existing Linux hub
   carries on as it was. `SOLORA_HUB=off` leaves it to a separate server.
   On the dev VM the app's hub serves on port 4000 and advertises; with no
@@ -230,7 +230,7 @@ nothing twice. Not exercised: mDNS discovery during a pull (the suite passes
 - **Moving an existing hub:** between hubs, the transfer code (Phase 5) works
   both ways between Node and Rust (`NEW_HUB_BIN` in the contract suite: 41/41
   Node → Rust and Rust → Node). Onto a debug build, `scripts/android-import-hub.sh`
-  copies a `~/.lumora` folder in whole (identity, sign-ins, central link) with
+  copies a `~/.solora` folder in whole (identity, sign-ins, central link) with
   `run-as`; `am force-stop` doesn't stop Solora (device owner, home screen), so
   it kills the app as itself after the swap.
 

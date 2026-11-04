@@ -17,7 +17,7 @@ import cors from "cors"
 import helmet from "helmet"
 import rateLimit from "express-rate-limit"
 
-import { getDb, PHOTOS_DIR, ensureDataDir, getOrCreateSecret } from "./db"
+import { getDb, DATA_DIR, PHOTOS_DIR, ensureDataDir, getOrCreateSecret } from "./db"
 import { setBroadcaster } from "./broadcaster"
 import { socketAuth, requireAuth } from "./middleware/auth"
 
@@ -70,12 +70,12 @@ startReminderScheduler() // event reminders, checked every minute
 startCalendarLinkScheduler() // iCal links (school, league), re-read hourly
 // OTA catch-up for devices that were offline at push time is handled by the kiosk
 // frontend itself (GET /devices/ota/check on central-socket connect/reconnect) — see
-// lumora_kiosk/src/lib/central-socket.ts. A hub-side relay used to exist here but the
+// kiosk/src/lib/central-socket.ts. A hub-side relay used to exist here but the
 // central socket server intentionally blocks hub-injected `ota:push` (security boundary
-// in lumora_central_socket_io/src/events/hub.ts), so it never delivered anything and
+// in central/src/realtime), so it never delivered anything and
 // falsely marked jobs "acknowledged" before the kiosk received them.
 
-const PORT = Number(process.env.SOLORA_PORT ?? process.env.LUMORA_PORT ?? 4000)
+const PORT = Number(process.env.SOLORA_PORT ?? 4000)
 
 // ---------------------------------------------------------------------------
 // Express app
@@ -183,7 +183,7 @@ app.get("/health", (_req, res) => {
 app.get("/central-identity", requireAuth, (_req: Request, res: Response) => {
   const creds = (() => {
     try {
-      const p = path.join(process.env.HOME ?? ".", ".lumora", "central.json")
+      const p = path.join(DATA_DIR, "central.json")
       return JSON.parse(require("fs").readFileSync(p, "utf-8")) as { hub_id: string }
     } catch { return null }
   })()
@@ -202,7 +202,7 @@ app.get("/connection-health", requireAuth, async (_req: Request, res: Response) 
   // ── Central registry credentials ─────────────────────────────────────────
   const creds = (() => {
     try {
-      const p = path.join(process.env.HOME ?? ".", ".lumora", "central.json")
+      const p = path.join(DATA_DIR, "central.json")
       return JSON.parse(require("fs").readFileSync(p, "utf-8")) as {
         hub_id: string; hub_token: string; hub_jwt: string
         kiosks: Record<string, { central_device_id: string; central_jwt: string }>

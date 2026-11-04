@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils"
  * app so the field sits just above the keys, and keeps focus on the field —
  * keys act on pointerdown and never steal it.
  *
- * Mode (localStorage "lumora-osk"): "auto" (production default — only after a
+ * Mode (localStorage "solora-osk"): "auto" (production default — only after a
  * touch/pen tap), "always" (dev default), or "never".
  */
 
@@ -46,7 +46,7 @@ function mode(): "auto" | "always" | "never" {
   // keyboard can be tested with a mouse; production stays "auto".
   const fallback = import.meta.env.DEV ? "always" : "auto"
   try {
-    const m = localStorage.getItem("lumora-osk")
+    const m = localStorage.getItem("solora-osk")
     return m === "always" || m === "never" || m === "auto" ? m : fallback
   } catch {
     return fallback

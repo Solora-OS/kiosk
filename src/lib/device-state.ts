@@ -49,7 +49,7 @@ export const DEFAULT_DEVICE_STATE: DeviceState = {
 
 const STORE_FILE = "device-state.json"
 const STORE_KEY = "state"
-const LS_KEY = "lumora.kiosk.deviceState"
+const LS_KEY = "solora.kiosk.deviceState"
 
 /** True when running inside the Tauri native shell. */
 function isTauri(): boolean {

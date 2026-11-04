@@ -1,22 +1,23 @@
 #!/usr/bin/env bash
 # Runs on your Mac. Copies an existing hub's data folder (the Node hub's
-# ~/.lumora, or another Rust hub's) into the kiosk app on the connected
+# ~/.solora, or another Rust hub's) into the kiosk app on the connected
 # emulator/panel, so that hub's family, phones' sign-ins and central link carry
 # on there. Debug builds only (it uses run-as); a release panel takes a family
 # over with a transfer code from the old hub instead (routes/transfer.rs).
-#   ./scripts/android-import-hub.sh            # this Mac's ~/.lumora
-#   ./scripts/android-import-hub.sh path/to/.lumora
+#   ./scripts/android-import-hub.sh            # this Mac's ~/.solora
+#   ./scripts/android-import-hub.sh path/to/.solora
 #
 # Refuses if the app's hub already has a family. Its old data is kept in the
 # app as hub-before-import-<time>.
 set -euo pipefail
 SDK="${ANDROID_HOME:-$HOME/Library/Android/sdk}"
 ADB="$SDK/platform-tools/adb"
-PKG=com.peakl.lumora_kiosk
-SRC="${1:-$HOME/.lumora}"
+PKG=com.solora.kiosk
+SRC="${1:-$HOME/.solora}"
 STAGE=/data/local/tmp/solora-import-hub
 
-[[ -f "$SRC/lumora.db" ]] || { echo "no lumora.db in $SRC"; exit 1; }
+# lumora.db is a hub from before the rename; the app renames it on start.
+[[ -f "$SRC/solora.db" || -f "$SRC/lumora.db" ]] || { echo "no solora.db in $SRC"; exit 1; }
 "$ADB" wait-for-device
 
 echo "==> is the app's hub still unclaimed?"

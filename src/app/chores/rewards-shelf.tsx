@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import { Check, Flame, Gift, Plus, Star, X } from "lucide-react"
-import { TabLoading } from "@/components/os/orbit"
+import { TabLoading } from "@/components/os/loading"
 import { api } from "@/lib/api"
 import type { Member, Reward, RewardsSummary } from "@/lib/data"
 import { cn } from "@/lib/utils"

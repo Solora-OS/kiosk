@@ -19,7 +19,7 @@ The kiosk app needs to register itself in the `kiosk_devices` table so that:
 
 1. **Link your project** (if not already linked):
 ```bash
-cd lumora_kiosk
+cd kiosk
 supabase link --project-ref <your-project-id>
 ```
 

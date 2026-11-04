@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- The boot animation's last frame (os/android/bootanimation), shown while the
-     web view starts so the orbit never blinks out between Android and Solora. -->
+     web view starts so the boot text never blinks out between Android and Solora. -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:drawable="@color/solora_boot" />
     <item>
-        <bitmap android:gravity="center" android:src="@drawable/solora_boot_orbit" />
+        <bitmap android:gravity="center" android:src="@drawable/solora_boot_splash" />
     </item>
 </layer-list>

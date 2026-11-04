@@ -5,19 +5,18 @@
  * On subsequent boots: POST /register/hub/login → fresh short-lived JWT.
  * For each paired kiosk: POST /register/kiosk → device JWT stored per device.
  *
- * All credentials are persisted to $HOME/.lumora/central.json so they survive
+ * All credentials are persisted to $HOME/.solora/central.json so they survive
  * restarts without re-registering.
  */
 
 import fs from "fs"
 import path from "path"
-import { getDb } from "../db"
+import { DATA_DIR, getDb } from "../db"
 
 const CENTRAL_API_URL   = process.env.CENTRAL_API_URL   ?? "http://localhost:4000"
 const HUB_NAME          = process.env.HUB_NAME          ?? "Solora Hub"
-const HUB_OWNER_EMAIL   = process.env.HUB_OWNER_EMAIL   ?? "admin@lumora.local"
-const LUMORA_DIR        = path.join(process.env.HOME ?? ".", ".lumora")
-const CREDENTIALS_PATH  = path.join(LUMORA_DIR, "central.json")
+const HUB_OWNER_EMAIL   = process.env.HUB_OWNER_EMAIL   ?? "admin@solora.local"
+const CREDENTIALS_PATH  = path.join(DATA_DIR, "central.json")
 
 // ---------------------------------------------------------------------------
 // Persisted credentials shape
@@ -40,7 +39,7 @@ function loadCredentials(): CentralCredentials | null {
 }
 
 function saveCredentials(creds: CentralCredentials): void {
-  fs.mkdirSync(LUMORA_DIR, { recursive: true })
+  fs.mkdirSync(DATA_DIR, { recursive: true })
   fs.writeFileSync(CREDENTIALS_PATH, JSON.stringify(creds, null, 2), "utf-8")
 }
 

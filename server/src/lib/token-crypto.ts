@@ -1,15 +1,15 @@
 /**
  * AES-256-GCM encryption/decryption for OAuth tokens stored in SQLite.
- * Key is derived from ~/.lumora/.secret (generated on first boot by db.ts).
+ * Key is derived from ~/.solora/.secret (generated on first boot by db.ts).
  */
 
 import { createCipheriv, createDecipheriv, randomBytes, createHash } from "crypto"
 import fs from "fs"
 import path from "path"
-import os from "os"
+import { SECRET_FILE } from "../db"
 
 function getEncryptionKey(): Buffer {
-  const secretPath = path.join(os.homedir(), ".lumora", ".secret")
+  const secretPath = SECRET_FILE
   const secret = fs.readFileSync(secretPath, "utf8").trim()
   return createHash("sha256").update(secret).digest()
 }

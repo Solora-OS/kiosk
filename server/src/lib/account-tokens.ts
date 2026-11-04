@@ -13,8 +13,10 @@ import jwt from "jsonwebtoken"
 
 const CENTRAL_API_URL = (process.env.CENTRAL_API_URL ?? "http://localhost:4000").replace(/\/$/, "")
 
-const ISSUER   = "lumora-central"
-const AUDIENCE = "lumora-users"
+// Central signed with the lumora-* names before the rename; accept both until
+// those tokens have all expired.
+const ISSUERS:   [string, ...string[]] = ["solora-central", "lumora-central"]
+const AUDIENCES: [string, ...string[]] = ["solora-users", "lumora-users"]
 
 export interface AccountTokenPayload {
   sub:   string   // central account UUID
@@ -51,7 +53,7 @@ async function getSigningKey(kid: string): Promise<KeyObject | null> {
 export function isAccountToken(token: string): boolean {
   try {
     const raw = jwt.decode(token) as Record<string, unknown> | null
-    return raw?.iss === ISSUER && raw?.aud === AUDIENCE
+    return ISSUERS.includes(raw?.iss as string) && AUDIENCES.includes(raw?.aud as string)
   } catch {
     return false
   }
@@ -66,7 +68,7 @@ export async function verifyAccountToken(token: string): Promise<AccountTokenPay
   const key = await getSigningKey(kid)
   if (!key) return null
   try {
-    const payload = jwt.verify(token, key, { algorithms: ["ES256"], issuer: ISSUER, audience: AUDIENCE }) as Record<string, unknown>
+    const payload = jwt.verify(token, key, { algorithms: ["ES256"], issuer: ISSUERS, audience: AUDIENCES }) as Record<string, unknown>
     if (typeof payload.sub !== "string") return null
     return {
       sub:   payload.sub,

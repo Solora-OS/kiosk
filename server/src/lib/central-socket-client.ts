@@ -1,5 +1,5 @@
 /**
- * central-socket-client.ts — connects the hub server to lumora_central_socket_io.
+ * central-socket-client.ts — connects the hub server to the central Socket.IO server.
  *
  * The hub authenticates as kind="hub" and joins hub:{hub_id} room.
  * After each local DB broadcast the hub emits hub:relay so all connected

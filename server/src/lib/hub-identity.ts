@@ -10,9 +10,9 @@
 import fs from "fs"
 import path from "path"
 import crypto from "crypto"
+import { DATA_DIR } from "../db"
 
-const LUMORA_DIR    = path.join(process.env.HOME ?? ".", ".lumora")
-const IDENTITY_PATH = path.join(LUMORA_DIR, "hub-identity.json")
+const IDENTITY_PATH = path.join(DATA_DIR, "hub-identity.json")
 
 export interface HubIdentity {
   id: string // stable local UUID, generated once, never changes
@@ -33,7 +33,7 @@ export function getOrCreateHubIdentity(): HubIdentity {
     // fall through to create
   }
 
-  fs.mkdirSync(LUMORA_DIR, { recursive: true })
+  fs.mkdirSync(DATA_DIR, { recursive: true })
   const identity: HubIdentity = {
     id: crypto.randomUUID(),
     name: process.env.HUB_NAME ?? "Solora Hub",

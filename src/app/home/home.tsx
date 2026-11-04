@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type CSSProperties } from "react"
 import { Check, LayoutGrid, Plus, RotateCcw, X } from "lucide-react"
-import { TabLoading } from "@/components/os/orbit"
+import { TabLoading } from "@/components/os/loading"
 import {
   DndContext, DragOverlay, KeyboardSensor, PointerSensor, closestCenter, useSensor, useSensors,
   type DragEndEvent, type DragStartEvent,
