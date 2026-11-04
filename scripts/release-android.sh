@@ -35,6 +35,13 @@ PUBLISH=1 UPDATER_SIG=1
 
 die() { echo "error: $*" >&2; exit 1; }
 
+# The web view only reaches central over HTTPS (tauri.conf.json CSP; release
+# builds also refuse cleartext), so don't take kiosk/.env's dev addresses.
+export VITE_CENTRAL_API_URL="${VITE_CENTRAL_API_URL:-$CENTRAL_API_URL}"
+export VITE_CENTRAL_SOCKET_URL="${VITE_CENTRAL_SOCKET_URL:-$CENTRAL_API_URL}"
+export SOLORA_HUB_CENTRAL_URL="${SOLORA_HUB_CENTRAL_URL:-$CENTRAL_API_URL}"
+[[ "$VITE_CENTRAL_API_URL$VITE_CENTRAL_SOCKET_URL$SOLORA_HUB_CENTRAL_URL" != *http:* ]] || die "central must be https:// in a release build"
+
 export JAVA_HOME="${JAVA_HOME:-$(/usr/libexec/java_home -v 17 2>/dev/null || echo /opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home)}"
 export ANDROID_HOME="${ANDROID_HOME:-$HOME/Library/Android/sdk}"
 export NDK_HOME="${NDK_HOME:-$(ls -d "$ANDROID_HOME"/ndk/* | sort -V | tail -1)}"

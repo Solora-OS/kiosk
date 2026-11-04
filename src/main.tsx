@@ -11,9 +11,14 @@ import { Toaster } from "./components/ui/sonner";
 import { UpdateDialog } from "./components/ui/reusables/update-dialog";
 import { ErrorBoundary } from "./components/os/error-state";
 import { applyDisplayPrefs } from "./lib/display-prefs"
+import { isHubDevice, startUpdatePolling } from "./lib/hub"
 
 // Text size and the like, before the first paint.
 applyDisplayPrefs()
+
+// Hourly, from first boot: a display gets updates whether or not anyone opens
+// Settings, and before it's claimed (central's ota:push only reaches claimed ones).
+if (isHubDevice()) startUpdatePolling()
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>

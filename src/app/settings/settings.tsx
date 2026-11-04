@@ -82,8 +82,6 @@ import {
   checkForUpdates,
   clearCache,
   factoryReset,
-  startUpdatePolling,
-  stopUpdatePolling,
   getPendingUpdate,
   subscribeUpdate,
   isHubDevice,
@@ -417,12 +415,6 @@ function HubActionsSection() {
   const [confirmRestart, setConfirmRestart] = useState(false)
   const [checking, setChecking] = useState(false)
   const pendingUpdate = useSyncExternalStore(subscribeUpdate, getPendingUpdate, getPendingUpdate)
-
-  // Start polling for updates when the settings tab is mounted; stop on unmount.
-  useEffect(() => {
-    startUpdatePolling(60 * 60 * 1000) // 1-hour interval
-    return () => stopUpdatePolling()
-  }, [])
 
   const onCheckUpdates = async () => {
     setChecking(true)
