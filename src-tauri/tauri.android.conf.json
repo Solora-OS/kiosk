@@ -1,0 +1,16 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "app": {
+    "windows": [
+      {
+        "title": "Solora",
+        "backgroundColor": "#0a0a0f",
+        "transparent": true,
+        "fullscreen": true,
+        "decorations": false,
+        "alwaysOnTop": true,
+        "resizable": true
+      }
+    ]
+  }
+}

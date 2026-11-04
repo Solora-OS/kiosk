@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta
       name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
@@ -31,6 +31,15 @@
         var dark = t === "dark" || (t === "system" && matchMedia("(prefers-color-scheme: dark)").matches);
         if (dark) document.documentElement.classList.add("dark");
       } catch (e) {}
+      // Android: the web view starts see-through (tauri.android.conf.json) over the
+      // activity's window, which already shows the boot frame. Stay see-through
+      // until #boot's image has loaded, or the panel blinks to a bare background.
+      if (/Android/.test(navigator.userAgent)) document.documentElement.classList.add("boot-see-through");
+      // load doesn't bubble, so catch the image's on the way down.
+      document.addEventListener("load", function (e) {
+        var boot = e.target.parentNode;
+        if (boot && boot.id === "boot") boot.classList.add("boot-ready");
+      }, true);
     </script>
     <style>
       /* Boot frame: the exact last frame of the Plymouth splash
@@ -42,6 +51,8 @@
       #boot { position: fixed; inset: 0; z-index: 2147483647; background: #0a0a0f; transition: opacity 500ms ease-out; }
       #boot.boot-done { opacity: 0; pointer-events: none; }
       #boot img { position: absolute; left: 50%; top: 50%; height: 26.065vh; transform: translate(-50%, -50%); }
+      html.boot-see-through, html.boot-see-through body { background: transparent !important; }
+      html.boot-see-through #boot:not(.boot-ready) { background: transparent; }
     </style>
   </head>
 

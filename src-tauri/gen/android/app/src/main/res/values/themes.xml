@@ -4,5 +4,10 @@
         <!-- The boot animation's last frame color (#0a0a0f), so the handoff to the
              web view's #boot frame (kiosk/index.html) never flashes white. -->
         <item name="android:windowBackground">@drawable/solora_boot_window</item>
+        <!-- No starting window (Android 12's icon splash): the boot frame already
+             on screen stays until this window draws the same frame. -->
+        <item name="android:windowDisablePreview">true</item>
+        <!-- No slide when the app restarts itself (Restart app, updates). -->
+        <item name="android:windowAnimationStyle">@null</item>
     </style>
 </resources>

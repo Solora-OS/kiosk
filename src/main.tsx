@@ -48,6 +48,7 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
 requestAnimationFrame(() => requestAnimationFrame(() => {
   const boot = document.getElementById("boot")
   if (!boot) return
-  boot.classList.add("boot-done")
+  boot.classList.add("boot-ready", "boot-done")
+  document.documentElement.classList.remove("boot-see-through")
   setTimeout(() => boot.remove(), 600)
 }))
