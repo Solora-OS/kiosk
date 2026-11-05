@@ -176,6 +176,20 @@ fn store_kiosk(hub: &Hub, local_id: &str, k: &KioskCredentials) {
     }
 }
 
+/// Drops the central login of the display central knows as `central_id`
+/// (Solora unpaired it). It stays paired here and gets a fresh central identity
+/// the next time it asks. Returns the local display id.
+pub fn forget_device(hub: &Hub, central_id: &str) -> Option<String> {
+    let mut guard = hub.central.creds.write().unwrap();
+    let creds = guard.as_mut()?;
+    let local = creds.kiosks.iter().find_map(|(local, k)| {
+        (k.get("central_device_id").and_then(Value::as_str) == Some(central_id)).then(|| local.clone())
+    })?;
+    creds.kiosks.remove(&local);
+    Central::save(hub, creds);
+    Some(local)
+}
+
 async fn register_paired_kiosks(hub: &Hub) {
     let Some(jwt) = hub.central.hub_jwt() else { return };
     let paired: Vec<(String, String)> = {
@@ -289,7 +303,9 @@ async fn connect(hub: Arc<Hub>) {
         match event {
             Incoming::Connected => {
                 println!("[central-socket] Hub connected to central socket  url={}", hub.central.socket_url);
-                hub.central.emit("hub:heartbeat", &json!({ "kiosk_count": 0, "online_count": 0 }));
+                let mut beat = json!({ "kiosk_count": 0, "online_count": 0 });
+                beat.as_object_mut().unwrap().extend(crate::fleet::identity(&hub).as_object().unwrap().clone());
+                hub.central.emit("hub:heartbeat", &beat);
                 if let Some(jwt) = hub.central.hub_jwt() {
                     rest_heartbeat(&hub, &jwt).await;
                 }
@@ -313,6 +329,9 @@ async fn connect(hub: Arc<Hub>) {
                 // What Solora does to this hub, live, so the family sees it in Privacy & support.
                 "manufacturer:action" => crate::support::record_action(&hub, &payload),
                 "support:request" => crate::support::on_support_request(&hub, &payload),
+                // The Solora console's fleet controls (fleet.rs).
+                "hub:control" => crate::fleet::on_control(&hub, &payload),
+                "provision:update" => crate::fleet::on_provision(&payload),
                 _ => {}
             },
         }

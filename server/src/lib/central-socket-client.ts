@@ -15,6 +15,7 @@ import {
   onSupportRequest, recordSoloraAction, setSupportHubJwt, syncSoloraActions,
   type HouseholdGrant, type SoloraAction,
 } from "../services/solora-support"
+import { heartbeatIdentity, registerSoloraFleet } from "../services/solora-fleet"
 
 const CENTRAL_SOCKET_URL = process.env.CENTRAL_SOCKET_URL ?? "http://localhost:5001"
 const CENTRAL_API_URL    = process.env.CENTRAL_API_URL    ?? "http://localhost:4000"
@@ -71,7 +72,8 @@ export function connectHubToCentral(hubJwt: string): void {
     console.log("[central-socket] Hub connected to central socket  url=" + CENTRAL_SOCKET_URL)
     registerRemoteRpc(_socket!)
     registerInviteRpc(_socket!)
-    _socket?.emit("hub:heartbeat", { kiosk_count: 0, online_count: 0 })
+    registerSoloraFleet(_socket!)
+    _socket?.emit("hub:heartbeat", { kiosk_count: 0, online_count: 0, ...heartbeatIdentity() })
     // Send REST heartbeat immediately so portal shows hub as online
     sendRestHeartbeat(hubJwt)
     // Then every 60 seconds

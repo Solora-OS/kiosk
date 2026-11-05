@@ -23,7 +23,8 @@ import { useStore, type TabKey } from "@/lib/store"
 import { SystemStatusBar } from "@/components/ui/reusables/system-status-bar"
 import { centralSocket } from "@/lib/central-socket"
 import { logConnectionHealth } from "@/lib/connection-health"
-import { restartHub, reloadDisplay, clearCache, addLog, checkForUpdates } from "@/lib/hub"
+import { restartHub, reloadDisplay, clearCache, addLog, checkForUpdates, installUpdate } from "@/lib/hub"
+import { startFleetControl } from "@/lib/fleet-control"
 import { setOrientation } from "@/lib/locale-service"
 import { patchDeviceState } from "@/lib/device-state"
 import { useKiosk } from "@/lib/kiosk-provider"
@@ -96,6 +97,9 @@ export function KioskAppShell() {
     }
   }, [resetIdleTimer])
 
+  // Provisioning prompts and log collection from the Solora console.
+  useEffect(() => startFleetControl(), [])
+
   // ── Central socket events (OTA, lock, notifications from portal) ──────────
   useEffect(() => {
     // Security invariant: a push only triggers the Tauri updater check, which
@@ -103,10 +107,14 @@ export function KioskAppShell() {
     // signature. Never install from payload.url — a compromised central could
     // point it anywhere.
     const unsubOta = centralSocket.onOtaPush((payload) => {
-      addLog("info", "system", `OTA push received: v${payload.version} — checking updater`)
-      void checkForUpdates(payload.job_id).catch(() => {
-        addLog("error", "system", `OTA update check failed for v${payload.version}`)
-      })
+      addLog("info", "system", `OTA push received: v${payload.version} — checking updater${payload.force ? " (install now)" : ""}`)
+      void checkForUpdates(payload.job_id)
+        // "Force update" from the console skips the quiet-hours wait; the
+        // updater still verifies the signature as always.
+        .then((found) => { if (found && payload.force) return installUpdate() })
+        .catch(() => {
+          addLog("error", "system", `OTA update check failed for v${payload.version}`)
+        })
     })
 
     const unsubLock = centralSocket.onDeviceLock((payload) => {

@@ -53,14 +53,50 @@ export function getCentralDeviceId(): string | null {
   try { return localStorage.getItem(CENTRAL_DEVICE_ID_KEY) } catch { return null }
 }
 
+// The newest revision of each provisioning profile this display applied or
+// declined, so a catch-up doesn't ask the family again.
+const PROVISION_KEY = "solora.provision.handled"
+
+function handledRevision(profileId: string): number {
+  try { return (JSON.parse(localStorage.getItem(PROVISION_KEY) ?? "{}") as Record<string, number>)[profileId] ?? 0 } catch { return 0 }
+}
+
+function markHandled(profileId: string, revision: number) {
+  try {
+    const all = JSON.parse(localStorage.getItem(PROVISION_KEY) ?? "{}") as Record<string, number>
+    localStorage.setItem(PROVISION_KEY, JSON.stringify({ ...all, [profileId]: revision }))
+  } catch { /* ignore */ }
+}
+
 // ─── Event types ──────────────────────────────────────────────────────────────
 export interface OtaPushPayload {
+  /** Install now instead of waiting for the release's quiet hours (console "Force update"). */
+  force?:    boolean
   job_id?:   string
   version:   string
   url:       string
   signature?: string
   notes?:    string
   ts:        string
+}
+
+/** provision:update — a provisioning profile from the console (central/src/routes/fleet.ts). */
+export interface ProvisionPayload {
+  profile_id: string
+  name:       string
+  revision:   number
+  mode:       "prompt" | "apply"
+  settings:   {
+    update_channel?: string
+    install_window?: { start: string; end: string }
+    display?: {
+      orientation?: "normal" | "left" | "right" | "inverted" | "portrait"; idle_mins?: number | null
+      brightness?: number; volume?: number; theme?: "light" | "dark" | "system"; season_effects?: boolean
+    }
+    features?: Record<string, boolean>
+    timezone?: string; locale?: string; message?: string
+  }
+  ts: string
 }
 
 export interface DeviceLockPayload {
@@ -108,6 +144,9 @@ type DeviceLockListener     = (payload: DeviceLockPayload) => void
 type NotificationListener   = (payload: NotificationPayload) => void
 type RebootListener         = () => void
 type ReportStatusListener   = () => void
+type ProvisionListener      = (payload: ProvisionPayload) => void
+type FlagsListener          = (flags: Record<string, boolean>) => void
+type ReportLogsListener     = (sinceMinutes: number) => void
 type ConnectListener        = () => void
 type DisconnectListener     = (reason: string) => void
 
@@ -124,6 +163,9 @@ class CentralSocket {
   private notifListeners         = new Set<NotificationListener>()
   private rebootListeners        = new Set<RebootListener>()
   private reportStatusListeners  = new Set<ReportStatusListener>()
+  private provisionListeners   = new Set<ProvisionListener>()
+  private flagsListeners       = new Set<FlagsListener>()
+  private reportLogsListeners  = new Set<ReportLogsListener>()
   private connectListeners       = new Set<ConnectListener>()
   private disconnectListeners    = new Set<DisconnectListener>()
 
@@ -159,6 +201,7 @@ class CentralSocket {
       // pushed ota:push / device:lock" and "missed the live event during a network blip".
       void this.checkPendingOta()
       void this.checkLockStatus()
+      void this.checkConfig()
       for (const l of this.connectListeners) l()
     })
 
@@ -193,6 +236,20 @@ class CentralSocket {
     this.socket.on("device:report-status", () => {
       this.emitStatus()
       for (const l of this.reportStatusListeners) l()
+    })
+
+    // ── Fleet control from the console (provisioning, flags, log collection)
+    this.socket.on("provision:update", (payload: ProvisionPayload) => {
+      console.info("[central-socket] provision:update", payload.name, payload.revision, payload.mode)
+      for (const l of this.provisionListeners) l(payload)
+    })
+
+    this.socket.on("flags:update", (payload: { flags: Record<string, boolean> }) => {
+      for (const l of this.flagsListeners) l(payload.flags ?? {})
+    })
+
+    this.socket.on("device:report-logs", (payload: { since_minutes?: number }) => {
+      for (const l of this.reportLogsListeners) l(payload?.since_minutes ?? 60)
     })
 
     // ── Household data sync (table:action events relayed from hub broadcaster)
@@ -318,6 +375,35 @@ class CentralSocket {
   }
 
   /**
+   * Catch up on the hub's provisioning profile and feature flags
+   * (GET /devices/config) — covers pushes made while this display was offline.
+   * A profile is only re-raised if this display hasn't handled that revision yet.
+   */
+  async checkConfig(): Promise<void> {
+    const data = await this.fetchCentral<{ provision: ProvisionPayload | null; flags: Record<string, boolean> }>("/devices/config")
+    if (!data) return
+    for (const l of this.flagsListeners) l(data.flags ?? {})
+    if (data.provision && handledRevision(data.provision.profile_id) < data.provision.revision) {
+      for (const l of this.provisionListeners) l(data.provision)
+    }
+  }
+
+  /**
+   * Runs a hub command through the same handlers a remote one uses (app shell,
+   * display remote), so a provisioning profile applies settings exactly the
+   * way the console's display controls do.
+   */
+  applyLocally(cmd: HubCommandEvent) {
+    for (const l of this.hubCommandListeners) l(cmd)
+  }
+
+  /** Tells central what this display did with a profile push. */
+  emitProvisionResult(p: Pick<ProvisionPayload, "profile_id" | "revision">, status: "applied" | "prompted" | "declined" | "failed", error?: string) {
+    if (status !== "prompted") markHandled(p.profile_id, p.revision)
+    this.socket?.emit("provision:result", { profile_id: p.profile_id, revision: p.revision, status, ...(error ? { error } : {}) })
+  }
+
+  /**
    * Report the outcome of applying an OTA job — both live (socket, for portal
    * dashboards watching in real time) and durably (REST, so ota_push_jobs actually
    * reaches 'complete'/'failed' instead of sitting at 'acknowledged' forever).
@@ -369,6 +455,9 @@ class CentralSocket {
   onNotification(cb: NotificationListener){ this.notifListeners.add(cb);       return () => this.notifListeners.delete(cb) }
   onReboot(cb: RebootListener)           { this.rebootListeners.add(cb);       return () => this.rebootListeners.delete(cb) }
   onReportStatus(cb: ReportStatusListener){ this.reportStatusListeners.add(cb); return () => this.reportStatusListeners.delete(cb) }
+  onProvision(cb: ProvisionListener)     { this.provisionListeners.add(cb);    return () => this.provisionListeners.delete(cb) }
+  onFlags(cb: FlagsListener)             { this.flagsListeners.add(cb);        return () => this.flagsListeners.delete(cb) }
+  onReportLogs(cb: ReportLogsListener)   { this.reportLogsListeners.add(cb);   return () => this.reportLogsListeners.delete(cb) }
   onConnect(cb: ConnectListener)         { this.connectListeners.add(cb);      return () => this.connectListeners.delete(cb) }
   onDisconnect(cb: DisconnectListener)   { this.disconnectListeners.add(cb);   return () => this.disconnectListeners.delete(cb) }
 
@@ -397,6 +486,7 @@ class CentralSocket {
     this.catchUpTimer = setInterval(() => {
       void this.checkPendingOta()
       void this.checkLockStatus()
+      void this.checkConfig()
     }, 5 * 60_000) // every 5 min
   }
 

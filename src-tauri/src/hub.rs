@@ -46,11 +46,12 @@ fn config<R: Runtime>(app: &AppHandle<R>) -> Option<solora_hub::Config> {
         central_socket_url: CENTRAL.into(),
         hub_name: NAME.into(),
         hub_owner_email: OWNER_EMAIL.into(),
+        app_version: Some(app.package_info().version.to_string()),
     })
 }
 
 #[cfg(not(target_os = "android"))]
-fn config<R: Runtime>(_app: &AppHandle<R>) -> Option<solora_hub::Config> {
+fn config<R: Runtime>(app: &AppHandle<R>) -> Option<solora_hub::Config> {
     if std::env::var("SOLORA_HUB").is_ok_and(|v| v == "off") {
         println!("[hub] SOLORA_HUB=off: using a separate hub server");
         return None;
@@ -62,6 +63,7 @@ fn config<R: Runtime>(_app: &AppHandle<R>) -> Option<solora_hub::Config> {
     if std::env::var("CENTRAL_SOCKET_URL").is_err() {
         config.central_socket_url = CENTRAL.into();
     }
+    config.app_version.get_or_insert_with(|| app.package_info().version.to_string());
     Some(config)
 }
 

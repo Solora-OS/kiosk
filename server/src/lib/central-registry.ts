@@ -65,6 +65,21 @@ export function getCentralKioskCredentials(localDeviceId: string): { central_dev
 }
 
 /**
+ * Drops the stored central login of the kiosk central knows as
+ * `centralDeviceId` (after Solora unpaired it). The kiosk stays paired to this
+ * hub locally; it gets a fresh central identity the next time it asks
+ * (POST /api/v1/kiosk/request-central-token). Returns the local kiosk id.
+ */
+export function forgetCentralDevice(centralDeviceId: string): string | null {
+  if (!_credentials) return null
+  const entry = Object.entries(_credentials.kiosks ?? {}).find(([, k]) => k.central_device_id === centralDeviceId)
+  if (!entry) return null
+  delete _credentials.kiosks[entry[0]]
+  saveCredentials(_credentials)
+  return entry[0]
+}
+
+/**
  * Registers this hub (and all paired kiosks) with the central API.
  * Safe to call on every boot — re-uses stored credentials if already registered.
  *

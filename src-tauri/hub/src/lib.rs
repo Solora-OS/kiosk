@@ -7,6 +7,7 @@
 pub mod auth;
 pub mod central;
 pub mod db;
+pub mod fleet;
 pub mod hometime;
 pub mod mdns;
 pub mod household;
@@ -42,6 +43,9 @@ pub struct Config {
     pub central_socket_url: String,
     pub hub_name: String,
     pub hub_owner_email: String,
+    /// The wall app's version when the hub runs inside it (panels), for the
+    /// fleet console. None: the hub crate's own version.
+    pub app_version: Option<String>,
 }
 
 impl Config {
@@ -55,6 +59,7 @@ impl Config {
             central_socket_url: var("CENTRAL_SOCKET_URL").unwrap_or_else(|| "http://localhost:5001".into()),
             hub_name: var("HUB_NAME").unwrap_or_else(|| "Solora Hub".into()),
             hub_owner_email: var("HUB_OWNER_EMAIL").unwrap_or_else(|| "admin@solora.local".into()),
+            app_version: var("SOLORA_APP_VERSION"),
         }
     }
 }
@@ -165,6 +170,7 @@ fn app(hub: Arc<Hub>, io_layer: socketioxide::layer::SocketIoLayer) -> Router {
 
 /// Starts the hub and serves until `shutdown` resolves.
 pub async fn run(config: Config, shutdown: impl std::future::Future<Output = ()> + Send + 'static) -> anyhow::Result<()> {
+    fleet::mark_started();
     let http = reqwest::Client::builder().build()?;
     let store = store::Store::open(&config.data_dir, &config.hub_name)?;
     println!("[solora] Database schema applied: {}", config.data_dir.join("solora.db").display());
