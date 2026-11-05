@@ -5,8 +5,9 @@
 #      Every release must use that same key or panels refuse the update.
 #   2. Solora update signing (the minisign key behind plugins.updater.pubkey);
 #      src-tauri/src/apk_update.rs checks this before installing.
-# Then uploads the APK to a GitHub release and creates the central release
-# (a draft — advance it from the console's Releases page).
+# Then uploads the APK and its latest-android.json to a GitHub release, where
+# the console's Releases → New release finds it; with ADMIN_API_KEY it also
+# creates the central release (a draft — advance it from the Releases page).
 #
 #   TAURI_SIGNING_PRIVATE_KEY_PATH=~/kiosk-updater.key \
 #   TAURI_SIGNING_PRIVATE_KEY_PASSWORD=... ./scripts/release-android.sh
@@ -97,10 +98,12 @@ fi
 echo "==> upload to github.com/$RELEASE_REPO (v$VERSION)"
 gh release view "v$VERSION" --repo "$RELEASE_REPO" >/dev/null 2>&1 \
   || gh release create "v$VERSION" --repo "$RELEASE_REPO" --title "v$VERSION" --notes "${NOTES:-}" >/dev/null
-gh release upload "v$VERSION" "$OUT/$ASSET" --repo "$RELEASE_REPO" --clobber
+# latest-android.json next to the APK is how the console finds this build
+# (Releases → New release lists it; central/src/lib/release-sources.ts).
+gh release upload "v$VERSION" "$OUT/$ASSET" "$OUT/latest-android.json" --repo "$RELEASE_REPO" --clobber
 
 if [[ -z "${ADMIN_API_KEY:-}" ]]; then
-  echo "==> done. In the console: Releases → New release, paste $OUT/latest-android.json"
+  echo "==> done. In the console: Releases → New release → Wall display, pick v$VERSION"
   exit 0
 fi
 

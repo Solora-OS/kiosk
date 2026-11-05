@@ -69,3 +69,31 @@ jobs:
         with:
           name: solora-kiosk-linux-arm64-appimage
           path: src-tauri/target/release/bundle/appimage/*.AppImage
+
+      # The signed updater bundle and latest-linux.json go on the GitHub release
+      # vX.Y.Z, where the console's Releases → New release finds them. A version
+      # is published once: rebuilding it would change the file under a release
+      # central may already serve (its signature would no longer match).
+      - name: Publish the Linux update
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION=$(node -p "require('./src-tauri/tauri.conf.json').version")
+          if gh release view "v$VERSION" --json assets -q '.assets[].name' 2>/dev/null | grep -qx latest-linux.json; then
+            echo "v$VERSION already has latest-linux.json; bump the version to publish a new build"
+            exit 0
+          fi
+          BUNDLE=$(ls src-tauri/target/release/bundle/appimage/*.AppImage 2>/dev/null | head -1)
+          if [ -z "$BUNDLE" ] || [ ! -f "$BUNDLE.sig" ]; then BUNDLE=$(ls src-tauri/target/release/bundle/deb/*.deb | head -1); fi
+          [ -f "$BUNDLE.sig" ] || { echo "No signed updater bundle (is TAURI_SIGNING_PRIVATE_KEY set?)"; exit 1; }
+          ASSET="solora-kiosk-$VERSION-linux-aarch64.${BUNDLE##*.}"
+          cp "$BUNDLE" "$ASSET"
+          URL="https://github.com/${{ github.repository }}/releases/download/v$VERSION/$ASSET"
+          node -e '
+            const [version, url, sigFile] = process.argv.slice(1)
+            const signature = require("fs").readFileSync(sigFile, "utf8").trim()
+            const body = { version, notes: "", pub_date: new Date().toISOString(), platforms: { "linux-aarch64": { url, signature } } }
+            require("fs").writeFileSync("latest-linux.json", JSON.stringify(body, null, 2) + "\n")
+          ' "$VERSION" "$URL" "$BUNDLE.sig"
+          gh release view "v$VERSION" >/dev/null 2>&1 || gh release create "v$VERSION" --title "v$VERSION" --notes ""
+          gh release upload "v$VERSION" "$ASSET" latest-linux.json --clobber
