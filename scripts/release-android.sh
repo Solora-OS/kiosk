@@ -15,7 +15,7 @@
 #   TAURI_SIGNING_PRIVATE_KEY(_PATH), TAURI_SIGNING_PRIVATE_KEY_PASSWORD   required
 #   ADMIN_API_KEY      create the central release directly; without it the
 #                      script writes latest-android.json to paste under New release
-#   CENTRAL_API_URL    default https://179-236-254-241.sslip.io
+#   CENTRAL_API_URL    default https://api.solara-calendar.tech
 #   RELEASE_REPO       GitHub repo for the APK, default Solora-OS/kiosk
 #   NOTES              release notes
 # Flags:
@@ -27,7 +27,7 @@ set -euo pipefail
 
 KIOSK="$(cd "$(dirname "$0")/.." && pwd)"
 ANDROID="$KIOSK/src-tauri/gen/android"
-CENTRAL_API_URL="${CENTRAL_API_URL:-https://179-236-254-241.sslip.io}"
+CENTRAL_API_URL="${CENTRAL_API_URL:-https://api.solara-calendar.tech}"
 RELEASE_REPO="${RELEASE_REPO:-Solora-OS/kiosk}"
 PUBLISH=1 UPDATER_SIG=1
 [[ "${1:-}" == "--no-publish" ]] && PUBLISH=0

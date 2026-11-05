@@ -15,7 +15,7 @@ use tauri::{AppHandle, Runtime};
 /// Central for the hub; the build can point it elsewhere (scripts/android-dev.sh).
 const CENTRAL: &str = match option_env!("SOLORA_HUB_CENTRAL_URL") {
     Some(url) => url,
-    None => "https://179-236-254-241.sslip.io",
+    None => "https://api.solara-calendar.tech",
 };
 /// The panel's hub name and owner email; the contract suite's HUB_DEVICE run sets its own.
 #[cfg(target_os = "android")]

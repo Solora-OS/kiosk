@@ -23,6 +23,9 @@ pub struct Credentials {
     pub hub_jwt: String,
     #[serde(default)]
     pub kiosks: Map<String, Value>,
+    /// The central these were issued by; files from before this was kept have none.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub central_url: Option<String>,
 }
 
 impl Credentials {
@@ -88,10 +91,21 @@ impl Central {
 
 /// `ensureCentralRegistration`: log in with stored credentials or register,
 /// then register paired displays. Returns the hub JWT, or None when offline.
+///
+/// Registers afresh when the stored credentials came from another central, or
+/// when central answers 401 (it doesn't know this hub: a different or reset
+/// database). A revoked hub gets 403 and stays as it is.
 pub async fn ensure_registration(hub: &Hub) -> Option<String> {
     let central = &hub.central;
-    let stored = Central::read_file(hub);
-    let (hub_id, hub_token, hub_jwt) = if let Some(creds) = &stored {
+    let stored = Central::read_file(hub).filter(|c| match &c.central_url {
+        Some(url) if url != &central.api_url => {
+            println!("[central] Stored hub credentials are for {url}; registering with {}", central.api_url);
+            false
+        }
+        _ => true,
+    });
+    let mut known = None;
+    if let Some(creds) = &stored {
         let res = hub
             .http
             .post(format!("{}/register/hub/login", central.api_url))
@@ -103,41 +117,49 @@ pub async fn ensure_registration(hub: &Hub) -> Option<String> {
             Ok(r) if r.status().is_success() => match r.json::<Value>().await.ok().and_then(|v| v["jwt"].as_str().map(str::to_string)) {
                 Some(jwt) => {
                     println!("[central] Hub refreshed JWT  hub_id={}", creds.hub_id);
-                    (creds.hub_id.clone(), creds.hub_token.clone(), jwt)
+                    known = Some((creds.hub_id.clone(), creds.hub_token.clone(), jwt, creds.kiosks.clone()));
                 }
                 None => return cached(hub, creds.clone()),
             },
+            Ok(r) if r.status().as_u16() == 401 => {
+                println!("[central] Central doesn't know hub_id={}; registering again", creds.hub_id);
+            }
             other => {
                 let why = other.map(|r| format!("Hub login failed: {}", r.status().as_u16())).unwrap_or_else(|e| e.to_string());
                 eprintln!("[central] Could not refresh hub JWT — using cached: {why}");
                 return cached(hub, creds.clone());
             }
         }
-    } else {
-        let res = hub
-            .http
-            .post(format!("{}/register/hub", central.api_url))
-            .json(&json!({ "name": hub.config.hub_name, "owner_email": hub.config.hub_owner_email }))
-            .timeout(TIMEOUT)
-            .send()
-            .await;
-        let data = match res {
-            Ok(r) if r.status().is_success() => r.json::<Value>().await.ok(),
-            Ok(r) => {
-                eprintln!("[central] Could not register with central API — running offline: Hub registration failed: {}", r.status().as_u16());
-                None
-            }
-            Err(e) => {
-                eprintln!("[central] Could not register with central API — running offline: {e}");
-                None
-            }
-        }?;
-        let text = |k: &str| data[k].as_str().map(str::to_string);
-        let (id, token, jwt) = (text("hub_id")?, text("hub_token")?, text("jwt")?);
-        println!("[central] Hub registered  hub_id={id}");
-        (id, token, jwt)
+    }
+    let (hub_id, hub_token, hub_jwt, kiosks) = match known {
+        Some(k) => k,
+        None => {
+            let res = hub
+                .http
+                .post(format!("{}/register/hub", central.api_url))
+                .json(&json!({ "name": hub.config.hub_name, "owner_email": hub.config.hub_owner_email }))
+                .timeout(TIMEOUT)
+                .send()
+                .await;
+            let data = match res {
+                Ok(r) if r.status().is_success() => r.json::<Value>().await.ok(),
+                Ok(r) => {
+                    eprintln!("[central] Could not register with central API — running offline: Hub registration failed: {}", r.status().as_u16());
+                    None
+                }
+                Err(e) => {
+                    eprintln!("[central] Could not register with central API — running offline: {e}");
+                    None
+                }
+            }?;
+            let text = |k: &str| data[k].as_str().map(str::to_string);
+            let (id, token, jwt) = (text("hub_id")?, text("hub_token")?, text("jwt")?);
+            println!("[central] Hub registered  hub_id={id}");
+            // Display logins from an earlier registration belong to that hub; they re-register below.
+            (id, token, jwt, Map::new())
+        }
     };
-    let creds = Credentials { hub_id, hub_token, hub_jwt: hub_jwt.clone(), kiosks: stored.map(|c| c.kiosks).unwrap_or_default() };
+    let creds = Credentials { hub_id, hub_token, hub_jwt: hub_jwt.clone(), kiosks, central_url: Some(central.api_url.clone()) };
     Central::save(hub, &creds);
     *central.creds.write().unwrap() = Some(creds);
     register_paired_kiosks(hub).await;

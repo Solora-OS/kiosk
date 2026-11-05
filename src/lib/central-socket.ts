@@ -169,6 +169,46 @@ class CentralSocket {
   private connectListeners       = new Set<ConnectListener>()
   private disconnectListeners    = new Set<DisconnectListener>()
 
+  // Kiosk mode's keep-connected loop (keepConnected).
+  private keepDeviceId: string | null = null
+  private retryTimer: ReturnType<typeof setTimeout> | null = null
+  private retryDelay = 5_000
+
+  /**
+   * Kiosk mode: gets this display's central token from the local hub and stays
+   * connected. Retries until the hub has one (it registers with central at
+   * startup, racing this web view) and asks again when central refuses the
+   * token it has (a different or reset central). Backs off to once a minute.
+   */
+  keepConnected(localDeviceId: string) {
+    this.stopKeepConnected()
+    this.keepDeviceId = localDeviceId
+    this.retryDelay = 5_000
+    void this.ensureConnected()
+  }
+
+  stopKeepConnected() {
+    this.keepDeviceId = null
+    if (this.retryTimer) clearTimeout(this.retryTimer)
+    this.retryTimer = null
+  }
+
+  private async ensureConnected() {
+    const id = this.keepDeviceId
+    if (!id || this.socket?.connected) return
+    const token = await this.fetchAndStoreCentralToken(id)
+    if (id !== this.keepDeviceId) return
+    if (token) this.connect(token)
+    else this.retryLater()
+  }
+
+  private retryLater() {
+    if (!this.keepDeviceId) return
+    if (this.retryTimer) clearTimeout(this.retryTimer)
+    this.retryTimer = setTimeout(() => void this.ensureConnected(), this.retryDelay)
+    this.retryDelay = Math.min(this.retryDelay * 2, 60_000)
+  }
+
   /**
    * Connect to the central socket server.
    * Call this after receiving a central API JWT (e.g. after kiosk registration).
@@ -195,6 +235,7 @@ class CentralSocket {
 
     this.socket.on("connect", () => {
       console.info("[central-socket] connected")
+      this.retryDelay = 5_000
       this.startHeartbeat()
       this.startCatchUpPolling()
       // Catch up immediately on (re)connect — covers both "was offline when portal
@@ -203,6 +244,14 @@ class CentralSocket {
       void this.checkLockStatus()
       void this.checkConfig()
       for (const l of this.connectListeners) l()
+    })
+
+    // Central refused the token: socket.io stops retrying, so get a fresh one from the hub.
+    this.socket.on("connect_error", (err: Error) => {
+      if (this.socket && !this.socket.active) {
+        console.warn("[central-socket] central refused the token:", err.message)
+        this.retryLater()
+      }
     })
 
     this.socket.on("disconnect", (reason: string) => {

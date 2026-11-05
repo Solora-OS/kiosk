@@ -6,7 +6,9 @@
  * For each paired kiosk: POST /register/kiosk → device JWT stored per device.
  *
  * All credentials are persisted to $HOME/.solora/central.json so they survive
- * restarts without re-registering.
+ * restarts without re-registering. They register afresh when they came from
+ * another central or central answers 401 (it doesn't know this hub); a revoked
+ * hub gets 403 and stays as it is.
  */
 
 import fs from "fs"
@@ -27,6 +29,8 @@ interface CentralCredentials {
   hub_token: string         // long-lived secret — never expires
   hub_jwt:   string         // short-lived JWT — refreshed on every boot
   kiosks: Record<string, { central_device_id: string; central_jwt: string }>
+  /** The central these were issued by; files from before this was kept have none. */
+  central_url?: string
 }
 
 function loadCredentials(): CentralCredentials | null {
@@ -86,11 +90,15 @@ export function forgetCentralDevice(centralDeviceId: string): string | null {
  * @returns hub JWT to use for central socket connection, or null on failure
  */
 export async function ensureCentralRegistration(): Promise<string | null> {
-  const creds = loadCredentials()
+  let creds = loadCredentials()
+  if (creds?.central_url && creds.central_url !== CENTRAL_API_URL) {
+    console.log(`[central] Stored hub credentials are for ${creds.central_url}; registering with ${CENTRAL_API_URL}`)
+    creds = null
+  }
 
-  let hubId:    string
-  let hubToken: string
-  let hubJwt:   string
+  let hubId:    string | undefined
+  let hubToken: string | undefined
+  let hubJwt:   string | undefined
 
   if (creds) {
     // Already registered — just refresh the JWT
@@ -101,19 +109,25 @@ export async function ensureCentralRegistration(): Promise<string | null> {
         body:    JSON.stringify({ hub_id: creds.hub_id, hub_token: creds.hub_token }),
         signal:  AbortSignal.timeout(5000),
       })
-      if (!res.ok) throw new Error(`Hub login failed: ${res.status}`)
-      const data = (await res.json()) as { jwt: string }
-      hubId    = creds.hub_id
-      hubToken = creds.hub_token
-      hubJwt   = data.jwt
-      console.log(`[central] Hub refreshed JWT  hub_id=${hubId}`)
+      if (res.status === 401) {
+        console.log(`[central] Central doesn't know hub_id=${creds.hub_id}; registering again`)
+        creds = null
+      } else {
+        if (!res.ok) throw new Error(`Hub login failed: ${res.status}`)
+        const data = (await res.json()) as { jwt: string }
+        hubId    = creds.hub_id
+        hubToken = creds.hub_token
+        hubJwt   = data.jwt
+        console.log(`[central] Hub refreshed JWT  hub_id=${hubId}`)
+      }
     } catch (e) {
       console.warn("[central] Could not refresh hub JWT — using cached:", (e as Error).message)
       // Use cached JWT (may be expired but central socket will reject and we'll retry)
       _credentials = creds
-      return creds.hub_jwt
+      return creds!.hub_jwt
     }
-  } else {
+  }
+  if (!hubId || !hubToken || !hubJwt) {
     // First registration
     try {
       const res  = await fetch(`${CENTRAL_API_URL}/register/hub`, {
@@ -134,12 +148,14 @@ export async function ensureCentralRegistration(): Promise<string | null> {
     }
   }
 
-  // Update in-memory + persisted credentials
+  // Update in-memory + persisted credentials. Display logins from an earlier
+  // registration belong to that hub, so a fresh registration starts without them.
   const updated: CentralCredentials = {
-    hub_id:    hubId,
-    hub_token: hubToken,
-    hub_jwt:   hubJwt,
-    kiosks:    creds?.kiosks ?? {},
+    hub_id:      hubId,
+    hub_token:   hubToken,
+    hub_jwt:     hubJwt,
+    kiosks:      creds?.kiosks ?? {},
+    central_url: CENTRAL_API_URL,
   }
   saveCredentials(updated)
   _credentials = updated

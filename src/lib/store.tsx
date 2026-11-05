@@ -410,11 +410,7 @@ export function StoreProvider({ children, kioskMode = false }: { children: React
     // we use it to fetch the central JWT from the local hub's API.
     if (kioskMode) {
       const localDeviceId = getLocalDeviceId()
-      if (localDeviceId && !centralSocket.connected) {
-        void centralSocket.fetchAndStoreCentralToken(localDeviceId).then((token) => {
-          if (token) centralSocket.connect(token)
-        })
-      }
+      if (localDeviceId) centralSocket.keepConnected(localDeviceId)
     }
 
     // Focus / visibility refresh to catch events missed while backgrounded.
@@ -427,6 +423,7 @@ export function StoreProvider({ children, kioskMode = false }: { children: React
       alive = false
       clearTimeout(debounce)
       unsubscribe()
+      centralSocket.stopKeepConnected()
       window.removeEventListener("focus", onFocus)
       document.removeEventListener("visibilitychange", onVisible)
     }

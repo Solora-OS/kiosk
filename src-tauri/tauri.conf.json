@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "solora_kiosk",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "identifier": "com.solora.kiosk",
   "build": {
     "beforeDevCommand": "npm run dev",
@@ -44,7 +44,7 @@
     "updater": {
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IERDNTNBOEU3NDY1QjAwQkQKUldTOUFGdEc1NmhUM0Z4WTArTTVmVng4L0lMVVQxWlM1eW02S043cUZzUDlIMVgybzBUUmtGaVoK",
       "endpoints": [
-        "https://179-236-254-241.sslip.io/updates/{{target}}/{{arch}}/{{current_version}}"
+        "https://api.solara-calendar.tech/updates/{{target}}/{{arch}}/{{current_version}}"
       ]
     }
   }
