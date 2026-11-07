@@ -57,7 +57,7 @@ function InfoRow({
   if (!value) return null
   return (
     <div className="flex items-start gap-3 py-2.5 border-b border-border/50 last:border-0">
-      <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg bg-secondary text-muted-foreground">
+      <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-[10px] bg-secondary text-muted-foreground">
         <Icon className="size-3.5" />
       </span>
       <div className="min-w-0 flex-1">
@@ -150,7 +150,7 @@ export function UpdateDialog() {
           <InfoRow icon={Hash} label="SHA-256" value={update?.sha256} mono />
           {update?.body && (
             <div className="flex items-start gap-3 py-2.5">
-              <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg bg-secondary text-muted-foreground">
+              <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-[10px] bg-secondary text-muted-foreground">
                 <FileText className="size-3.5" />
               </span>
               <div className="min-w-0 flex-1">
@@ -165,7 +165,7 @@ export function UpdateDialog() {
 
         {/* Error */}
         {error && (
-          <p className="mx-6 mb-2 rounded-md bg-destructive/10 px-3 py-2 text-xs font-medium text-destructive">
+          <p className="mx-6 mb-2 rounded-[12px] bg-destructive/10 px-3 py-2 text-xs font-medium text-destructive">
             {error}
           </p>
         )}

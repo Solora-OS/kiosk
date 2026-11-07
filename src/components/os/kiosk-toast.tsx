@@ -47,7 +47,7 @@ function KioskToast({
   return (
     <div
       role={tone === "error" ? "alert" : "status"}
-      className="relative flex w-[26rem] max-w-[calc(100vw-2rem)] items-start gap-4 overflow-hidden rounded-lg border border-hairline bg-popover py-4 pr-2 pl-6 text-popover-foreground shadow-[0_12px_32px_-16px_oklch(0_0_0/0.35)]"
+      className="relative flex w-[26rem] max-w-[calc(100vw-2rem)] items-start gap-4 overflow-hidden rounded-[20px] border border-hairline bg-popover py-4 pr-2 pl-6 text-popover-foreground shadow-[0_12px_32px_-16px_oklch(0_0_0/0.35)]"
     >
       {/* Leading notch — the only color on the slip */}
       <span
@@ -71,7 +71,7 @@ function KioskToast({
         {action ? (
           <button
             type="button"
-            className="mt-3 -ml-1 inline-flex min-h-11 items-center rounded-md px-1 text-base font-medium text-season"
+            className="mt-3 -ml-1 inline-flex min-h-11 items-center rounded-[12px] px-1 text-base font-medium text-foreground underline underline-offset-4"
             onClick={() => {
               action.onClick()
               toast.dismiss(id)
@@ -85,7 +85,7 @@ function KioskToast({
       <button
         type="button"
         aria-label="Dismiss"
-        className="grid size-11 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors active:bg-secondary"
+        className="grid size-11 shrink-0 place-items-center rounded-[12px] text-muted-foreground transition-colors active:bg-secondary"
         onClick={() => toast.dismiss(id)}
       >
         <X className="size-5" />

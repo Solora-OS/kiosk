@@ -86,7 +86,7 @@ export function AuthScreen() {
               }}
               aria-pressed={mode === m}
               className={cn(
-                "rounded-lg py-2 text-sm font-semibold transition-colors",
+                "rounded-[16px] py-2 text-sm font-semibold transition-colors",
                 mode === m ? "bg-card text-foreground shadow-sm" : "text-muted-foreground",
               )}
             >

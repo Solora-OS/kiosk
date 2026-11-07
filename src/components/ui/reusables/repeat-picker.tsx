@@ -1,7 +1,7 @@
 "use client"
 
 import { cn } from "@/lib/utils"
-import { Field, inputClass } from "@/components/ui/reusables/bottom-sheet"
+import { ChoiceChips, Field, inputClass } from "@/components/ui/reusables/bottom-sheet"
 
 const weekdayLong = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
 // Monday-first, matching the calendar's week strip.
@@ -23,7 +23,7 @@ function presetFor(days: number[], anchorDay: number): Preset {
 }
 
 /**
- * "Repeats" for an event: a preset select, weekday chips for "Pick days", and
+ * "Repeats" for an event: preset chips, weekday chips for "Pick days", and
  * an optional end date. `days` empty means the event doesn't repeat.
  * `anchorDay` is the weekday of the event's first date (0 = Sunday).
  */
@@ -62,15 +62,20 @@ export function RepeatPicker({
 
   return (
     <>
-      <Field label="Repeats">
-        <select value={preset} onChange={(e) => choose(e.target.value as Preset)} className={inputClass}>
-          <option value="never">Never</option>
-          <option value="daily">Every day</option>
-          <option value="weekdays">Weekdays</option>
-          <option value="weekly">Every {weekdayLong[anchorDay]}</option>
-          <option value="custom">Pick days</option>
-        </select>
-      </Field>
+      <div>
+        <span className="os-label mb-2 block">Repeats</span>
+        <ChoiceChips
+          value={preset}
+          onChange={choose}
+          options={[
+            { value: "never", label: "Never" },
+            { value: "daily", label: "Every day" },
+            { value: "weekdays", label: "Weekdays" },
+            { value: "weekly", label: `Every ${weekdayLong[anchorDay]}` },
+            { value: "custom", label: "Pick days" },
+          ]}
+        />
+      </div>
       {preset === "custom" ? (
         <Field label="On">
           <div className="flex gap-1.5">
@@ -84,7 +89,7 @@ export function RepeatPicker({
                   aria-pressed={on}
                   aria-label={weekdayLong[day]}
                   className={cn(
-                    "size-9 rounded-full text-sm font-semibold transition-colors",
+                    "size-11 rounded-full text-sm font-semibold transition-colors",
                     on ? "bg-primary text-primary-foreground" : "bg-secondary text-foreground",
                   )}
                 >

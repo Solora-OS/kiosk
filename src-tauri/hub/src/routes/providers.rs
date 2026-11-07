@@ -30,11 +30,15 @@ use std::time::Duration;
 fn env(names: &[&str], default: &str) -> String {
     names.iter().find_map(|n| std::env::var(n).ok().filter(|v| !v.is_empty())).unwrap_or_else(|| default.to_string())
 }
-fn google_id() -> String { env(&["GOOGLE_CLIENT_ID", "VITE_GOOGLE_CLIENT_ID"], "") }
-fn google_secret() -> String { env(&["GOOGLE_CLIENT_SECRET", "VITE_GOOGLE_CLIENT_SECRET"], "") }
-fn microsoft_id() -> String { env(&["MICROSOFT_CLIENT_ID", "VITE_MICROSOFT_CLIENT_ID"], "") }
-fn microsoft_secret() -> String { env(&["MICROSOFT_CLIENT_SECRET", "VITE_MICROSOFT_CLIENT_SECRET"], "") }
-fn tenant() -> String { env(&["MICROSOFT_TENANT_ID", "VITE_MICROSOFT_TENANT_ID"], "common") }
+// Runtime env first, then the client baked in at build time (build.rs), since
+// the in-app hub has no .env.
+fn google_id() -> String { env(&["GOOGLE_CLIENT_ID", "VITE_GOOGLE_CLIENT_ID"], env!("SOLORA_BUILD_GOOGLE_CLIENT_ID")) }
+fn google_secret() -> String { env(&["GOOGLE_CLIENT_SECRET", "VITE_GOOGLE_CLIENT_SECRET"], env!("SOLORA_BUILD_GOOGLE_CLIENT_SECRET")) }
+fn microsoft_id() -> String { env(&["MICROSOFT_CLIENT_ID", "VITE_MICROSOFT_CLIENT_ID"], env!("SOLORA_BUILD_MICROSOFT_CLIENT_ID")) }
+fn tenant() -> String {
+    let baked = env!("SOLORA_BUILD_MICROSOFT_TENANT_ID");
+    env(&["MICROSOFT_TENANT_ID", "VITE_MICROSOFT_TENANT_ID"], if baked.is_empty() { "common" } else { baked })
+}
 
 // ---- Tokens at rest: AES-256-GCM, key = SHA-256(secret), base64(iv ‖ tag ‖ ciphertext) ----
 
@@ -113,6 +117,19 @@ fn save_tokens(hub: &Hub, household: &str, provider: &str, access: &str, refresh
     }
 }
 
+async fn send_json(req: reqwest::RequestBuilder) -> Result<(reqwest::StatusCode, Value), String> {
+    let res = req.send().await.map_err(|e| e.to_string())?;
+    let status = res.status();
+    Ok((status, res.json().await.unwrap_or(Value::Null)))
+}
+
+/// A Microsoft token request. The loopback redirect is on Azure's "Mobile and
+/// desktop" platform, a public client: a secret is refused (AADSTS700025) and
+/// the failed attempt spends the code, so none is sent.
+async fn microsoft_token(hub: &Hub, form: Vec<(&'static str, String)>) -> Result<(reqwest::StatusCode, Value), String> {
+    send_json(hub.http.post(format!("https://login.microsoftonline.com/{}/oauth2/v2.0/token", tenant())).form(&form)).await
+}
+
 async fn exchange(State(hub): State<Arc<Hub>>, user: User, Path(provider): Path<String>, body: Body) -> Response {
     let household = user.household_id.clone().unwrap_or_default();
     if provider != "google" && provider != "microsoft" {
@@ -122,31 +139,29 @@ async fn exchange(State(hub): State<Arc<Hub>>, user: User, Path(provider): Path<
         return error(400, "code, code_verifier, and redirect_uri are required.");
     };
     let req = if provider == "google" {
-        // The route reads only GOOGLE_CLIENT_* (not the VITE_ fallbacks the sync uses).
-        let (id, secret) = (std::env::var("GOOGLE_CLIENT_ID").unwrap_or_default(), std::env::var("GOOGLE_CLIENT_SECRET").unwrap_or_default());
+        let (id, secret) = (google_id(), google_secret());
         if id.is_empty() || secret.is_empty() {
             return error(500, "Google credentials not configured on server.");
         }
-        hub.http.post("https://oauth2.googleapis.com/token").form(&[
+        let req = hub.http.post("https://oauth2.googleapis.com/token").form(&[
             ("code", code), ("client_id", &id), ("client_secret", &secret), ("redirect_uri", redirect), ("grant_type", "authorization_code"), ("code_verifier", verifier),
-        ])
+        ]);
+        send_json(req).await
     } else {
-        let (id, secret) = (std::env::var("MICROSOFT_CLIENT_ID").unwrap_or_default(), std::env::var("MICROSOFT_CLIENT_SECRET").unwrap_or_default());
-        if id.is_empty() || secret.is_empty() {
+        let id = microsoft_id();
+        if id.is_empty() {
             return error(500, "Microsoft credentials not configured on server.");
         }
-        let tenant = std::env::var("MICROSOFT_TENANT_ID").ok().filter(|t| !t.is_empty()).unwrap_or_else(|| "common".into());
-        hub.http.post(format!("https://login.microsoftonline.com/{tenant}/oauth2/v2.0/token")).form(&[
-            ("code", code), ("client_id", &id), ("client_secret", &secret), ("redirect_uri", redirect), ("grant_type", "authorization_code"),
-            ("code_verifier", verifier), ("scope", "Calendars.Read offline_access openid email"),
-        ])
+        let form = vec![
+            ("code", code.to_string()), ("client_id", id), ("redirect_uri", redirect.to_string()), ("grant_type", "authorization_code".into()),
+            ("code_verifier", verifier.to_string()), ("scope", "Calendars.Read offline_access openid email".into()),
+        ];
+        microsoft_token(&hub, form).await
     };
-    let res = match req.send().await {
+    let (status, json) = match req {
         Ok(r) => r,
-        Err(e) => return error(500, e.to_string()),
+        Err(e) => return error(500, e),
     };
-    let status = res.status();
-    let json: Value = res.json().await.unwrap_or(Value::Null);
     if !status.is_success() {
         return error(400, json.get("error_description").and_then(Value::as_str).unwrap_or("Token exchange failed."));
     }
@@ -346,21 +361,21 @@ async fn refresh(hub: &Hub, row: &Row) -> Result<String, String> {
     let provider = db::s(row, "provider");
     let refresh = db::text(row, "refresh_token").ok_or_else(|| format!("No {} refresh token stored.", if provider == "google" { "Google" } else { "Microsoft" }))?;
     let refresh = decrypt_token(hub, &refresh);
-    let req = if provider == "google" {
-        hub.http.post("https://oauth2.googleapis.com/token").form(&[
+    let (status, json) = if provider == "google" {
+        send_json(hub.http.post("https://oauth2.googleapis.com/token").form(&[
             ("client_id", google_id()), ("client_secret", google_secret()), ("refresh_token", refresh), ("grant_type", "refresh_token".into()),
-        ])
+        ]))
+        .await?
     } else {
-        hub.http.post(format!("https://login.microsoftonline.com/{}/oauth2/v2.0/token", tenant())).form(&[
-            ("client_id", microsoft_id()), ("client_secret", microsoft_secret()), ("refresh_token", refresh), ("grant_type", "refresh_token".into()),
+        microsoft_token(hub, vec![
+            ("client_id", microsoft_id()), ("refresh_token", refresh), ("grant_type", "refresh_token".into()),
             ("scope", "Calendars.Read offline_access".into()),
         ])
+        .await?
     };
-    let res = req.send().await.map_err(|e| e.to_string())?;
-    if !res.status().is_success() {
-        return Err(format!("token refresh failed: {}", res.status().as_u16()));
+    if !status.is_success() {
+        return Err(format!("token refresh failed: {}", status.as_u16()));
     }
-    let json: Value = res.json().await.map_err(|e| e.to_string())?;
     let access = json["access_token"].as_str().ok_or("no access_token")?.to_string();
     let expires_at = chrono::Utc::now().timestamp() + json["expires_in"].as_i64().unwrap_or(0) - 60;
     let new_refresh = json.get("refresh_token").and_then(Value::as_str).map(|r| encrypt_token(hub, r));

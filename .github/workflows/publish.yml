@@ -95,5 +95,97 @@ jobs:
             const body = { version, notes: "", pub_date: new Date().toISOString(), platforms: { "linux-aarch64": { url, signature } } }
             require("fs").writeFileSync("latest-linux.json", JSON.stringify(body, null, 2) + "\n")
           ' "$VERSION" "$URL" "$BUNDLE.sig"
-          gh release view "v$VERSION" >/dev/null 2>&1 || gh release create "v$VERSION" --title "v$VERSION" --notes ""
+          # The Android job may create the release at the same moment; whoever loses just uses it.
+          gh release view "v$VERSION" >/dev/null 2>&1 || gh release create "v$VERSION" --title "v$VERSION" --notes "" || gh release view "v$VERSION" >/dev/null
           gh release upload "v$VERSION" "$ASSET" latest-linux.json --clobber
+
+  # The Android wall display (RK3399 panels). Same script as a release from a
+  # Mac (scripts/release-android.sh): it builds the APK, checks it carries the
+  # panels' Android signing key, signs it again for the Solora updater
+  # (src-tauri/src/apk_update.rs refuses anything without that signature) and
+  # uploads it with latest-android.json to the release vX.Y.Z, where the
+  # console's Releases → New release finds it.
+  #
+  # Secrets: ANDROID_KEYSTORE_BASE64 (~/solora-kiosk-release.jks, base64) and
+  # ANDROID_KEYSTORE_PASSWORD; ADMIN_API_KEY is optional and also creates the
+  # central release as a draft.
+  publish-android:
+    name: Build Android (wall display)
+    runs-on: ubuntu-24.04
+
+    permissions:
+      contents: write
+
+    env:
+      TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+      TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+      ADMIN_API_KEY: ${{ secrets.ADMIN_API_KEY }}
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_REPO: ${{ github.repository }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # A version is published once, as on Linux: rebuilding it would put a
+      # different APK under a release central may already be serving.
+      - name: Skip if this version is already published
+        id: published
+        run: |
+          VERSION=$(node -p "require('./src-tauri/tauri.conf.json').version")
+          if gh release view "v$VERSION" --json assets -q '.assets[].name' 2>/dev/null | grep -qx latest-android.json; then
+            echo "v$VERSION already has latest-android.json; bump the version to publish a new build"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Setup Node.js
+        if: steps.published.outputs.skip != 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      # Tauri's Android build needs Java 17.
+      - name: Setup Java
+        if: steps.published.outputs.skip != 'true'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Install Rust
+        if: steps.published.outputs.skip != 'true'
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android
+
+      - name: Install frontend dependencies
+        if: steps.published.outputs.skip != 'true'
+        run: npm ci
+
+      # Panels only accept an update signed with the key they were installed
+      # with, so the keystore comes from secrets; it never touches the repo.
+      - name: Android signing key
+        if: steps.published.outputs.skip != 'true'
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          [ -n "$KEYSTORE_BASE64" ] && [ -n "$KEYSTORE_PASSWORD" ] || { echo "Set the ANDROID_KEYSTORE_BASE64 and ANDROID_KEYSTORE_PASSWORD secrets"; exit 1; }
+          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/solora-kiosk-release.jks"
+          {
+            echo "storeFile=$RUNNER_TEMP/solora-kiosk-release.jks"
+            echo "keyAlias=solora-kiosk"
+            echo "password=$KEYSTORE_PASSWORD"
+          } > src-tauri/gen/android/keystore.properties
+
+      - name: Build, sign and publish
+        if: steps.published.outputs.skip != 'true'
+        run: ./scripts/release-android.sh
+
+      - name: Upload APK
+        if: steps.published.outputs.skip != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: solora-kiosk-android-aarch64
+          path: release/android/*/*

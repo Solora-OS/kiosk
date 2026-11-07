@@ -107,7 +107,7 @@ export function ErrorState({
   }
 
   return (
-    <div role="alert" className={cn("my-6 rounded-lg border border-hairline bg-card px-8 py-8", className)}>
+    <div role="alert" className={cn("my-6 rounded-[14px] border border-hairline bg-card px-8 py-8", className)}>
       {body}
     </div>
   )

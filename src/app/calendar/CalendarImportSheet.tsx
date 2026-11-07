@@ -137,7 +137,7 @@ export function CalendarImportSheet({
           type="button"
           onClick={() => void handleSave()}
           disabled={saving}
-          className="flex w-full items-center justify-center gap-2 rounded-md bg-primary py-3 text-sm font-semibold text-primary-foreground disabled:opacity-50"
+          className="flex w-full items-center justify-center gap-2 rounded-full bg-primary py-3 text-sm font-semibold text-primary-foreground disabled:opacity-50"
         >
           {saving ? <WaveLoader size={16} /> : null}
           {saving ? "Saving…" : "Save mapping"}
@@ -178,14 +178,14 @@ export function CalendarImportSheet({
                   <button
                     type="button"
                     onClick={() => void handleCreateCalendar(ext.id)}
-                    className="rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground"
+                    className="rounded-full bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground"
                   >
                     Create
                   </button>
                   <button
                     type="button"
                     onClick={() => { setCreatingFor(null); setNewCalName("") }}
-                    className="rounded-md border border-border px-3 py-2 text-xs font-semibold"
+                    className="rounded-[14px] border border-border px-3 py-2 text-xs font-semibold"
                   >
                     Cancel
                   </button>

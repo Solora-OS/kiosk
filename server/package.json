@@ -1,7 +1,7 @@
 {
   "name": "solora-server",
   "version": "1.0.1",
-  "description": "Solora local hub server \u2014 Express REST API + Socket.IO, backed by SQLite",
+  "description": "Solora local hub server — Express REST API + Socket.IO, backed by SQLite",
   "private": true,
   "type": "commonjs",
   "main": "dist/index.js",
@@ -22,6 +22,7 @@
     "dotenv": "^17.4.2",
     "express": "^4.21.2",
     "express-rate-limit": "^7.5.0",
+    "helmet": "^8.3.0",
     "jsonwebtoken": "^9.0.2",
     "multer": "^1.4.5-lts.1",
     "socket.io": "^4.8.1",
@@ -38,7 +39,6 @@
     "@types/multer": "^1.4.12",
     "@types/node": "^20.19.1",
     "@types/uuid": "^10.0.0",
-    "helmet": "^8.2.0",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.8.3"
   }

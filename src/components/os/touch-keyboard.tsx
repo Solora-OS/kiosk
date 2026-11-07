@@ -155,7 +155,7 @@ function Key({
       onContextMenu={(e) => e.preventDefault()}
       style={{ flexGrow: grow, flexBasis: 0 }}
       className={cn(
-        "relative flex h-[3.6rem] min-w-0 select-none items-center justify-center rounded-md text-[1.35rem] transition-[background-color,transform] duration-75 touch-none",
+        "relative flex h-[3.6rem] min-w-0 select-none items-center justify-center rounded-[12px] text-[1.35rem] transition-[background-color,transform] duration-75 touch-none",
         tone === "char" && "bg-card text-foreground shadow-[0_1px_0_var(--border)]",
         tone === "fn" && "bg-secondary text-muted-foreground text-base",
         tone === "go" && "bg-foreground text-background text-base font-medium",
@@ -164,7 +164,6 @@ function Key({
         down && tone === "go" && "bg-foreground/80",
       )}
     >
-      {tone === "go" ? <span className="absolute left-3 top-1/2 size-1 -translate-y-1/2 rounded-full bg-season" /> : null}
       {children}
     </button>
   )
@@ -311,7 +310,7 @@ export function TouchKeyboard() {
               target.blur()
               setTarget(null)
             }}
-            className="flex h-10 w-14 items-center justify-center rounded-md text-muted-foreground"
+            className="flex h-10 w-14 items-center justify-center rounded-[12px] text-muted-foreground"
           >
             <ChevronDown className="size-5" />
           </button>

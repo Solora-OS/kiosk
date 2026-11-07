@@ -200,6 +200,9 @@ fn migrate(db: &Connection) -> anyhow::Result<()> {
         ("chores", "summer_mode", "TEXT NOT NULL DEFAULT 'same'"),
         ("chores", "summer_days", "TEXT"),
         ("notifications", "ref", "TEXT"),
+        // 1 = a standing code for one member (app store reviewers): claiming it
+        // again from the same account reconnects; it's never used up.
+        ("invites", "reusable", "INTEGER NOT NULL DEFAULT 0"),
     ] {
         add_column(db, table, column, kind);
     }

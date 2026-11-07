@@ -135,6 +135,7 @@ pub fn describe(action: &str, actor: &str, name: &str, meta: &Value) -> String {
         "hub.command" => format!("{actor} {}", or("sent a command to the wall display")),
         "hub.restart" => format!("{actor} restarted the hub"),
         "hub.factory_reset" => format!("{actor} reset the hub"),
+        "hub.reset_data" => format!("{actor} cleared the family's events, chores, lists and meals"),
         other => format!("{actor}: {other}"),
     }
 }

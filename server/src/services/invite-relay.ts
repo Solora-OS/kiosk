@@ -15,7 +15,7 @@ import crypto from "crypto"
 import fs from "fs"
 import os from "os"
 import path from "path"
-import { DATA_DIR } from "../db"
+import { DATA_DIR, getDb } from "../db"
 import { getHubJwt } from "../lib/central-registry"
 
 const CENTRAL_API_URL = (process.env.CENTRAL_API_URL ?? "http://localhost:4000").replace(/\/$/, "")
@@ -97,6 +97,14 @@ export function registerRemoteInvite(invite: { code: string; token: string; expi
   const body = { hub_pub: hubInvitePublicKey(), expires_at: invite.expiresAt }
   void centralCall("PUT", inviteLookup(invite.code), body)
   void centralCall("PUT", inviteLookup(invite.token), body)
+}
+
+/** Standing codes outlive any one registration at central: register them again at every boot. */
+export function registerReusableInvites(): void {
+  const rows = getDb()
+    .prepare("SELECT code, token, expires_at FROM invites WHERE reusable = 1")
+    .all() as { code: string; token: string; expires_at: string }[]
+  for (const r of rows) registerRemoteInvite({ code: r.code, token: r.token, expiresAt: r.expires_at })
 }
 
 /** Stops routing a claimed or revoked invite. Fire and forget. */

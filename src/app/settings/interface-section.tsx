@@ -53,7 +53,7 @@ export function InterfaceSection() {
         </div>
         <Switch label="Celebrations" on={prefs.celebrations} onChange={(celebrations) => setDisplayPrefs({ celebrations })} />
       </div>
-      <div className="space-y-4 rounded-lg bg-card p-4">
+      <div className="space-y-4 rounded-[20px] bg-card p-4">
         <div className="flex items-center justify-between gap-6">
           <div>
             <p className="text-[0.95rem] font-medium">Quiet hours</p>
@@ -68,13 +68,13 @@ export function InterfaceSection() {
                 From
                 <input id="quiet-from" type="time" value={prefs.quiet.from}
                   onChange={(e) => e.target.value && setDisplayPrefs({ quiet: { ...prefs.quiet, from: e.target.value } })}
-                  className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2.5 text-[0.95rem] text-foreground" />
+                  className="mt-1 w-full rounded-[14px] border border-border bg-background px-3 py-2.5 text-[0.95rem] text-foreground" />
               </label>
               <label className="text-sm text-muted-foreground">
                 Until
                 <input id="quiet-until" type="time" value={prefs.quiet.until}
                   onChange={(e) => e.target.value && setDisplayPrefs({ quiet: { ...prefs.quiet, until: e.target.value } })}
-                  className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2.5 text-[0.95rem] text-foreground" />
+                  className="mt-1 w-full rounded-[14px] border border-border bg-background px-3 py-2.5 text-[0.95rem] text-foreground" />
               </label>
             </div>
             <Segmented<"dim" | "off">
@@ -115,7 +115,7 @@ export function HomeScreenSection() {
   return (
     <section className="space-y-6">
       <h2 className="os-label px-1">Home screen</h2>
-      <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg bg-card p-4">
+      <div className="flex flex-wrap items-center justify-between gap-4 rounded-[20px] bg-card p-4">
         <div>
           <p className="text-[0.95rem] font-medium">Widgets</p>
           <p className="text-sm text-muted-foreground">Add, move, resize and set up widgets right on the home screen.</p>
@@ -144,7 +144,7 @@ export function HomeScreenSection() {
           <p className="text-[0.95rem] font-medium">Tabs in the side menu</p>
           <p className="text-sm text-muted-foreground">Hide the ones your family doesn&apos;t use. Home and Settings always stay.</p>
         </div>
-        <div className="divide-y divide-hairline rounded-lg bg-card">
+        <div className="divide-y divide-hairline rounded-[20px] bg-card">
           {HIDEABLE.map(({ key, label }) => {
             const shown = !prefs.hiddenTabs.includes(key)
             return (

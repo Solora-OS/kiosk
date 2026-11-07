@@ -5,13 +5,11 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { kioskToast } from "@/components/os/kiosk-toast"
 import { SideNav } from "@/components/ui/reusables/side-nav"
 import { HeaderNav } from "@/components/ui/reusables/header-nav"
-import { MemberChips } from "@/components/ui/reusables/member-chips"
 import { CalendarView } from "@/app/calendar/calender"
 import { ChoresView } from "@/app/chores/chores"
-import { RewardsShelf } from "@/app/chores/rewards-shelf"
 import { ListsView } from "@/app/lists/lists"
 import { MealsView } from "@/app/meals/meals"
-import { PhotosView } from "@/app/photos/photos"
+import { PhotosView, SLIDESHOW_EVENT } from "@/app/photos/photos"
 import { SettingsView } from "@/app/settings/settings"
 import { HomeView } from "@/app/home/home"
 import { getDisplayPrefs } from "@/lib/display-prefs"
@@ -31,22 +29,31 @@ import { useKiosk } from "@/lib/kiosk-provider"
 import { SystemHeading, SystemScreen } from "@/components/os/system-screen"
 import { ErrorBoundary } from "@/components/os/error-state"
 import { TabLoading } from "@/components/os/loading"
+import { useTabCaption } from "@/lib/tab-caption"
 
-const todaySubtitle = new Date().toLocaleDateString(undefined, {
-  weekday: "long",
-  month: "long",
-  day: "numeric",
-})
+/**
+ * Each tab's header. The caption above the title is a live count (lib/tab-caption),
+ * the same line the phone shows. Home and Calendar draw their own titles (the
+ * clock; the month with its arrows). Pages that filter by person get the faces.
+ */
+const headers: Record<TabKey, { title: string; customTitle?: boolean; showPeople?: boolean }> = {
+  home: { title: "Home", customTitle: true },
+  calendar: { title: "Calendar", customTitle: true, showPeople: true },
+  chores: { title: "Chores", showPeople: true },
+  rewards: { title: "Chores" },
+  lists: { title: "Lists" },
+  meals: { title: "Meals" },
+  photos: { title: "Photos" },
+  settings: { title: "Settings" },
+}
 
-const headers: Record<TabKey, { title: string; subtitle?: string; showMembers: boolean }> = {
-  home: { title: "Home", subtitle: todaySubtitle, showMembers: false },
-  calendar: { title: "Calendar", subtitle: todaySubtitle, showMembers: true },
-  chores: { title: "Chores", subtitle: "Keep the streak going", showMembers: true },
-  rewards: { title: "Rewards", subtitle: "Points, streaks and treats", showMembers: false },
-  lists: { title: "Lists", subtitle: "Shared with the family", showMembers: false },
-  meals: { title: "Meals", subtitle: "Dinner plan for the week", showMembers: false },
-  photos: { title: "Photos", subtitle: "Family moments on your hub", showMembers: false },
-  settings: { title: "Settings", subtitle: "Hub & connection", showMembers: false },
+/** Re-renders the caller once a minute. */
+function useMinute() {
+  const [, setTick] = useState(0)
+  useEffect(() => {
+    const t = setInterval(() => setTick((n) => n + 1), 60_000)
+    return () => clearInterval(t)
+  }, [])
 }
 
 /**
@@ -58,6 +65,10 @@ export function KioskAppShell() {
   const { tab, setTab, loading, photos } = useStore()
   const { deviceState } = useKiosk()
   const head = headers[tab]
+  // Re-read each minute so the date in Home's caption turns over at midnight;
+  // the wall runs for weeks, so it can't be worked out once at startup.
+  useMinute()
+  const caption = useTabCaption(tab)
 
   const [slideshowActive, setSlideshowActive] = useState(false)
   const [maintenanceLock, setMaintenanceLock] = useState<{ locked: boolean; reason?: string }>({ locked: false })
@@ -174,6 +185,13 @@ export function KioskAppShell() {
     resetIdleTimer()
   }, [resetIdleTimer])
 
+  // Photos' Slideshow button starts it now.
+  useEffect(() => {
+    const start = () => photos.length > 0 && setSlideshowActive(true)
+    window.addEventListener(SLIDESHOW_EVENT, start)
+    return () => window.removeEventListener(SLIDESHOW_EVENT, start)
+  }, [photos.length])
+
   // Someone walked up with their phone: off the slideshow, like a touch.
   useEffect(() => onWallWake(dismissSlideshow), [dismissSlideshow])
 
@@ -181,17 +199,16 @@ export function KioskAppShell() {
     <>
       <div className="flex h-dvh flex-col overflow-hidden bg-background">
         {/* System status bar — WiFi, date, clock — always visible at top */}
-        <SystemStatusBar label={deviceState.deviceName ?? undefined} />
+        <SystemStatusBar label={deviceState.deviceName ?? undefined} hideClock={tab === "home"} />
 
         {/* flex-1 + overflow-hidden so this row fills remaining height exactly */}
         <div className="flex flex-1 overflow-hidden">
           {/* Sidebar — fixed height, no scroll */}
           <SideNav active={tab} onChange={setTab} />
 
-          {/* Right panel: header + optional chips + scrollable content */}
+          {/* Right panel: header + scrollable content */}
           <div className="relative flex flex-1 flex-col overflow-hidden">
-            <HeaderNav title={head.title} subtitle={head.subtitle} />
-            {head.showMembers ? <MemberChips /> : null}
+            <HeaderNav title={head.title} caption={caption} customTitle={head.customTitle} showPeople={head.showPeople} />
 
             {/* Only this element scrolls — overflow-y-auto, never x */}
             <main data-effects-area className={`overflow-x-hidden ${tab === "calendar" ? "flex flex-1 flex-col overflow-hidden" : "flex-1 overflow-y-auto"}`}>
@@ -207,10 +224,11 @@ export function KioskAppShell() {
                   <CalendarView />
                 </ErrorBoundary>
               ) : (
-                <div className="mx-auto max-w-6xl px-8 py-6">
+                // Full width and at least full height: pages lay out across the wall
+                // (lanes, a week strip, two panes) instead of one stretched phone column.
+                <div className="page-in flex min-h-full flex-col px-8 py-6" key={tab === "rewards" ? "chores" : tab}>
                   <ErrorBoundary resetKey={tab}>
-                    {tab === "chores" && <ChoresView />}
-                    {tab === "rewards" && <RewardsShelf />}
+                    {(tab === "chores" || tab === "rewards") && <ChoresView />}
                     {tab === "lists" && <ListsView />}
                     {tab === "meals" && <MealsView />}
                     {tab === "photos" && <PhotosView />}

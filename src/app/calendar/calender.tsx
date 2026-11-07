@@ -1,11 +1,12 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { ChevronLeft, ChevronRight, MapPin, Plus, Repeat, Settings2, Trash2, Check, Pencil, X } from "lucide-react"
+import { ChevronDown, ChevronLeft, ChevronRight, MapPin, Repeat, Settings2, Trash2, Check, Pencil, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import {
   type CalendarEvent,
   type Calendar,
+  type Member,
   type MemberColor,
   expandEventsOn,
   eventRangeLabel,
@@ -20,11 +21,13 @@ import {
 } from "@/lib/data"
 import { Switch } from "@/components/os/controls"
 import { MemberAvatar } from "@/components/ui/reusables/member-avatar"
-import { ActionRow } from "@/components/ui/reusables/action-row"
-import { BottomSheet, Field, inputClass } from "@/components/ui/reusables/bottom-sheet"
+import { BottomSheet, ChoiceChips, Field, inputClass } from "@/components/ui/reusables/bottom-sheet"
+import { MoreMenu, editDelete } from "@/components/ui/reusables/more-menu"
+import { HeaderSlot } from "@/components/ui/reusables/header-slot"
+import { HeaderAdd } from "@/components/ui/reusables/header-add"
+import { homeTodayISO } from "@/lib/home-time"
 import { ConfirmDialog } from "@/components/ui/reusables/confirm-dialog"
 import { RepeatPicker } from "@/components/ui/reusables/repeat-picker"
-import { CountdownTiles } from "@/components/ui/reusables/countdown-tiles"
 import { AwayBanner } from "@/components/ui/reusables/away-banner"
 import { useHighlight, useStore } from "@/lib/store"
 
@@ -36,14 +39,8 @@ const monthNames = [
 ]
 const calendarColors: MemberColor[] = ["blue", "coral", "teal", "amber", "pink", "green"]
 
-function formatHour(h: number) {
-  const ampm = h < 12 ? "AM" : "PM"
-  const base = h % 12 === 0 ? 12 : h % 12
-  return `${base}:00 ${ampm}`
-}
 
 /** Every quarter hour of the day, as hours since midnight. */
-const quarterHours = Array.from({ length: 96 }, (_, i) => i / 4)
 
 /** The day after an ISO date. */
 function nextDay(iso: string): string {
@@ -74,35 +71,6 @@ function shortClock(hour: number): string {
   return `${h % 12 === 0 ? 12 : h % 12}${m ? `:${String(m).padStart(2, "0")}` : ""}${h < 12 ? "a" : "p"}`
 }
 
-/**
- * Side-by-side lanes for the timed events on `iso`, so events that overlap
- * (two kids' practices, a repeat on top of a one-off) sit next to each other
- * instead of drawing over one another. Keyed by `id:date`.
- */
-function laneLayout(evs: CalendarEvent[], iso: string): Map<string, { lane: number; lanes: number }> {
-  const out = new Map<string, { lane: number; lanes: number }>()
-  const sorted = evs
-    .map((e) => ({ key: `${e.id}:${e.date}`, ...hoursOn(e, iso) }))
-    .sort((a, b) => a.from - b.from || b.to - a.to)
-  let cluster: { key: string; lane: number }[] = []
-  let laneEnds: number[] = []
-  let clusterEnd = -1
-  const flush = () => {
-    for (const c of cluster) out.set(c.key, { lane: c.lane, lanes: laneEnds.length })
-    cluster = []
-    laneEnds = []
-  }
-  for (const s of sorted) {
-    if (s.from >= clusterEnd) flush()
-    let lane = laneEnds.findIndex((end) => end <= s.from)
-    if (lane === -1) lane = laneEnds.push(s.to) - 1
-    else laneEnds[lane] = s.to
-    cluster.push({ key: s.key, lane })
-    clusterEnd = Math.max(clusterEnd, s.to)
-  }
-  flush()
-  return out
-}
 
 type ViewMode = "day" | "week" | "month"
 
@@ -151,11 +119,6 @@ function addDays(d: Date, n: number): Date {
   return r
 }
 
-function startOfWeek(d: Date): Date {
-  const r = new Date(d)
-  r.setDate(r.getDate() - r.getDay())
-  return r
-}
 
 export function CalendarView() {
   const {
@@ -175,8 +138,8 @@ export function CalendarView() {
   const { highlight, register, clearHighlight, refs } = useHighlight("calendar")
 
   const canManage = can("calendar")
-  const today = useMemo(() => new Date(), [])
-  const todayISO = toISODate(today)
+  const todayISO = useHomeToday()
+  const today = useMemo(() => new Date(`${todayISO}T00:00:00`), [todayISO])
 
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
     if (typeof window !== "undefined") {
@@ -371,114 +334,86 @@ export function CalendarView() {
 
   const periodLabel = useMemo(() => {
     if (viewMode === "day") {
-      return selDateObj.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" })
+      if (selectedDate === todayISO) return "Today"
+      return selDateObj.toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" })
     }
     if (viewMode === "week") {
-      const ws = startOfWeek(selDateObj)
+      // The week is the seven days from the one you're on (today, by default), not Sunday to Saturday.
+      const ws = selDateObj
       const we = addDays(ws, 6)
-      if (ws.getMonth() === we.getMonth()) {
-        return `${monthNames[ws.getMonth()]} ${ws.getDate()}–${we.getDate()}, ${ws.getFullYear()}`
-      }
-      return `${monthNames[ws.getMonth()]} ${ws.getDate()} – ${monthNames[we.getMonth()]} ${we.getDate()}, ${we.getFullYear()}`
+      const short = (d: Date) => monthNames[d.getMonth()].slice(0, 3)
+      return ws.getMonth() === we.getMonth()
+        ? `${short(ws)} ${ws.getDate()} – ${we.getDate()}`
+        : `${short(ws)} ${ws.getDate()} – ${short(we)} ${we.getDate()}`
     }
-    return `${monthNames[viewMonth]} ${viewYear}`
-  }, [viewMode, selDateObj, viewMonth, viewYear])
+    return monthNames[viewMonth]
+  }, [viewMode, selDateObj, viewMonth, selectedDate, todayISO])
 
   // ---- event helpers --------------------------------------------------------
 
   const eventsForDate = (iso: string) =>
     expandEventsOn(filteredEvents, iso)
 
+  const shownCal = calFilter ? calendars.find((c) => c.id === calFilter) : null
+
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      {/* ---- toolbar -------------------------------------------------------- */}
-      <div className="relative z-10 space-y-4 px-8 pb-4 pt-5">
-        <AwayBanner />
-        <CountdownTiles events={events} size="lg" />
-        <div className="flex items-center gap-4">
-          <div className="flex min-w-0 flex-1 items-baseline gap-4">
-            <span className="truncate font-display text-4xl leading-none">{periodLabel}</span>
-            <button
-              type="button"
-              onClick={goToday}
-              className="os-label flex h-12 shrink-0 items-center rounded-md border border-border px-4 transition-colors hover:text-foreground"
-            >
-              Today
-            </button>
-          </div>
-
-          <div className="flex shrink-0 items-center">
-            <button
-              type="button"
-              onClick={navigatePrev}
-              aria-label="Previous"
-              className="flex size-12 items-center justify-center rounded-l-md border border-border text-muted-foreground transition-colors hover:text-foreground"
-            >
-              <ChevronLeft className="size-4" />
-            </button>
-            <button
-              type="button"
-              onClick={navigateNext}
-              aria-label="Next"
-              className="-ml-px flex size-12 items-center justify-center rounded-r-md border border-border text-muted-foreground transition-colors hover:text-foreground"
-            >
-              <ChevronRight className="size-4" />
-            </button>
-          </div>
-
-          {/* View toggle */}
-          <div className="grid h-12 shrink-0 grid-cols-3 rounded-md bg-secondary p-1">
-            {(["day", "week", "month"] as ViewMode[]).map((v) => (
-              <button
-                key={v}
-                type="button"
-                onClick={() => switchView(v)}
-                className={cn(
-                  "rounded-[5px] px-4 text-sm capitalize transition-colors",
-                  viewMode === v ? "bg-card text-foreground shadow-[0_0_0_1px_var(--border)]" : "text-muted-foreground",
-                )}
-              >
-                {v}
-              </button>
-            ))}
-          </div>
-
-          {canManage && calendars.length > 0 ? (
-            <button type="button" onClick={() => openAdd(selectedDate)} className="os-button !min-h-12">
-              <Plus className="size-4" />
-              Event
-            </button>
-          ) : null}
+      {/* The period is the page title, with its arrows beside it, so there's one headline, not two. */}
+      <HeaderSlot name="title">
+        <h1 className="truncate font-display text-[2.85rem] leading-none">{periodLabel}</h1>
+        {viewMode === "month" && viewYear !== today.getFullYear() ? (
+          <span className="mb-1 font-display text-2xl text-muted-foreground tabular">{viewYear}</span>
+        ) : null}
+        <div className="mb-0.5 flex shrink-0 items-center rounded-full border border-hairline bg-card p-0.5">
+          <button type="button" onClick={navigatePrev} aria-label="Previous" className="flex size-10 items-center justify-center rounded-full text-muted-foreground">
+            <ChevronLeft className="size-4" />
+          </button>
+          <button type="button" onClick={goToday} className="h-10 rounded-full px-3 text-sm font-medium">
+            Today
+          </button>
+          <button type="button" onClick={navigateNext} aria-label="Next" className="flex size-10 items-center justify-center rounded-full text-muted-foreground">
+            <ChevronRight className="size-4" />
+          </button>
         </div>
+      </HeaderSlot>
 
-        {/* Calendar filters */}
-        <div className="no-scrollbar flex items-center gap-6 overflow-x-auto">
-          <FilterChip label="All calendars" active={calFilter === null} onClick={() => setCalFilter(null)} />
-          {calendars.map((c) => (
-            <FilterChip
-              key={c.id}
-              label={c.name}
-              color={c.color}
-              active={calFilter === c.id}
-              onClick={() => setCalFilter(c.id)}
-            />
+      <HeaderSlot name="extras">
+        {calendars.length > 1 || canManage ? (
+          <CalendarsButton
+            calendars={calendars}
+            value={calFilter}
+            onChange={setCalFilter}
+            onManage={canManage ? () => setManageOpen(true) : undefined}
+            label={shownCal ? shownCal.name : "All calendars"}
+            color={shownCal?.color}
+          />
+        ) : null}
+        <div className="flex h-12 items-center gap-0.5 rounded-full bg-secondary p-1">
+          {(["day", "week", "month"] as ViewMode[]).map((v) => (
+            <button
+              key={v}
+              type="button"
+              aria-pressed={viewMode === v}
+              onClick={() => switchView(v)}
+              className={cn(
+                "h-10 rounded-full px-4 text-sm font-medium capitalize transition-colors",
+                viewMode === v ? "bg-card text-foreground shadow-[0_0_0_1px_var(--hairline)]" : "text-muted-foreground",
+              )}
+            >
+              {v}
+            </button>
           ))}
-          {canManage ? (
-            <button
-              type="button"
-              onClick={() => setManageOpen(true)}
-              aria-label="Manage calendars"
-              className="flex h-12 shrink-0 items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
-            >
-              <Settings2 className="size-4" />
-              Manage
-            </button>
-          ) : null}
         </div>
+      </HeaderSlot>
+
+      {canManage && calendars.length > 0 ? <HeaderAdd label="Add event" onClick={() => openAdd(selectedDate)} /> : null}
+
+      <div className="px-8 pt-4 empty:hidden">
+        <AwayBanner />
       </div>
 
       {/* ---- views ---------------------------------------------------------- */}
-      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+      <div className="page-in flex min-h-0 flex-1 flex-col overflow-y-auto" key={viewMode}>
         {viewMode === "month" ? (
           <MonthView
             year={viewYear}
@@ -500,14 +435,12 @@ export function CalendarView() {
             selectedDate={selectedDate}
             events={filteredEvents}
             calendars={calendars}
-            getMember={getMember}
             register={register}
             onSelectDate={(iso) => {
               setSelectedDate(iso)
               switchView("day")
             }}
             onEdit={canManage ? openEdit : undefined}
-            onDelete={canManage ? requestDelete : undefined}
           />
         ) : (
           <DayView
@@ -547,19 +480,18 @@ export function CalendarView() {
             className={inputClass}
           />
         </Field>
-        <Field label="Calendar">
-          <select
+        <div>
+          <span className="os-label mb-2 block">Calendar</span>
+          <ChoiceChips
             value={form.calendarId}
-            onChange={(e) => setForm((f) => ({ ...f, calendarId: e.target.value }))}
-            className={inputClass}
-          >
-            {calendars.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-        </Field>
+            onChange={(calendarId) => setForm((f) => ({ ...f, calendarId }))}
+            options={calendars.map((c) => ({
+              value: c.id,
+              label: c.name,
+              lead: <span className={cn("ml-2.5 size-2.5 rounded-full", memberBg[c.color])} aria-hidden />,
+            }))}
+          />
+        </div>
         <div className="flex items-center justify-between gap-3 py-1">
           <span className="text-sm font-medium">All day</span>
           <Switch label="All day" on={form.allDay} onChange={(allDay) => setForm((f) => ({
@@ -581,40 +513,20 @@ export function CalendarView() {
           </Field>
         ) : (
           <>
-            <div className="flex gap-3">
-              <Field label="Starts">
-                <select
-                  value={form.start}
-                  onChange={(e) => {
-                    const start = Number(e.target.value)
-                    // Keep the event's length when the start moves.
-                    setForm((f) => {
-                      const length = (f.end - f.start + 24) % 24 || 1
-                      return { ...f, start, end: (start + length) % 24 }
-                    })
-                  }}
-                  className={inputClass}
-                >
-                  {quarterHours.map((h) => (
-                    <option key={h} value={h}>
-                      {formatClock(h)}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-              <Field label="Ends">
-                <select
-                  value={form.end}
-                  onChange={(e) => setForm((f) => ({ ...f, end: Number(e.target.value) }))}
-                  className={inputClass}
-                >
-                  {quarterHours.map((h) => (
-                    <option key={h} value={h}>
-                      {formatClock(h)}
-                    </option>
-                  ))}
-                </select>
-              </Field>
+            {/* Steppers, not dropdowns: a wall has no popup pickers worth using. */}
+            <div className="grid grid-cols-2 gap-3">
+              <TimeStepper
+                label="Starts"
+                value={form.start}
+                onChange={(start) =>
+                  // Keep the event's length when the start moves.
+                  setForm((f) => {
+                    const length = (f.end - f.start + 24) % 24 || 1
+                    return { ...f, start, end: (start + length) % 24 }
+                  })
+                }
+              />
+              <TimeStepper label="Ends" value={form.end} onChange={(end) => setForm((f) => ({ ...f, end }))} />
             </div>
             <Field label="Ends on">
               <input
@@ -637,20 +549,17 @@ export function CalendarView() {
           minUntil={formDate}
           onChange={({ days, until }) => setForm((f) => ({ ...f, repeatDays: days, repeatUntil: until }))}
         />
-        <Field label="Remind">
-          <select
-            value={form.reminderMinutes ?? "none"}
-            onChange={(e) => setForm((f) => ({ ...f, reminderMinutes: e.target.value === "none" ? null : Number(e.target.value) }))}
-            className={inputClass}
-          >
-            {reminderOptions(form.allDay).map((o) => (
-              <option key={o.label} value={o.value ?? "none"}>{o.label}</option>
-            ))}
-          </select>
-          <span className="mt-1 block text-xs text-muted-foreground">
+        <div>
+          <span className="os-label mb-2 block">Remind</span>
+          <ChoiceChips
+            value={form.reminderMinutes ?? -1}
+            onChange={(v) => setForm((f) => ({ ...f, reminderMinutes: v === -1 ? null : v }))}
+            options={reminderOptions(form.allDay).map((o) => ({ value: o.value ?? -1, label: o.label }))}
+          />
+          <span className="mt-2 block text-xs text-muted-foreground">
             {form.memberIds.length ? "Sent to the people assigned." : "Sent to everyone in the family."}
           </span>
-        </Field>
+        </div>
         <div className="flex items-center justify-between gap-3 py-1">
           <span>
             <span className="block text-sm font-medium">Count down to this</span>
@@ -658,7 +567,8 @@ export function CalendarView() {
           </span>
           <Switch label="Count down to this" on={form.countdown} onChange={(countdown) => setForm((f) => ({ ...f, countdown }))} />
         </div>
-        <Field label="Assigned to">
+        <div>
+          <span className="os-label mb-2 block">Who</span>
           <div className="flex flex-wrap gap-2">
             {members.map((m) => {
               const on = form.memberIds.includes(m.id)
@@ -666,12 +576,14 @@ export function CalendarView() {
                 <button
                   key={m.id}
                   type="button"
+                  aria-pressed={on}
                   onClick={() => toggleFormMember(m.id)}
                   className={cn(
-                    "rounded-full px-3 py-1.5 text-sm font-medium transition-colors",
-                    on ? "bg-primary text-primary-foreground" : "bg-secondary text-foreground",
+                    "flex h-11 items-center gap-2 rounded-full border pl-1.5 pr-4 text-[0.95rem] font-medium transition-colors",
+                    on ? "border-transparent bg-foreground text-background" : "border-hairline bg-card text-foreground",
                   )}
                 >
+                  <MemberAvatar member={m} size="sm" />
                   {m.name}
                 </button>
               )
@@ -680,7 +592,7 @@ export function CalendarView() {
               <span className="text-xs text-muted-foreground">Add family members first.</span>
             ) : null}
           </div>
-        </Field>
+        </div>
         <Field label="Location (optional)">
           <input
             value={form.location}
@@ -772,11 +684,16 @@ function MonthView({
   onSelectDate: (iso: string) => void
   onAddEvent?: (iso: string) => void
 }) {
-  const grid = useMemo(() => buildMonthGrid(year, month), [year, month])
+  // Only as many weeks as the month touches: no row that's all next month.
+  const grid = useMemo(() => {
+    const g = buildMonthGrid(year, month)
+    while (g.length > 35 && g.slice(-7).every((d) => d.getMonth() !== month)) g.splice(-7)
+    return g
+  }, [year, month])
   const calColor = (id: string): MemberColor => calendars.find((c) => c.id === id)?.color ?? "blue"
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col px-8 pb-6">
+    <div className="flex min-h-0 flex-1 flex-col px-8 pb-6 pt-3">
       {/* Day headers */}
       <div className="grid grid-cols-7 mb-1 shrink-0">
         {dayNamesShort.map((d) => (
@@ -787,7 +704,7 @@ function MonthView({
       </div>
 
       {/* Date cells — fill all remaining height with 6 equal rows */}
-      <div className="grid min-h-0 flex-1 grid-cols-7 grid-rows-6 border-l border-t border-hairline">
+      <div className="grid min-h-0 flex-1 grid-cols-7 gap-1.5" style={{ gridTemplateRows: `repeat(${grid.length / 7}, minmax(0, 1fr))` }}>
         {grid.map((date, i) => {
           const iso = toISODate(date)
           const isCurrentMonth = date.getMonth() === month
@@ -804,16 +721,16 @@ function MonthView({
               onClick={() => onSelectDate(iso)}
               onDoubleClick={() => onAddEvent?.(iso)}
               className={cn(
-                "relative flex min-h-0 flex-col overflow-hidden border-b border-r border-hairline p-2 text-left transition-colors",
-                isSelected ? "bg-card" : "hover:bg-card/60",
-                !isCurrentMonth && "text-muted-foreground/40",
+                "relative flex min-h-0 flex-col overflow-hidden rounded-[14px] p-2 text-left transition-colors",
+                isSelected && "bg-card shadow-[0_0_0_1px_var(--hairline)]",
+                !isCurrentMonth && "opacity-40",
               )}
             >
-              {isToday ? <span aria-hidden className="absolute inset-x-0 top-0 h-[3px] bg-season" /> : null}
+              {/* Today wears the sun's color, the same disc as the rail's Home button. */}
               <span
                 className={cn(
-                  "font-display text-2xl leading-none tabular",
-                  isToday && "text-season",
+                  "-ml-1 -mt-1 flex size-9 shrink-0 items-center justify-center rounded-full font-display text-2xl leading-none tabular",
+                  isToday && "bg-season-deep text-season-ink",
                 )}
               >
                 {date.getDate()}
@@ -826,7 +743,7 @@ function MonthView({
                     {!coversWholeDay(ev, iso) ? (
                       <span className="shrink-0 font-mono text-[0.7rem] tabular text-muted-foreground">{shortClock(hoursOn(ev, iso).from)}</span>
                     ) : null}
-                    <span className={cn("truncate", isCurrentMonth ? "text-foreground" : "text-muted-foreground/50")}>{ev.title}</span>
+                    <span className="truncate text-foreground">{ev.title}</span>
                   </span>
                 ))}
                 {overflow > 0 ? <span className="os-label mt-0.5">+{overflow} more</span> : null}
@@ -847,145 +764,73 @@ function WeekView({
   selectedDate,
   events,
   calendars,
-  getMember,
   register,
   onSelectDate,
   onEdit,
-  onDelete,
 }: {
   anchorDate: Date
   todayISO: string
   selectedDate: string
   events: CalendarEvent[]
   calendars: Calendar[]
-  getMember: (id: string) => { id: string; name: string; color: MemberColor; initial: string; role: string }
   register: (id: string) => (el: HTMLElement | null) => void
   onSelectDate: (iso: string) => void
   onEdit?: (e: CalendarEvent) => void
-  onDelete?: (e: CalendarEvent) => void
 }) {
-  const ws = startOfWeek(anchorDate)
-  const days = Array.from({ length: 7 }, (_, i) => addDays(ws, i))
+  // Seven days from the one you're on: a wall looks ahead, so the week starts today.
+  const days = Array.from({ length: 7 }, (_, i) => addDays(anchorDate, i))
   const calColor = (id: string): MemberColor => calendars.find((c) => c.id === id)?.color ?? "blue"
-  const lanesByDay = new Map(days.map((d) => {
-    const iso = toISODate(d)
-    return [iso, laneLayout(expandEventsOn(events, iso).filter((e) => !coversWholeDay(e, iso)), iso)] as const
-  }))
 
   return (
-    <div className="overflow-x-auto">
-      {/* Day header strip */}
-      <div className="sticky top-0 z-10 flex border-b border-hairline bg-background pl-20 pr-8">
-        {days.map((d) => {
-          const iso = toISODate(d)
-          const isToday = iso === todayISO
-          const isSelected = iso === selectedDate
-          return (
-            <button
-              key={iso}
-              type="button"
-              onClick={() => onSelectDate(iso)}
-              className={cn(
-                "relative flex flex-1 flex-col items-start gap-1 px-2 py-3 transition-colors",
-                isSelected ? "bg-card" : "hover:bg-card/60",
-              )}
-            >
-              {isToday ? <span aria-hidden className="absolute inset-x-2 top-0 h-[3px] bg-season" /> : null}
-              <span className="os-label">
-                {dayNamesShort[d.getDay()]}
-              </span>
+    <div className="grid min-h-0 flex-1 grid-cols-7 gap-2 px-6 pb-6 pt-3">
+      {days.map((d) => {
+        const iso = toISODate(d)
+        const isToday = iso === todayISO
+        const isSelected = iso === selectedDate
+        const list = expandEventsOn(events, iso)
+        return (
+          <section
+            key={iso}
+            className={cn(
+              "flex min-h-0 min-w-0 flex-col gap-2 overflow-y-auto rounded-[18px] p-2 no-scrollbar",
+              (isToday || isSelected) && "bg-card shadow-[0_0_0_1px_var(--hairline)]",
+            )}
+          >
+            <button type="button" onClick={() => onSelectDate(iso)} className="flex items-center gap-2 px-1 pb-1 pt-0.5 text-left">
               <span
                 className={cn(
-                  "font-display text-3xl leading-none tabular",
-                  isToday ? "text-season" : "text-foreground",
+                  "-ml-1 flex size-10 items-center justify-center rounded-full font-display text-[1.65rem] leading-none tabular",
+                  isToday && "bg-season-deep text-season-ink",
                 )}
               >
                 {d.getDate()}
               </span>
+              <span className="os-label">{isToday ? "Today" : dayNames[d.getDay()]}</span>
             </button>
-          )
-        })}
-      </div>
-
-      {/* All-day strip — all-day events and the middle days of multi-day ones */}
-      {days.some((d) => expandEventsOn(events, toISODate(d)).some((e) => coversWholeDay(e, toISODate(d)))) ? (
-        <div className="flex border-b border-hairline pr-8">
-          <div className="w-20 shrink-0 pr-3 pt-1.5 text-right font-mono text-[0.7rem] uppercase text-muted-foreground">All day</div>
-          <div className="flex flex-1 gap-px py-1">
-            {days.map((d) => {
-              const iso = toISODate(d)
-              return (
-                <div key={iso} className="flex min-w-0 flex-1 flex-col gap-0.5">
-                  {expandEventsOn(events, iso).filter((e) => coversWholeDay(e, iso)).map((ev) => (
-                    <button
-                      key={`${ev.id}:${ev.date}`}
-                      type="button"
-                      onClick={() => onEdit?.(ev)}
-                      className="relative mx-0.5 truncate rounded-[4px] border border-border bg-card py-0.5 pl-2.5 pr-1 text-left text-[0.8rem] font-medium"
-                    >
-                      <span aria-hidden className={cn("absolute inset-y-1 left-1 w-[3px] rounded-full", memberBg[calColor(ev.calendarId)])} />
-                      {ev.title}
-                    </button>
-                  ))}
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      ) : null}
-
-      {/* Hourly grid */}
-      <div className="relative">
-        {/* Hour rows */}
-        {Array.from({ length: 24 }, (_, h) => (
-          <div key={h} className="flex border-b border-hairline pr-8" style={{ minHeight: 48 }}>
-            <div className="w-20 shrink-0 pr-3 pt-1 text-right font-mono text-[0.7rem] uppercase text-muted-foreground">
-              {h === 0 ? "" : formatHour(h)}
-            </div>
-            <div className="flex flex-1 gap-px">
-              {days.map((d) => {
-                const iso = toISODate(d)
-                const dayEvs = expandEventsOn(events, iso).filter(
-                  (e) => !coversWholeDay(e, iso) && Math.floor(hoursOn(e, iso).from) === h,
-                )
-                return (
-                  <div key={iso} className="flex-1 relative min-w-0">
-                    {dayEvs.map((ev) => {
-                      const { lane, lanes } = lanesByDay.get(iso)?.get(`${ev.id}:${ev.date}`) ?? { lane: 0, lanes: 1 }
-                      const { from, to } = hoursOn(ev, iso)
-                      return (
-                      <div
-                        key={`${ev.id}:${ev.date}`}
-                        ref={register(ev.id) as React.RefCallback<HTMLDivElement>}
-                        className="absolute z-10 cursor-pointer overflow-hidden rounded-[4px] border border-border bg-card py-1 pl-2.5 pr-1 text-[0.8rem] font-medium text-foreground transition-colors hover:border-foreground/40"
-                        style={{
-                          top: 2 + (from % 1) * 48,
-                          left: `calc(${(lane / lanes) * 100}% + 2px)`,
-                          width: `calc(${100 / lanes}% - 4px)`,
-                          height: Math.max(to - from, 0.5) * 48 - 4,
-                        }}
-                        onClick={() => onEdit?.(ev)}
-                      >
-                        <span aria-hidden className={cn("absolute inset-y-1 left-1 w-[3px] rounded-full", memberBg[calColor(ev.calendarId)])} />
-                        <span className="block truncate">{ev.title}</span>
-                        <span className="block truncate font-mono text-[0.7rem] font-normal tabular text-muted-foreground">
-                          {formatClock(from)}{to - from >= 1 ? ` – ${formatClock(to)}` : ""}
-                        </span>
-                        {hoursOn(ev, iso).to - hoursOn(ev, iso).from > 1 && ev.location ? (
-                          <span className="mt-0.5 flex items-center gap-0.5 truncate text-muted-foreground">
-                            <MapPin className="size-2.5 inline" />{ev.location}
-                          </span>
-                        ) : null}
-                      </div>
-                      )
-                    })}
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        ))}
-      </div>
+            {list.map((ev) => (
+              <button
+                key={`${ev.id}:${ev.date}`}
+                ref={register(ev.id) as React.RefCallback<HTMLButtonElement>}
+                type="button"
+                onClick={() => (onEdit ? onEdit(ev) : onSelectDate(iso))}
+                className={cn(
+                  "flex min-w-0 gap-2.5 rounded-[14px] border border-hairline px-2.5 py-2 text-left",
+                  isToday || isSelected ? "bg-background" : "bg-card",
+                )}
+              >
+                <span className={cn("w-1 shrink-0 self-stretch rounded-full", memberBg[calColor(ev.calendarId)])} aria-hidden />
+                <span className="min-w-0 flex-1">
+                  <span className="block font-mono text-[0.68rem] text-muted-foreground">
+                    {coversWholeDay(ev, iso) ? "All day" : formatClock(hoursOn(ev, iso).from)}
+                  </span>
+                  <span className="mt-0.5 line-clamp-2 block text-[0.9rem] leading-snug">{ev.title}</span>
+                </span>
+              </button>
+            ))}
+            {list.length === 0 ? <p className="px-1.5 text-sm text-muted-foreground/70">Nothing yet</p> : null}
+          </section>
+        )
+      })}
     </div>
   )
 }
@@ -1005,7 +850,7 @@ function DayView({
   selectedDate: string
   events: CalendarEvent[]
   calendars: Calendar[]
-  getMember: (id: string) => { id: string; name: string; color: MemberColor; initial: string; role: string }
+  getMember: (id: string) => Member
   register: (id: string) => (el: HTMLElement | null) => void
   canManage: boolean
   onEdit: (e: CalendarEvent) => void
@@ -1027,115 +872,191 @@ function DayView({
     return map
   }, [events])
 
+  const nowH = useNowHours()
+  const isToday = selectedDate === homeTodayISO()
+  const live = (e: CalendarEvent) => isToday && !coversWholeDay(e, selectedDate) && hoursOn(e, selectedDate).from <= nowH && hoursOn(e, selectedDate).to > nowH
+  const over = (e: CalendarEvent) => isToday && !coversWholeDay(e, selectedDate) && hoursOn(e, selectedDate).to <= nowH
+
   return (
-    <div className="space-y-1 px-8 pb-8 pt-2">
-      {/* Day summary */}
-      <div className="flex items-center justify-between mb-3">
+    <div className="mx-auto w-full max-w-5xl space-y-2.5 px-8 pb-8 pt-4">
+      <div className="mb-1 flex items-center justify-between">
         <p className="os-label">
           {dateLabel} · {events.length} {events.length === 1 ? "event" : "events"}
         </p>
         <div className="flex -space-x-2">
-          {Array.from(new Set(events.flatMap((e) => e.memberIds))).slice(0, 4).map((id) => {
-            const m = getMember(id)
-            return <MemberAvatar key={id} member={m} size="sm" ring />
-          })}
+          {Array.from(new Set(events.flatMap((e) => e.memberIds))).slice(0, 4).map((id) => (
+            <MemberAvatar key={id} member={getMember(id)} size="sm" ring />
+          ))}
         </div>
       </div>
 
-      {/* Timeline */}
       {events.length === 0 ? (
         <p className="py-16 font-display text-3xl italic text-muted-foreground">
           {calendars.length === 0 ? "Create a calendar to start adding events." : "No events for this day."}
         </p>
       ) : (
-        <div className="border-t border-hairline">
-          {events.map((event) => {
-            const assignees = event.memberIds.map((id) => getMember(id))
-            const color = calColor(event.calendarId)
-            return (
-              <div key={`${event.id}:${event.date}`} ref={register(event.id) as React.RefCallback<HTMLDivElement>} className="flex gap-6 border-b border-hairline py-2">
-                <div className="w-20 shrink-0 pt-4 font-mono text-[0.85rem] tabular text-muted-foreground">
-                  {eventTimeLabel(event, selectedDate)}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <ActionRow
-                    onEdit={canManage ? () => onEdit(event) : undefined}
-                    onDelete={canManage ? () => onDelete(event) : undefined}
-                  >
-                    <div className="flex bg-background">
-                      <span className={cn("my-3 w-[3px] shrink-0 rounded-full", memberBg[color])} aria-hidden />
-                      <div className="min-w-0 flex-1 px-4 py-3">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="min-w-0">
-                            <p className="truncate text-xl leading-tight">{event.title}</p>
-                            {event.endDate ? (
-                              <p className="mt-1 text-xs text-muted-foreground">{eventRangeLabel(event)}</p>
-                            ) : null}
-                            {eventRepeatLabel(event) ? (
-                              <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
-                                <Repeat className="size-3" aria-hidden />
-                                {eventRepeatLabel(event)}
-                              </p>
-                            ) : null}
-                            {event.location ? (
-                              <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
-                                <MapPin className="size-3" />
-                                {event.location}
-                              </p>
-                            ) : null}
-                          </div>
-                          {assignees.length === 1 ? (
-                            <span className="flex shrink-0 items-center gap-2 text-sm text-muted-foreground">
-                              <span className={cn("size-2 rounded-full", memberBg[assignees[0].color])} />
-                              {assignees[0].name}
-                            </span>
-                          ) : assignees.length > 1 ? (
-                            <div className="flex shrink-0 -space-x-2">
-                              {assignees.slice(0, 4).map((m) => (
-                                <MemberAvatar key={m.id} member={m} size="sm" ring />
-                              ))}
-                            </div>
-                          ) : null}
-                        </div>
-                      </div>
-                    </div>
-                  </ActionRow>
-                </div>
+        events.map((event) => {
+          const assignees = event.memberIds.map((id) => getMember(id))
+          const now = live(event)
+          return (
+            <div
+              key={`${event.id}:${event.date}`}
+              ref={register(event.id) as React.RefCallback<HTMLDivElement>}
+              className={cn("flex gap-4", over(event) && "opacity-50")}
+            >
+              <div className={cn("w-20 shrink-0 pt-4 font-mono text-[0.8rem] tabular", now ? "font-semibold text-foreground" : "text-muted-foreground")}>
+                {now ? "Now" : eventTimeLabel(event, selectedDate)}
               </div>
-            )
-          })}
-        </div>
+              {/* The phone's event card: a member-color bar inside a soft card; the one on now is ringed in ink. */}
+              <div
+                className={cn(
+                  "flex min-w-0 flex-1 items-center gap-3 rounded-[20px] border bg-card py-3 pl-4 pr-2",
+                  now ? "border-foreground shadow-[inset_0_0_0_0.5px_var(--foreground)]" : "border-hairline",
+                )}
+              >
+                <span className={cn("w-1 shrink-0 self-stretch rounded-full", memberBg[calColor(event.calendarId)])} aria-hidden />
+                <button type="button" onClick={() => canManage && onEdit(event)} className="min-w-0 flex-1 text-left">
+                  <p className={cn("truncate text-[1.15rem] leading-tight", now && "font-medium")}>{event.title}</p>
+                  {event.endDate ? <p className="mt-1 text-xs text-muted-foreground">{eventRangeLabel(event)}</p> : null}
+                  {eventRepeatLabel(event) ? (
+                    <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+                      <Repeat className="size-3" aria-hidden />
+                      {eventRepeatLabel(event)}
+                    </p>
+                  ) : null}
+                  {event.location ? (
+                    <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+                      <MapPin className="size-3" />
+                      {event.location}
+                    </p>
+                  ) : null}
+                </button>
+                {assignees.length > 0 ? (
+                  <div className="flex shrink-0 -space-x-2">
+                    {assignees.slice(0, 4).map((m) => <MemberAvatar key={m.id} member={m} size="sm" ring />)}
+                  </div>
+                ) : null}
+                {canManage ? <MoreMenu label={`${event.title} options`} items={editDelete(() => onEdit(event), () => onDelete(event))} /> : null}
+              </div>
+            </div>
+          )
+        })
       )}
     </div>
   )
 }
 
-// ---- Filter chip ------------------------------------------------------------
+/** Hours since midnight, refreshed each minute, so "Now" moves along. */
+function useNowHours(): number {
+  const [now, setNow] = useState(() => new Date())
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 60_000)
+    return () => clearInterval(t)
+  }, [])
+  return now.getHours() + now.getMinutes() / 60
+}
 
-function FilterChip({
+/** Today's date at home, checked each minute so the calendar turns over at midnight. */
+function useHomeToday(): string {
+  const [iso, setIso] = useState(homeTodayISO)
+  useEffect(() => {
+    const t = setInterval(() => setIso(homeTodayISO()), 60_000)
+    return () => clearInterval(t)
+  }, [])
+  return iso
+}
+
+// ---- Time stepper -----------------------------------------------------------
+
+/** A time you nudge by quarter hours with big − and + buttons; it wraps past midnight. */
+function TimeStepper({ label, value, onChange }: { label: string; value: number; onChange: (h: number) => void }) {
+  const step = (by: number) => onChange((((value + by) % 24) + 24) % 24)
+  return (
+    <div>
+      <span className="os-label mb-2 block">{label}</span>
+      <div className="flex h-[3.25rem] items-center justify-between rounded-[14px] border border-hairline bg-card px-1.5">
+        <button type="button" aria-label={`${label} 15 minutes earlier`} onClick={() => step(-0.25)} className="flex size-10 items-center justify-center rounded-full bg-secondary text-lg">
+          −
+        </button>
+        <span className="font-medium tabular">{formatClock(value)}</span>
+        <button type="button" aria-label={`${label} 15 minutes later`} onClick={() => step(0.25)} className="flex size-10 items-center justify-center rounded-full bg-secondary text-lg">
+          +
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ---- Calendars filter -------------------------------------------------------
+
+/** One chip in the header for which calendars show; Manage lives at the bottom of its list. */
+function CalendarsButton({
+  calendars,
+  value,
+  onChange,
+  onManage,
   label,
   color,
-  active,
-  onClick,
 }: {
+  calendars: Calendar[]
+  value: string | null
+  onChange: (id: string | null) => void
+  onManage?: () => void
   label: string
   color?: MemberColor
-  active: boolean
-  onClick: () => void
 }) {
+  const [open, setOpen] = useState(false)
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "relative flex h-12 shrink-0 items-center gap-2 text-[0.95rem] transition-colors",
-        active ? "text-foreground" : "text-muted-foreground hover:text-foreground",
-      )}
-    >
-      {color ? <span className={cn("size-2 rounded-full", memberBg[color])} aria-hidden /> : null}
-      {label}
-      <span aria-hidden className={cn("absolute inset-x-0 -bottom-0.5 h-[2px] rounded-full bg-foreground transition-opacity", active ? "opacity-100" : "opacity-0")} />
-    </button>
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="flex h-12 items-center gap-2 rounded-full border border-hairline bg-card pl-4 pr-3 text-sm font-medium"
+      >
+        {color ? <span className={cn("size-2 rounded-full", memberBg[color])} aria-hidden /> : null}
+        {label}
+        <ChevronDown className="size-4 text-muted-foreground" />
+      </button>
+      {open ? (
+        <>
+          <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} aria-hidden />
+          <div className="pop-in absolute right-0 top-14 z-40 w-72 origin-top-right overflow-hidden rounded-[20px] border border-hairline bg-popover p-1.5 shadow-[0_16px_40px_-16px_rgb(0_0_0/0.35)]">
+            {[null, ...calendars].map((c) => {
+              const on = (c?.id ?? null) === value
+              return (
+                <button
+                  key={c?.id ?? "all"}
+                  type="button"
+                  onClick={() => {
+                    onChange(c?.id ?? null)
+                    setOpen(false)
+                  }}
+                  className={cn("flex h-12 w-full items-center gap-3 rounded-xl px-3 text-left text-[0.95rem]", on && "bg-secondary")}
+                >
+                  <span className={cn("size-2.5 rounded-full", c ? memberBg[c.color] : "bg-muted-foreground/40")} aria-hidden />
+                  <span className="flex-1 truncate">{c ? c.name : "All calendars"}</span>
+                  {on ? <Check className="size-4" /> : null}
+                </button>
+              )
+            })}
+            {onManage ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setOpen(false)
+                  onManage()
+                }}
+                className="mt-1 flex h-12 w-full items-center gap-3 rounded-xl border-t border-hairline px-3 text-left text-[0.95rem] text-muted-foreground"
+              >
+                <Settings2 className="size-4" />
+                Manage calendars
+              </button>
+            ) : null}
+          </div>
+        </>
+      ) : null}
+    </div>
   )
 }
 
@@ -1207,7 +1128,7 @@ function ManageCalendarsSheet({
           type="button"
           onClick={submit}
           disabled={!draft.name.trim()}
-          className="w-full rounded-md bg-primary py-3 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-40"
+          className="w-full rounded-full bg-primary py-3 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-40"
         >
           Add calendar
         </button>
@@ -1217,7 +1138,7 @@ function ManageCalendarsSheet({
       <div className="space-y-2">
         {calendars.map((c) =>
           editingId === c.id ? (
-            <div key={c.id} className="space-y-3 rounded-md border border-primary/50 p-3">
+            <div key={c.id} className="space-y-3 rounded-[20px] border border-primary/50 p-3">
               <Field label="Name">
                 <input
                   value={editDraft.name}
@@ -1272,7 +1193,7 @@ function ManageCalendarsSheet({
                   type="button"
                   onClick={() => saveEdit(c.id)}
                   disabled={!editDraft.name.trim()}
-                  className="flex-1 rounded-md bg-primary py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-40"
+                  className="flex-1 rounded-full bg-primary py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-40"
                 >
                   Save
                 </button>
@@ -1280,14 +1201,14 @@ function ManageCalendarsSheet({
                   type="button"
                   onClick={() => setEditingId(null)}
                   aria-label="Cancel editing"
-                  className="flex size-12 items-center justify-center rounded-md border border-border text-muted-foreground hover:bg-secondary"
+                  className="flex size-12 items-center justify-center rounded-[12px] border border-border text-muted-foreground hover:bg-secondary"
                 >
                   <X className="size-4" />
                 </button>
               </div>
             </div>
           ) : (
-            <div key={c.id} className="flex items-center gap-3 rounded-md border border-border/70 p-3">
+            <div key={c.id} className="flex items-center gap-3 rounded-[20px] border border-border/70 p-3">
               <span className={cn("size-3 shrink-0 rounded-full", memberBg[c.color])} aria-hidden />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium">{c.name}</p>
@@ -1300,7 +1221,7 @@ function ManageCalendarsSheet({
                   type="button"
                   aria-label={`Edit ${c.name}`}
                   onClick={() => startEdit(c)}
-                  className="flex size-12 items-center justify-center rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground"
+                  className="flex size-12 items-center justify-center rounded-[12px] text-muted-foreground hover:bg-secondary hover:text-foreground"
                 >
                   <Pencil className="size-4" />
                 </button>
@@ -1308,7 +1229,7 @@ function ManageCalendarsSheet({
                   type="button"
                   aria-label={`Delete ${c.name}`}
                   onClick={() => setConfirmDelete(c)}
-                  className="flex size-12 items-center justify-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                  className="flex size-12 items-center justify-center rounded-[12px] text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                 >
                   <Trash2 className="size-4" />
                 </button>
@@ -1322,7 +1243,7 @@ function ManageCalendarsSheet({
       </div>
 
       {/* New calendar form */}
-      <div className="mt-4 space-y-3 rounded-md border border-border/70 p-3">
+      <div className="mt-4 space-y-3 rounded-[20px] border border-border/70 p-3">
         <p className="text-sm font-semibold">New calendar</p>
         <Field label="Name">
           <input

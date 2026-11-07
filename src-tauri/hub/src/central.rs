@@ -259,6 +259,7 @@ pub async fn link(hub: Arc<Hub>) {
         tokio::time::sleep(wait).await;
         wait = (wait * 2).min(Duration::from_secs(300));
     }
+    crate::relay::register_reusable_invites(&hub);
     connect(hub).await;
 }
 

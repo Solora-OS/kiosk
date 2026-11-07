@@ -22,7 +22,7 @@ export function RegisteringScreen({
           <SystemHeading eyebrow="Hub server" title={<>Can&apos;t reach the hub&nbsp;server.</>}>
             <p>{error}</p>
           </SystemHeading>
-          <div className="max-w-xl rounded-md border border-border bg-card px-5 py-4">
+          <div className="max-w-xl rounded-[14px] border border-border bg-card px-5 py-4">
             <p className="os-label mb-2">On the hub, run</p>
             <code className="font-mono text-sm">systemctl --user start solora-server</code>
           </div>

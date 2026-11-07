@@ -56,7 +56,7 @@ export function Fader({
       onPointerUp={() => setDragging(false)}
       onPointerCancel={() => setDragging(false)}
       className={cn(
-        "relative h-16 w-full cursor-pointer touch-none overflow-hidden rounded-md bg-secondary outline-none",
+        "relative h-16 w-full cursor-pointer touch-none overflow-hidden rounded-[18px] bg-secondary outline-none",
         disabled && "pointer-events-none opacity-40",
       )}
     >
@@ -71,7 +71,7 @@ export function Fader({
         ))}
       </div>
       <span
-        className="pointer-events-none absolute top-1/2 h-6 w-[3px] -translate-y-1/2 rounded-full bg-season"
+        className="pointer-events-none absolute top-1/2 h-6 w-[3px] -translate-y-1/2 rounded-full bg-background"
         style={{ left: `calc(${value}% - ${value > 2 ? 6 : -4}px)` }}
       />
     </div>
@@ -140,7 +140,7 @@ export function HoldButton({
       onPointerCancel={cancel}
       onContextMenu={(e) => e.preventDefault()}
       className={cn(
-        "relative flex h-16 touch-none select-none items-center justify-between gap-3 overflow-hidden rounded-md border border-border px-5 text-left text-base font-medium transition-colors",
+        "relative flex h-16 touch-none select-none items-center justify-between gap-3 overflow-hidden rounded-[20px] border border-hairline bg-card px-5 text-left text-base font-medium transition-colors",
         tone === "danger" ? "text-destructive" : "text-foreground",
         className,
       )}
@@ -173,7 +173,7 @@ export function Segmented<T extends string>({
   onChange: (v: T) => void
 }) {
   return (
-    <div className="grid h-14 rounded-md bg-secondary p-1" style={{ gridTemplateColumns: `repeat(${options.length}, 1fr)` }}>
+    <div className="grid h-14 rounded-full bg-secondary p-1" style={{ gridTemplateColumns: `repeat(${options.length}, 1fr)` }}>
       {options.map((o) => (
         <button
           key={o.value}
@@ -181,8 +181,8 @@ export function Segmented<T extends string>({
           aria-pressed={o.value === value}
           onClick={() => onChange(o.value)}
           className={cn(
-            "rounded-[5px] text-base font-medium transition-colors",
-            o.value === value ? "bg-card text-foreground shadow-[0_0_0_1px_var(--border)]" : "text-muted-foreground",
+            "rounded-full text-base font-medium transition-colors",
+            o.value === value ? "bg-card text-foreground shadow-[0_0_0_1px_var(--hairline)]" : "text-muted-foreground",
           )}
         >
           {o.label}
@@ -192,7 +192,7 @@ export function Segmented<T extends string>({
   )
 }
 
-/** A flat switch: a slot with a square-ish thumb. */
+/** A pill switch: ink when on, with a round thumb (same as the phone). */
 export function Switch({ on, onChange, label }: { on: boolean; onChange: (v: boolean) => void; label: string }) {
   return (
     <button
@@ -202,14 +202,14 @@ export function Switch({ on, onChange, label }: { on: boolean; onChange: (v: boo
       aria-label={label}
       onClick={() => onChange(!on)}
       className={cn(
-        "relative h-8 w-14 shrink-0 rounded-md transition-colors after:absolute after:-inset-3 after:content-['']",
+        "relative h-8 w-[3.25rem] shrink-0 rounded-full transition-colors after:absolute after:-inset-3 after:content-['']",
         on ? "bg-foreground" : "bg-secondary shadow-[inset_0_0_0_1px_var(--border)]",
       )}
     >
       <span
         className={cn(
-          "absolute top-1 size-6 rounded-[5px] transition-all duration-200",
-          on ? "left-7 bg-season" : "left-1 bg-muted-foreground/60",
+          "absolute left-1 top-1 size-6 rounded-full transition-transform duration-200",
+          on ? "translate-x-5 bg-background" : "bg-muted-foreground/60",
         )}
       />
     </button>

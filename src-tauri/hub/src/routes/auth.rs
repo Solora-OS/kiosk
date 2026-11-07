@@ -4,7 +4,8 @@
 
 use crate::auth::User;
 use crate::http::{error, ok, Body};
-use crate::{store, tokens, Hub};
+use crate::db;
+use crate::{p, realtime, relay, store, tokens, try_run, Hub};
 use axum::extract::State;
 use axum::response::Response;
 use axum::routing::{get, post};
@@ -21,6 +22,7 @@ pub fn router() -> Router<Arc<Hub>> {
         .route("/me", get(session))
         .route("/kiosk-autologin", post(kiosk_autologin))
         .route("/device-refresh", post(device_refresh))
+        .route("/account", axum::routing::delete(delete_account))
 }
 
 /// 32-byte AES-256-GCM key for off-network relay payloads: HMAC(secret, "lumora-remote-access").
@@ -180,4 +182,65 @@ async fn device_refresh(State(hub): State<Arc<Hub>>, body: Body) -> Response {
         return error(401, "This phone has been signed out of the household.");
     };
     ok(tokens::member_device_tokens(hub.store.secret(), &id, &household_id, &name))
+}
+
+/// DELETE /account: the caller leaves this hub for good. Their local user and
+/// member profile go; when they're the household's last admin the whole
+/// household goes (every table cascades from households, plus the photo
+/// files) and the hub is back to unclaimed. The phone deletes the central
+/// account separately.
+async fn delete_account(State(hub): State<Arc<Hub>>, user: User) -> Response {
+    if user.is_kiosk() {
+        return error(403, "Sign in on your phone to delete your account.");
+    }
+    let me = user.sub.clone();
+    let Some(household) = user.household().map(str::to_string) else {
+        try_run!(&hub.store.db(), "DELETE FROM users WHERE id = ?", p![me]);
+        return ok(json!({ "wiped": false }));
+    };
+    let mut db_ = hub.store.db();
+    let admin = db::one(&db_, "SELECT role FROM members WHERE user_id = ? AND household_id = ?", p![me, household])
+        .is_some_and(|r| db::s(&r, "role") == "admin");
+    let others = db::one(
+        &db_,
+        "SELECT COUNT(*) AS n FROM members WHERE household_id = ? AND role = 'admin' AND user_id IS NOT NULL AND user_id != ?",
+        p![household, me],
+    )
+    .map(|r| db::number(&r, "n"))
+    .unwrap_or(0.0);
+    let wiped = admin && others == 0.0;
+
+    if wiped {
+        let photos = db::all(&db_, "SELECT filename FROM photos WHERE household_id = ?", p![household]);
+        let invites = db::all(&db_, "SELECT code, token FROM invites WHERE household_id = ?", p![household]);
+        try_run!(&db_, "DELETE FROM households WHERE id = ?", p![household]);
+        drop(db_);
+        let dir = hub.store.dir.join("photos");
+        for ph in &photos {
+            let name = db::s(ph, "filename");
+            let _ = std::fs::remove_file(dir.join(name.rsplit('/').next().unwrap_or(&name)));
+        }
+        for i in &invites {
+            relay::unregister_remote_invite(&hub, &db::s(i, "code"), &db::s(i, "token"));
+        }
+        eprintln!("[auth] Account deleted by last admin; household {household} wiped");
+    } else {
+        let members = db::all(&db_, "SELECT id FROM members WHERE user_id = ? AND household_id = ?", p![me, household]);
+        let mine = "SELECT id FROM members WHERE user_id = ?";
+        let invites = db::all(&db_, &format!("SELECT code, token FROM invites WHERE member_id IN ({mine})"), p![me]);
+        if let Ok(tx) = db_.transaction() {
+            try_run!(&tx, &format!("DELETE FROM invites WHERE member_id IN ({mine})"), p![me]);
+            try_run!(&tx, "DELETE FROM members WHERE user_id = ?", p![me]);
+            try_run!(&tx, "DELETE FROM users WHERE id = ?", p![me]);
+            let _ = tx.commit();
+        }
+        drop(db_);
+        for i in &invites {
+            relay::unregister_remote_invite(&hub, &db::s(i, "code"), &db::s(i, "token"));
+        }
+        for m in &members {
+            realtime::broadcast(&hub, &household, "members:deleted", json!(db::s(m, "id")));
+        }
+    }
+    ok(json!({ "wiped": wiped }))
 }

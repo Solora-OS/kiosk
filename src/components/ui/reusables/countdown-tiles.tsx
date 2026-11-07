@@ -7,27 +7,26 @@ import { cn } from "@/lib/utils"
 
 /**
  * "9 sleeps until Christmas" — big numbers for events marked "Count down to
- * this", soonest first. Kept identical in mobile/ and kiosk/.
+ * this", soonest first: one card split by hairlines, like the phone's strip.
  */
-export function CountdownTiles({ events, size = "md", className }: { events: CalendarEvent[]; size?: "md" | "lg"; className?: string }) {
+export function CountdownTiles({ events, size = "md", bare = false, className }: { events: CalendarEvent[]; size?: "md" | "lg"; /** Inside another card: no card of its own. */ bare?: boolean; className?: string }) {
   useHomeTimeZone()
   // Count down on the home date, so family abroad don't see "today" a day early.
   const tiles = upcomingCountdowns(events, homeTodayISO())
   if (tiles.length === 0) return null
   return (
-    <div className={cn("grid gap-2", tiles.length > 1 && "grid-cols-2", tiles.length > 2 && "sm:grid-cols-3", className)}>
+    <div className={cn("flex divide-x divide-hairline", !bare && "rounded-[20px] border border-hairline bg-card", className)}>
       {tiles.map(({ event, days }) => (
         <div
           key={event.id}
           aria-label={countdownLabel(event.title, days)}
-          className={cn("flex items-baseline gap-3 rounded-lg bg-season/10 px-4", size === "lg" ? "py-4" : "py-3")}
+          className={cn("flex min-w-0 flex-1 flex-col justify-end px-4", size === "lg" ? "py-4" : "py-3")}
         >
-          <span className={cn("font-display leading-none text-season tabular", size === "lg" ? "text-6xl" : "text-4xl")}>
-            {days === 0 ? <PartyPopper className={size === "lg" ? "size-12" : "size-8"} aria-hidden /> : days}
+          <span className={cn("font-display leading-none tabular", size === "lg" ? "text-[3.25rem]" : "text-[2.4rem]")}>
+            {days === 0 ? <PartyPopper className={size === "lg" ? "size-11" : "size-8"} aria-hidden /> : days}
           </span>
-          <span className="min-w-0">
-            <span className="os-label block">{days === 0 ? "Today" : days === 1 ? "sleep until" : "sleeps until"}</span>
-            <span className={cn("block truncate font-medium", size === "lg" ? "text-xl" : "text-base")}>{event.title}</span>
+          <span className="mt-1.5 truncate text-xs text-muted-foreground">
+            {days === 0 ? `${event.title} is today` : `${days === 1 ? "sleep" : "sleeps"} to ${event.title}`}
           </span>
         </div>
       ))}

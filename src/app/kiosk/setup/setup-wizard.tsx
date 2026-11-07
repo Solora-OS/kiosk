@@ -254,8 +254,8 @@ export function SetupWizard({
                       type="button"
                       onClick={() => setOrientation(o.value)}
                       aria-pressed={active}
-                      className={`flex flex-col items-start gap-4 rounded-md border p-5 text-left transition-colors ${
-                        active ? "border-foreground bg-card" : "border-border hover:bg-secondary"
+                      className={`flex flex-col items-start gap-4 rounded-[20px] border bg-card p-5 text-left transition-colors ${
+                        active ? "border-foreground shadow-[inset_0_0_0_0.5px_var(--foreground)]" : "border-hairline"
                       }`}
                     >
                       <ScreenGlyph deg={o.deg} active={active} />

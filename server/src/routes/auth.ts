@@ -9,6 +9,7 @@
  *                        (creates local user + household if first time)
  * GET  /auth/session   — return current session info from validated token
  * GET  /auth/me        — alias for GET /auth/session
+ * DELETE /auth/account — leave the hub for good (the last admin wipes the household)
  *
  * Sign-up, sign-in, refresh and password changes happen against central
  * directly; the hub never sees a password.
@@ -19,7 +20,9 @@ import { v4 as uuidv4 } from "uuid"
 import crypto from "crypto"
 import fs from "fs"
 import path from "path"
-import { DATA_DIR, getDb, getOrCreateSecret } from "../db"
+import { DATA_DIR, getDb, getOrCreateSecret, PHOTOS_DIR } from "../db"
+import { broadcast } from "../broadcaster"
+import { unregisterRemoteInvite } from "../services/invite-relay"
 import { requireAuth, type AuthRequest } from "../middleware/auth"
 import { verifyAccountToken } from "../lib/account-tokens"
 import { getHubJwt } from "../lib/central-registry"
@@ -267,6 +270,58 @@ router.post("/device-refresh", (req: Request, res: Response) => {
     return
   }
   res.json(signMemberDeviceTokens({ id: user.id, householdId: user.household_id, name: user.name }))
+})
+
+// ---------------------------------------------------------------------------
+// DELETE /auth/account
+// The caller leaves this hub for good: their local user and member profile go.
+// When they're the household's last admin, the whole household goes with them
+// (every table cascades from households, plus the photo files) and the hub is
+// back to unclaimed. The phone deletes the central account separately.
+// → { wiped: boolean }
+// ---------------------------------------------------------------------------
+router.delete("/account", requireAuth, (req: Request, res: Response) => {
+  const { userId, householdId, role } = (req as AuthRequest).user
+  if (role === "kiosk") {
+    res.status(403).json({ error: "Sign in on your phone to delete your account." })
+    return
+  }
+  const db = getDb()
+  if (!householdId) {
+    db.prepare("DELETE FROM users WHERE id = ?").run(userId)
+    res.json({ wiped: false })
+    return
+  }
+
+  const me = db
+    .prepare("SELECT role FROM members WHERE user_id = ? AND household_id = ?")
+    .get(userId, householdId) as { role: string } | undefined
+  const { otherAdmins } = db
+    .prepare("SELECT COUNT(*) AS otherAdmins FROM members WHERE household_id = ? AND role = 'admin' AND user_id IS NOT NULL AND user_id != ?")
+    .get(householdId, userId) as { otherAdmins: number }
+  const wiped = me?.role === "admin" && otherAdmins === 0
+
+  if (wiped) {
+    const photos = db.prepare("SELECT filename FROM photos WHERE household_id = ?").all(householdId) as { filename: string }[]
+    const invites = db.prepare("SELECT code, token FROM invites WHERE household_id = ?").all(householdId) as { code: string; token: string }[]
+    db.prepare("DELETE FROM households WHERE id = ?").run(householdId)
+    for (const p of photos) fs.rmSync(path.join(PHOTOS_DIR, path.basename(p.filename)), { force: true })
+    invites.forEach(unregisterRemoteInvite)
+    console.log(`[auth] Account deleted by last admin; household ${householdId} wiped`)
+  } else {
+    const members = db.prepare("SELECT id FROM members WHERE user_id = ? AND household_id = ?").all(userId, householdId) as { id: string }[]
+    const invites = db
+      .prepare("SELECT code, token FROM invites WHERE member_id IN (SELECT id FROM members WHERE user_id = ?)")
+      .all(userId) as { code: string; token: string }[]
+    db.transaction(() => {
+      db.prepare("DELETE FROM invites WHERE member_id IN (SELECT id FROM members WHERE user_id = ?)").run(userId)
+      db.prepare("DELETE FROM members WHERE user_id = ?").run(userId)
+      db.prepare("DELETE FROM users WHERE id = ?").run(userId)
+    })()
+    invites.forEach(unregisterRemoteInvite)
+    for (const m of members) broadcast(householdId, "members:deleted", m.id)
+  }
+  res.json({ wiped })
 })
 
 export { router as authRouter }

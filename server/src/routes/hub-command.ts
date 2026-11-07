@@ -3,6 +3,7 @@
  *
  * POST /api/v1/hub/command   — change something on the wall display
  * GET  /api/v1/hub/display   — what each wall display last reported
+ * POST /api/v1/hub/reset-data — delete every event, chore, list and meal (people, photos and connections stay)
  *
  * Commands are broadcast to the household as a "hub:command" Socket.IO event;
  * each kiosk applies it locally and reports its new state back through
@@ -105,6 +106,39 @@ hubCommandRouter.post("/command", requireAuth, (req, res) => {
   if (label) logActivity(req, { action: "hub.command", resourceType: "hub", resourceName: label, metadata: { type: cmd.type } })
   broadcast(householdId, "hub:command", cmd)
   res.json({ ok: true, command: cmd })
+})
+
+// Phones remove what they're told was deleted, so each row gets its event.
+const RESET_TABLES = [
+  ["events", "events:deleted"],
+  ["chores", "chores:deleted"],
+  ["lists", "lists:deleted"],
+  ["meals", "meals:deleted"],
+] as const
+
+hubCommandRouter.post("/reset-data", requireAuth, (req, res) => {
+  const user = (req as AuthRequest).user
+  const householdId = user.householdId
+  if (!householdId || user.role === "kiosk") {
+    res.status(403).json({ error: "Reset the hub's data from a phone." })
+    return
+  }
+  if (!manages(user, "hub")) {
+    res.status(403).json({ error: "Only admins and members with hub access can reset the hub's data." })
+    return
+  }
+  const db = getDb()
+  const removed: Record<string, string[]> = {}
+  db.transaction(() => {
+    for (const [table] of RESET_TABLES) {
+      removed[table] = (db.prepare(`SELECT id FROM ${table} WHERE household_id = ?`).all(householdId) as { id: string }[]).map((r) => r.id)
+      db.prepare(`DELETE FROM ${table} WHERE household_id = ?`).run(householdId)
+    }
+    db.prepare("DELETE FROM chore_completions WHERE household_id = ?").run(householdId)
+  })()
+  logActivity(req, { action: "hub.reset_data", resourceType: "hub" })
+  for (const [table, event] of RESET_TABLES) for (const id of removed[table]) broadcast(householdId, event, id)
+  res.json(Object.fromEntries(RESET_TABLES.map(([t]) => [t, removed[t].length])))
 })
 
 hubCommandRouter.get("/display", requireAuth, (req, res) => {

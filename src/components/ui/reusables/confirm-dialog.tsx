@@ -72,7 +72,7 @@ export function ConfirmDialog({
         role="alertdialog"
         aria-modal="true"
         aria-label={title}
-        className="relative z-10 w-full max-w-sm overflow-hidden rounded-md border border-border bg-popover"
+        className="relative z-10 w-full max-w-sm overflow-hidden rounded-[20px] border border-border bg-popover"
         style={{
           transform: animating ? "scale(1) translateY(0)" : "scale(0.95) translateY(8px)",
           transition: "transform 280ms cubic-bezier(0.34, 1.56, 0.64, 1)",
@@ -87,7 +87,7 @@ export function ConfirmDialog({
           <button
             type="button"
             onClick={onConfirm}
-            className="h-12 flex-1 rounded-md bg-destructive text-sm font-medium text-white transition-opacity hover:opacity-90 active:opacity-80"
+            className="h-12 flex-1 rounded-full bg-destructive text-sm font-medium text-white transition-opacity hover:opacity-90 active:opacity-80"
           >
             {confirmLabel}
           </button>
@@ -95,7 +95,7 @@ export function ConfirmDialog({
             <button
               type="button"
               onClick={onSecondary}
-              className="h-12 flex-1 rounded-md border border-destructive/40 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10"
+              className="h-12 flex-1 rounded-[12px] border border-destructive/40 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10"
             >
               {secondaryLabel}
             </button>
@@ -103,7 +103,7 @@ export function ConfirmDialog({
           <button
             type="button"
             onClick={onCancel}
-            className="h-12 flex-1 rounded-md text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+            className="h-12 flex-1 rounded-[12px] text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
           >
             Cancel
           </button>

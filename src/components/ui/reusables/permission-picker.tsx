@@ -43,7 +43,7 @@ export function PermissionPicker({
     onChange(value.includes(area) ? value.filter((a) => a !== area) : [...value, area])
 
   return (
-    <div className="rounded-md border border-border/70 p-3">
+    <div className="rounded-[20px] border border-border/70 p-3">
       <div className="mb-1 flex items-center gap-2">
         <ShieldCheck className="size-4 text-muted-foreground" />
         <span className="text-sm font-medium">Permissions</span>
@@ -56,7 +56,7 @@ export function PermissionPicker({
           return (
             <button key={p.id} type="button" aria-pressed={active} onClick={() => onChange(p.areas)}
               className={cn(
-                "rounded-md px-3 py-2 text-left transition-colors",
+                "rounded-[12px] px-3 py-2 text-left transition-colors",
                 active ? "bg-primary text-primary-foreground" : "bg-secondary text-foreground",
               )}>
               <span className="block text-sm font-semibold leading-tight">{p.label}</span>

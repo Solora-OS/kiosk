@@ -50,7 +50,7 @@ export function MenuFieldsEditor({ value, onChange }: { value: MenuFields; onCha
               aria-pressed={value.onDate === onDate}
               onClick={() => onChange({ ...value, onDate })}
               className={cn(
-                "flex-1 rounded-md py-2 text-sm font-medium transition-colors",
+                "flex-1 rounded-[12px] py-2 text-sm font-medium transition-colors",
                 value.onDate === onDate ? "bg-primary text-primary-foreground" : "bg-secondary text-foreground",
               )}
             >
@@ -127,10 +127,10 @@ export function WeekGroceries() {
           setSent({ key, text: n === 0 ? "Everything's already on Groceries" : `Added ${n} to Groceries` }),
         )
       }}
-      className="mt-3 flex items-center gap-1.5 rounded-full bg-secondary px-3 py-1.5 text-xs font-semibold"
+      className="flex h-12 items-center gap-2 rounded-full border border-hairline bg-card px-4 text-sm font-medium"
     >
-      <ShoppingBasket className="size-3.5" />
-      {note ?? `Add this week's ${ingredients.length} ingredients to Groceries`}
+      <ShoppingBasket className="size-4" />
+      {note ?? `Add the week to Groceries (${ingredients.length})`}
     </button>
   )
 }
@@ -146,16 +146,16 @@ export function SpecialDays({ onOpen }: { onOpen: (m: Meal) => void }) {
   const dates = [...new Set(dated.map((m) => m.date!))]
 
   return (
-    <section className="space-y-3">
+    <section className="space-y-2.5">
       <p className="os-label flex items-center gap-1.5 px-1">
-        <CalendarHeart className="size-3.5 text-season" /> Special days
+        <CalendarHeart className="size-3.5" /> Special days
       </p>
       {dates.map((date) => {
         const items = dated.filter((m) => m.date === date)
         const ingredients = items.flatMap((m) => m.ingredients ?? [])
         return (
-          <div key={date} className="space-y-2 rounded-lg bg-card p-3">
-            <p className="text-sm font-bold">{date === today ? "Today" : longDate(date)}</p>
+          <div key={date} className="os-card space-y-2 px-4 py-3.5">
+            <p className="font-display text-2xl leading-none">{date === today ? "Today" : longDate(date)}</p>
             {items.map((m) => (
               <button key={m.id} type="button" onClick={() => onOpen(m)} className="flex w-full items-baseline gap-2 text-left">
                 <span className="w-20 shrink-0 text-xs uppercase tracking-wide text-muted-foreground">{m.type}</span>
@@ -171,9 +171,9 @@ export function SpecialDays({ onOpen }: { onOpen: (m: Meal) => void }) {
                     setSent((s) => ({ ...s, [date]: n === 0 ? "Already on Groceries" : `Added ${n} to Groceries` })),
                   )
                 }}
-                className="flex items-center gap-1.5 rounded-full bg-secondary px-3 py-1.5 text-xs font-semibold"
+                className="flex h-10 items-center gap-1.5 rounded-full bg-secondary px-4 text-sm font-medium"
               >
-                <ShoppingBasket className="size-3.5" />
+                <ShoppingBasket className="size-4" />
                 {sent[date] ?? `Add ${ingredients.length} ingredients to Groceries`}
               </button>
             ) : null}

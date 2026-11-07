@@ -129,6 +129,7 @@ fn app(hub: Arc<Hub>, io_layer: socketioxide::layer::SocketIoLayer) -> Router {
         .nest("/wall", routes::wall::wall())
         .route("/hub/command", post(routes::wall::command))
         .route("/hub/display", get(routes::wall::display))
+        .route("/hub/reset-data", post(routes::wall::reset_data))
         .route("/snapshot", get(routes::snapshot::snapshot))
         .route("/activity-logs", get(routes::snapshot::activity))
         .route("/activity-logs/{*rest}", any(gated_not_found))

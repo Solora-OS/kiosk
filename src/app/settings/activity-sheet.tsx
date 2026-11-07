@@ -85,10 +85,10 @@ export function ActivitySheet({ open, onClose }: { open: boolean; onClose: () =>
   const [tab, setTab] = useState<"family" | "device">("family")
   return (
     <BottomSheet open={open} onClose={onClose} title="Activity">
-      <div role="tablist" aria-label="Activity" className="grid grid-cols-2 gap-1 rounded-lg bg-secondary p-1">
+      <div role="tablist" aria-label="Activity" className="grid grid-cols-2 gap-1 rounded-[16px] bg-secondary p-1">
         {([["family", "Family"], ["device", "This device"]] as const).map(([id, label]) => (
           <button key={id} type="button" role="tab" aria-selected={tab === id} onClick={() => setTab(id)}
-            className={cn("min-h-12 rounded-md text-sm font-semibold transition-colors",
+            className={cn("min-h-12 rounded-[12px] text-sm font-semibold transition-colors",
               tab === id ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground")}>
             {label}
           </button>
@@ -156,14 +156,14 @@ function FamilyActivity({ open }: { open: boolean }) {
           {groups.map((g) => (
             <section key={g.day}>
               <DayHeading>{g.day}</DayHeading>
-              <ul className="divide-y divide-hairline overflow-hidden rounded-lg bg-background">
+              <ul className="divide-y divide-hairline overflow-hidden rounded-[20px] bg-background">
                 {g.items.map((e) => <ActivityRow key={e.id} entry={e} member={e.actorId ? memberById.get(e.actorId) : undefined} />)}
               </ul>
             </section>
           ))}
           {more ? (
             <button type="button" disabled={busy} onClick={() => void load(entries[entries.length - 1]?.cursor)}
-              className="mt-3 flex min-h-12 w-full items-center justify-center gap-2 rounded-md bg-secondary text-sm font-semibold disabled:opacity-60">
+              className="mt-3 flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-secondary text-sm font-semibold disabled:opacity-60">
               {busy ? <WaveLoader size={16} /> : null}Show older
             </button>
           ) : (
@@ -182,7 +182,7 @@ function ActivityRow({ entry: e, member }: { entry: ActivityEntry; member?: { na
   return (
     <li className="flex gap-3 px-3.5 py-3">
       {e.bySolora ? (
-        <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-season/15 text-season"><LifeBuoy className="size-[18px]" /></span>
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-[10px] bg-secondary text-foreground"><LifeBuoy className="size-[18px]" /></span>
       ) : member ? (
         <span aria-hidden="true" className={cn("flex size-9 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white", memberBg[member.color as keyof typeof memberBg])}>
           {member.initial || member.name.charAt(0)}
@@ -201,7 +201,7 @@ function ActivityRow({ entry: e, member }: { entry: ActivityEntry; member?: { na
           <span>{clock(e.createdAt)}</span>
           <span aria-hidden="true">·</span>
           <span className="flex items-center gap-1"><Cat className="size-3.5" />{CATEGORY[e.category]?.label ?? "Hub"}</span>
-          {e.bySolora ? <span className="rounded-full bg-season/15 px-2 py-0.5 font-semibold text-season">Solora</span> : null}
+          {e.bySolora ? <span className="rounded-full bg-secondary px-2 py-0.5 font-semibold text-foreground">Solora</span> : null}
         </p>
       </div>
     </li>
@@ -245,7 +245,7 @@ function DeviceLog() {
       ) : groups.map((g) => (
         <section key={g.day}>
           <DayHeading>{g.day}</DayHeading>
-          <ul className="divide-y divide-hairline overflow-hidden rounded-lg bg-background">
+          <ul className="divide-y divide-hairline overflow-hidden rounded-[20px] bg-background">
             {g.items.map((l) => {
               const lv = LEVEL[l.level]
               return (

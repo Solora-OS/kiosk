@@ -1,8 +1,8 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Check, Plus, Repeat, Star, Sun } from "lucide-react"
-import { type Chore, type SummerMode, choreDone, choreDueOn, choreSchedule, memberBg, memberSoft, pausesWhileAway, toISODate } from "@/lib/data"
+import { Check, Repeat, Star, Sun, Users } from "lucide-react"
+import { type Chore, type Member, type SummerMode, choreDone, choreDueOn, choreSchedule, memberBg, memberSoft, pausesWhileAway, toISODate } from "@/lib/data"
 import { useSummer } from "@/lib/summer"
 import { homeTodayISO, useHomeTimeZone } from "@/lib/home-time"
 import { CHORE_ICONS, choreIcon, suggestChoreIcon } from "@/lib/chore-icons"
@@ -12,8 +12,11 @@ import { Switch } from "@/components/os/controls"
 import { cn } from "@/lib/utils"
 import { celebrateCompletion } from "@/lib/celebration"
 import { MemberAvatar } from "@/components/ui/reusables/member-avatar"
-import { ActionRow } from "@/components/ui/reusables/action-row"
-import { BottomSheet, Field, inputClass } from "@/components/ui/reusables/bottom-sheet"
+import { BottomSheet, ChoiceChips, Field, inputClass } from "@/components/ui/reusables/bottom-sheet"
+import { MoreMenu, editDelete } from "@/components/ui/reusables/more-menu"
+import { HeaderSlot } from "@/components/ui/reusables/header-slot"
+import { HeaderAdd } from "@/components/ui/reusables/header-add"
+import { RewardsShelf } from "./rewards-shelf"
 import { ConfirmDialog } from "@/components/ui/reusables/confirm-dialog"
 import { useHighlight, useStore } from "@/lib/store"
 
@@ -89,7 +92,7 @@ function titleList(titles: string[]): string {
 }
 
 export function ChoresView() {
-  const { chores, members, getMember, activeMember, currentMember, can, addChore, updateChore, deleteChore, toggleChore } = useStore()
+  const { chores, members, getMember, activeMember, currentMember, can, addChore, updateChore, deleteChore, toggleChore, tab, setTab } = useStore()
   const canManage = can("chores")
   const { highlight, register, clearHighlight, refs } = useHighlight("chores")
   const today = useToday()
@@ -188,140 +191,170 @@ export function ChoresView() {
     const done = choreDone(chore, todayISO)
     // Only the person it's for, or someone who manages chores, can check it off.
     const canToggle = canManage || chore.memberId === currentMember?.id
-    const picture = choreIcon(chore.icon ?? undefined)
+    const Pic = choreIcon(chore.icon ?? undefined)?.Icon ?? Check
     return (
-      <div key={chore.id} ref={register(chore.id)} className={cn("rounded-md", offDay && "opacity-60")}>
-        <ActionRow
-          onEdit={canManage ? () => openEdit(chore) : undefined}
-          onDelete={canManage ? () => setDeleteId(chore.id) : undefined}
+      <div
+        key={chore.id}
+        ref={register(chore.id)}
+        className={cn("flex items-center gap-1 border-t border-hairline pr-1.5", offDay && "opacity-60")}
+      >
+        {/* The whole row checks the chore off. The picture fills with the person's color when it's done. */}
+        <button
+          type="button"
+          disabled={!canToggle}
+          title={canToggle ? undefined : `Only ${member.name} or a parent can check this off`}
+          onClick={() => {
+            toggleChore(chore.id)
+            // Celebrate when this finishes everything due today.
+            const othersDone = chores
+              .filter((c) => isDue(c) && c.id !== chore.id)
+              .filter((c) => canManage || c.memberId === chore.memberId)
+              .every((c) => choreDone(c, todayISO))
+            if (!done && !offDay && othersDone) celebrateCompletion("strong")
+          }}
+          aria-pressed={done}
+          aria-label={!canToggle ? `${chore.title}, ${member.name}'s chore` : done ? `Mark ${chore.title} not done` : `Mark ${chore.title} done`}
+          className="flex min-h-[4.5rem] min-w-0 flex-1 items-center gap-3 py-2.5 pl-3 text-left active:bg-secondary disabled:cursor-default"
         >
-          {/* The whole row checks the chore off, not just the little box. */}
-          <button
-            type="button"
-            disabled={!canToggle}
-            title={canToggle ? undefined : `Only ${member.name} or a parent can check this off`}
-            onClick={() => {
-              toggleChore(chore.id)
-              // Celebrate when this finishes everything due today.
-              const othersDone = chores
-                .filter((c) => isDue(c) && c.id !== chore.id)
-                .filter((c) => canManage || c.memberId === chore.memberId)
-                .every((c) => choreDone(c, todayISO))
-              if (!done && !offDay && othersDone) {
-                celebrateCompletion("strong")
-              }
-            }}
-            aria-pressed={done}
-            aria-label={
-              !canToggle ? `${chore.title}, ${member.name}'s chore` : done ? `Mark ${chore.title} not done` : `Mark ${chore.title} done`
-            }
-            className="flex min-h-[4.5rem] w-full items-center gap-4 bg-card px-4 py-3 text-left transition-colors active:bg-secondary disabled:cursor-default"
+          <span
+            aria-hidden
+            className={cn(
+              "relative flex size-[3.25rem] shrink-0 items-center justify-center rounded-2xl transition-colors",
+              done ? cn(memberBg[member.color], "text-white") : memberSoft[member.color],
+              !canToggle && !done && "opacity-50",
+            )}
           >
-            <span
-              aria-hidden
-              className={cn(
-                picture
-                  ? cn(
-                      // A picture tile kids can recognise; it fills with their color when done.
-                      "relative flex size-14 shrink-0 items-center justify-center rounded-lg transition-colors",
-                      done ? cn(memberBg[member.color], "text-white") : memberSoft[member.color],
-                      !canToggle && !done && "opacity-50",
-                    )
-                  : cn(
-                      "flex size-9 shrink-0 items-center justify-center rounded-full border-2 transition-colors",
-                      !canToggle && !done && "border-dashed opacity-50",
-                      done ? cn(memberBg[member.color], "border-transparent text-white") : "border-border text-transparent",
-                    ),
-              )}
-            >
-              {picture ? (
-                <>
-                  <picture.Icon className="size-7" />
-                  {done ? (
-                    <span className="absolute -right-1 -bottom-1 flex size-5 items-center justify-center rounded-full bg-card text-foreground shadow">
-                      <Check className="size-3" strokeWidth={3} />
-                    </span>
-                  ) : null}
-                </>
-              ) : (
-                <Check className="size-5" strokeWidth={3} />
-              )}
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className={cn("block text-[1.05rem] font-medium leading-tight", done && "text-muted-foreground line-through")}>
-                {chore.title}
+            <Pic className="size-6" />
+            {done ? (
+              <span className="check-pop absolute -bottom-1 -right-1 flex size-5 items-center justify-center rounded-full bg-card text-foreground shadow-[0_0_0_1px_var(--hairline)]">
+                <Check className="size-3" strokeWidth={3} />
               </span>
-              <span className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
-                {chore.repeatDays?.length ? <Repeat className="size-3" aria-label="Repeats" /> : null}
-                {choreSchedule(chore)}
-              </span>
+            ) : null}
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className={cn("block text-[1rem] font-medium leading-tight", done && "text-muted-foreground line-through")}>{chore.title}</span>
+            <span className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
+              {chore.repeatDays?.length ? <Repeat className="size-3" aria-label="Repeats" /> : null}
+              {choreSchedule(chore)}
             </span>
-            <span
-              className={cn(
-                "flex items-center gap-1 text-sm font-semibold",
-                done ? "text-muted-foreground" : "text-member-amber",
-              )}
-            >
-              <Star className={cn("size-3.5", done ? "fill-muted-foreground" : "fill-member-amber")} />
-              {chore.points}
-            </span>
-            <MemberAvatar member={member} size="sm" />
-          </button>
-        </ActionRow>
+          </span>
+          <span className="flex shrink-0 items-center gap-0.5 text-sm font-semibold text-muted-foreground tabular">
+            <Star className={cn("size-3.5", done ? "fill-muted-foreground" : "fill-member-amber text-member-amber")} />
+            {chore.points}
+          </span>
+        </button>
+        {canManage ? <MoreMenu label={`${chore.title} options`} items={editDelete(() => openEdit(chore), () => setDeleteId(chore.id))} /> : null}
       </div>
     )
   }
 
+  // One lane per person with something due, plus "Anyone" for chores nobody's assigned.
+  const lanes = [
+    ...members
+      .filter((m) => m.id !== "family" && dueToday.some((c) => c.memberId === m.id))
+      .map((m) => ({ key: m.id, member: m as Member | null, chores: dueToday.filter((c) => c.memberId === m.id) })),
+  ]
+  const unassigned = dueToday.filter((c) => !members.some((m) => m.id === c.memberId && m.id !== "family"))
+  if (unassigned.length) lanes.push({ key: "anyone", member: null, chores: unassigned })
+
   const deleting = deleteId ? chores.find((c) => c.id === deleteId) : null
 
+  const segment = (
+    <HeaderSlot name="extras">
+      <div className="flex h-12 items-center gap-0.5 rounded-full bg-secondary p-1">
+        {(["chores", "rewards"] as const).map((t) => (
+          <button
+            key={t}
+            type="button"
+            aria-pressed={tab === t}
+            onClick={() => setTab(t)}
+            className={cn(
+              "h-10 rounded-full px-5 text-sm font-medium transition-colors",
+              tab === t ? "bg-card text-foreground shadow-[0_0_0_1px_var(--hairline)]" : "text-muted-foreground",
+            )}
+          >
+            {t === "chores" ? "Today" : "Rewards"}
+          </button>
+        ))}
+      </div>
+    </HeaderSlot>
+  )
+
+  // Rewards is a view of Chores, as on the phone.
+  if (tab === "rewards") {
+    return (
+      <>
+        {segment}
+        <RewardsShelf />
+      </>
+    )
+  }
+
   return (
-    <div className="space-y-4 px-4 py-4">
+    <div className="flex flex-1 flex-col gap-4">
+      {segment}
+      {canManage ? <HeaderAdd label="Assign chore" onClick={openAdd} /> : null}
       <AwayBanner note={paused ? `Repeating chores are paused${except}. Streaks won't break.` : `Repeating chores pause while you're away${except}.`} />
-      {inSummer && summer ? (
-        <p className="flex items-center gap-1.5 px-1 text-xs text-muted-foreground">
-          <Sun className="size-3.5 text-season" />
-          Summer schedule until {new Date(`${summer.until}T00:00:00`).toLocaleDateString(undefined, { month: "long", day: "numeric" })}
+      <div className="flex items-center justify-between gap-4">
+        <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
+          {inSummer && summer ? (
+            <>
+              <Sun className="size-4" />
+              Summer schedule until {new Date(`${summer.until}T00:00:00`).toLocaleDateString(undefined, { month: "long", day: "numeric" })}
+            </>
+          ) : (
+            "Tap a picture when it's done."
+          )}
         </p>
-      ) : null}
-      {/* Compact progress line */}
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-xs font-medium text-muted-foreground">
-          <span className="font-semibold text-foreground">{earned}</span> / {total} pts earned today
+        <p className="text-sm text-muted-foreground">
+          <span className="font-semibold text-foreground tabular">{earned}</span> of {total} points earned today
         </p>
-        <div className="flex items-center gap-2">
-          <div className="h-1.5 w-24 overflow-hidden rounded-full bg-secondary">
-            <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${pct}%` }} />
-          </div>
-          <span className="text-xs font-semibold text-muted-foreground">{pct}%</span>
+      </div>
+
+      {dueToday.length === 0 ? (
+        <p className="os-card px-5 py-8 text-center text-muted-foreground">
+          {visible.length === 0 ? "No chores for this filter." : "Nothing due today."}
+        </p>
+      ) : (
+        <div className="grid items-start gap-4" style={{ gridTemplateColumns: `repeat(${Math.min(Math.max(lanes.length, 1), 4)}, minmax(0, 1fr))` }}>
+          {lanes.map(({ key, member, chores: mine }) => {
+            const done = mine.filter((c) => choreDone(c, todayISO)).length
+            const pts = mine.reduce((n, c) => n + c.points, 0)
+            return (
+              <section key={key} className="os-card overflow-hidden">
+                <div className="flex items-center gap-3 px-4 pb-3 pt-4">
+                  {member ? (
+                    <MemberAvatar member={member} size="lg" />
+                  ) : (
+                    <span className="flex size-12 items-center justify-center rounded-full bg-secondary text-muted-foreground">
+                      <Users className="size-5" />
+                    </span>
+                  )}
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[1.1rem] font-medium">{member ? member.name : "Anyone"}</span>
+                    <span className="font-mono text-[0.72rem] text-muted-foreground tabular">
+                      {done} of {mine.length} · {pts} pts
+                    </span>
+                  </span>
+                </div>
+                <div className="mx-4 mb-3 h-1.5 overflow-hidden rounded-full bg-secondary" aria-hidden>
+                  <div
+                    className={cn("h-full rounded-full transition-[width] duration-300", member ? memberBg[member.color] : "bg-foreground")}
+                    style={{ width: `${mine.length ? (done / mine.length) * 100 : 0}%` }}
+                  />
+                </div>
+                {mine.map((c) => renderChore(c))}
+              </section>
+            )
+          })}
         </div>
-      </div>
-
-      <div className="space-y-2">
-        {dueToday.map((chore) => renderChore(chore))}
-
-        {visible.length === 0 ? (
-          <p className="py-10 text-center text-sm text-muted-foreground">No chores for this filter.</p>
-        ) : dueToday.length === 0 ? (
-          <p className="py-6 text-center text-sm text-muted-foreground">Nothing due today.</p>
-        ) : null}
-      </div>
+      )}
 
       {otherDays.length > 0 ? (
-        <div className="space-y-2">
+        <section className="space-y-2.5">
           <p className="os-label px-1">Other days</p>
-          {otherDays.map((chore) => renderChore(chore, true))}
-        </div>
-      ) : null}
-
-      {canManage ? (
-        <button
-          type="button"
-          onClick={openAdd}
-          className="flex w-full items-center justify-center gap-2 rounded-md border border-dashed border-border py-3 text-sm font-semibold text-muted-foreground transition-colors hover:border-primary hover:text-primary"
-        >
-          <Plus className="size-4" />
-          Assign chore
-        </button>
+          <div className="os-card grid grid-cols-2 overflow-hidden [&>*:nth-child(-n+2)]:border-t-0">{otherDays.map((chore) => renderChore(chore, true))}</div>
+        </section>
       ) : null}
 
       <BottomSheet
@@ -332,7 +365,7 @@ export function ChoresView() {
           <button
             type="button"
             onClick={save}
-            className="w-full rounded-md bg-primary py-3 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
+            className="w-full rounded-full bg-primary py-3 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
           >
             {editing ? "Save changes" : "Assign chore"}
           </button>
@@ -363,7 +396,7 @@ export function ChoresView() {
                   title={label}
                   onClick={() => setForm((f) => ({ ...f, icon: on ? null : key, iconPicked: true }))}
                   className={cn(
-                    "flex aspect-square items-center justify-center rounded-md transition-colors",
+                    "flex aspect-square items-center justify-center rounded-[12px] transition-colors",
                     on ? "bg-primary text-primary-foreground" : "bg-secondary text-foreground",
                   )}
                 >
@@ -376,61 +409,33 @@ export function ChoresView() {
             {form.icon ? `${choreIcon(form.icon)?.label}: shown to kids who can't read yet.` : "Optional. Helps kids who can't read yet."}
           </p>
         </Field>
-        <Field label="Assigned to">
-          <select
+        <div>
+          <span className="os-label mb-2 block">For</span>
+          <ChoiceChips
             value={form.memberId}
-            onChange={(e) => setForm((f) => ({ ...f, memberId: e.target.value }))}
-            className={inputClass}
-          >
-            {members.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.name}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <div className="flex gap-3">
-          <Field label="Points">
-            <select
+            onChange={(memberId) => setForm((f) => ({ ...f, memberId }))}
+            options={members.map((m) => ({ value: m.id, label: m.name, lead: <MemberAvatar member={m} size="sm" /> }))}
+          />
+        </div>
+        <div className="space-y-5">
+          <div>
+            <span className="os-label mb-2 block">Points</span>
+            <ChoiceChips
               value={form.points}
-              onChange={(e) => setForm((f) => ({ ...f, points: Number(e.target.value) }))}
-              className={inputClass}
-            >
-              {[5, 10, 15, 20, 25].map((p) => (
-                <option key={p} value={p}>
-                  {p} pts
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Repeats">
-            <select
-              value={form.repeat}
-              onChange={(e) => setRepeat(e.target.value as RepeatPreset)}
-              className={inputClass}
-            >
-              {repeatPresets.map((p) => (
-                <option key={p.value} value={p.value}>
-                  {p.label}
-                </option>
-              ))}
-            </select>
-          </Field>
+              onChange={(points) => setForm((f) => ({ ...f, points }))}
+              options={[5, 10, 15, 20, 25].map((p) => ({ value: p, label: `${p}` }))}
+            />
+          </div>
+          <div>
+            <span className="os-label mb-2 block">Repeats</span>
+            <ChoiceChips value={form.repeat} onChange={setRepeat} options={repeatPresets.map((p) => ({ value: p.value, label: p.label }))} />
+          </div>
         </div>
         {form.repeat === "never" ? (
-          <Field label="Due">
-            <select
-              value={form.due}
-              onChange={(e) => setForm((f) => ({ ...f, due: e.target.value }))}
-              className={inputClass}
-            >
-              {dueOptions.map((d) => (
-                <option key={d} value={d}>
-                  {d}
-                </option>
-              ))}
-            </select>
-          </Field>
+          <div>
+            <span className="os-label mb-2 block">Due</span>
+            <ChoiceChips value={form.due} onChange={(due) => setForm((f) => ({ ...f, due }))} options={dueOptions.map((d) => ({ value: d, label: d }))} />
+          </div>
         ) : form.repeat === "custom" ? (
           <Field label="On">
             <div className="flex gap-1.5">
@@ -444,7 +449,7 @@ export function ChoresView() {
                     aria-pressed={on}
                     aria-label={["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][day]}
                     className={cn(
-                      "size-9 rounded-full text-sm font-semibold transition-colors",
+                      "size-11 rounded-full text-sm font-semibold transition-colors",
                       on ? "bg-primary text-primary-foreground" : "bg-secondary text-foreground",
                     )}
                   >
@@ -471,7 +476,7 @@ export function ChoresView() {
                 <button key={c.value} type="button" aria-pressed={form.summerMode === c.value}
                   onClick={() => setForm((f) => ({ ...f, summerMode: c.value, summerDays: c.value === "days" && !f.summerDays.length ? f.days : f.summerDays }))}
                   className={cn(
-                    "rounded-md py-2 text-sm font-medium transition-colors",
+                    "h-11 rounded-full text-sm font-medium transition-colors",
                     form.summerMode === c.value ? "bg-primary text-primary-foreground" : "bg-secondary text-foreground",
                   )}>
                   {c.label}
@@ -486,7 +491,7 @@ export function ChoresView() {
                     <button key={day} type="button" aria-pressed={on}
                       aria-label={`In summer: ${["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][day]}`}
                       onClick={() => setForm((f) => ({ ...f, summerDays: on ? f.summerDays.filter((d) => d !== day) : [...f.summerDays, day] }))}
-                      className={cn("size-9 rounded-full text-sm font-semibold transition-colors", on ? "bg-primary text-primary-foreground" : "bg-secondary text-foreground")}>
+                      className={cn("size-11 rounded-full text-sm font-semibold transition-colors", on ? "bg-primary text-primary-foreground" : "bg-secondary text-foreground")}>
                       {label}
                     </button>
                   )

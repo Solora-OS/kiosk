@@ -19,7 +19,7 @@ export type LogAction =
   | "calendar.create" | "calendar.update" | "calendar.delete"
   | "list.create" | "list.delete"
   | "provider.connect" | "provider.disconnect"
-  | "hub.restart" | "hub.factory_reset"
+  | "hub.restart" | "hub.factory_reset" | "hub.reset_data"
   // Solora's own actions on this hub, recorded by services/solora-support.ts
   | `solora.${string}`
   | "support.granted" | "support.denied" | "support.revoked"
@@ -145,6 +145,7 @@ export function describeActivity(action: string, actor: string, name: string, me
     case "hub.command":       return `${actor} ${name || "sent a command to the wall display"}`
     case "hub.restart":       return `${actor} restarted the hub`
     case "hub.factory_reset": return `${actor} reset the hub`
+    case "hub.reset_data":    return `${actor} cleared the family's events, chores, lists and meals`
     default: return `${actor}: ${action}`
   }
 }

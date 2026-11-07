@@ -274,6 +274,14 @@ async fn claim(State(hub): State<Arc<Hub>>, body: Body) -> Response {
     }
     let email = account.email.to_lowercase();
     let household_id = db::s(&invite, "household_id");
+    let reusable = db::number(&invite, "reusable") == 1.0;
+    // A standing code belongs to whoever claimed it first.
+    if reusable {
+        let holder = db::one(&db_, "SELECT u.account_id FROM members m JOIN users u ON u.id = m.user_id WHERE m.id = ?", p![invite["member_id"].clone()]);
+        if holder.is_some_and(|h| db::text(&h, "account_id").as_deref() != Some(account.sub.as_str())) {
+            return error(409, "This code belongs to another account.");
+        }
+    }
     let by_account = db::one(&db_, "SELECT id, household_id FROM users WHERE account_id = ?", p![account.sub]);
     // A user from before central (a hub password) is upgraded in place.
     let legacy = if by_account.is_none() { db::one(&db_, "SELECT id, household_id FROM users WHERE email = ? AND account_id IS NULL", p![email]) } else { None };
@@ -293,11 +301,15 @@ async fn claim(State(hub): State<Arc<Hub>>, body: Body) -> Response {
             "UPDATE members SET user_id = ?, name = ?, initial = ?, dob = ?, color = ?, account = ?, pending = 0 WHERE id = ?",
             p![user_id, name, initial(&name), body.get("dob").cloned(), body.get("color").cloned().unwrap_or(invite["color"].clone()), email, invite["member_id"].clone()],
         );
-        try_run!(&tx, "DELETE FROM invites WHERE id = ?", p![invite["id"].clone()]);
+        if !reusable {
+            try_run!(&tx, "DELETE FROM invites WHERE id = ?", p![invite["id"].clone()]);
+        }
         let _ = tx.commit();
     }
     drop(db_);
-    relay::unregister_remote_invite(&hub, &db::s(&invite, "code"), &db::s(&invite, "token"));
+    if !reusable {
+        relay::unregister_remote_invite(&hub, &db::s(&invite, "code"), &db::s(&invite, "token"));
+    }
     let member_id = db::s(&invite, "member_id");
     // Nobody is signed in yet: the person joining is the one who did it.
     write_log(&hub, LogEntry { household_id: &household_id, actor_id: Some(&member_id), actor_name: None, action: "member.join", resource_type: "member", resource_id: Some(&member_id), resource_name: &name, metadata: json!({}) });

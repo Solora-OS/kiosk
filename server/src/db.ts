@@ -162,6 +162,13 @@ function migrate(db: Database.Database): void {
   addColumnSafe("chores", "summer_mode", "TEXT NOT NULL DEFAULT 'same'")
   addColumnSafe("chores", "summer_days", "TEXT")
   addColumnSafe("notifications", "ref", "TEXT")
+  // 1 = a standing code for one member (app store reviewers): claiming it again
+  // from the same account reconnects instead of failing; it's never used up.
+  addColumnSafe("invites", "reusable", "INTEGER NOT NULL DEFAULT 0")
+  // 1 = an open code for many people (closed testing): each new account that
+  // claims it gets its own member slot. Always also reusable. member_id is
+  // only the anchor row; it's never claimed.
+  addColumnSafe("invites", "shared", "INTEGER NOT NULL DEFAULT 0")
   repairEventTimes(db)
 
   console.log("[solora] Database schema applied:", DB_PATH)

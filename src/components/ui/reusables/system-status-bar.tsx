@@ -106,16 +106,18 @@ function WifiIcon({ ssid, signal }: { ssid: string | null; signal: number | null
  *
  *   left   season name + mark (what the hub is "wearing")
  *   right  network · date · time — tap to drop the Control Center
+ *          (Home shows the time big in its header, so the bar leaves it out there:
+ *          one clock per screen)
  *
  * Seasonal edge decoration (string lights, a spider…) hangs from its hairline.
  */
-export function SystemStatusBar({ label }: { label?: string }) {
+export function SystemStatusBar({ label, hideClock = false }: { label?: string; hideClock?: boolean }) {
   const { timeStr, dateStr } = useClock()
   const { ssid, signal } = useWifi()
   const { season } = useSeason()
 
   return (
-    <div role="status" aria-live="polite" className="relative z-30 h-12 w-full shrink-0 border-b border-hairline bg-background">
+    <div role="status" aria-live="polite" className="relative z-30 h-10 w-full shrink-0 border-b border-hairline bg-background">
       <div className="flex h-full items-center justify-between pl-5 pr-2">
         <div className="flex min-w-0 items-center gap-2 os-label">
           <SeasonMark className="text-[0.85rem]" />
@@ -126,14 +128,18 @@ export function SystemStatusBar({ label }: { label?: string }) {
           type="button"
           onClick={toggleControlCenter}
           aria-label="Open control center"
-          className="flex h-12 items-center gap-4 rounded-none px-4 text-muted-foreground transition-colors hover:bg-secondary active:bg-accent"
+          className="flex h-full items-center gap-4 rounded-full px-4 text-muted-foreground transition-colors active:bg-secondary"
         >
           <span className="flex items-center gap-1.5 os-label">
             <WifiIcon ssid={ssid} signal={signal} />
             <span className="max-w-[10rem] truncate">{ssid ?? "Offline"}</span>
           </span>
-          <span className="hidden os-label sm:inline">{dateStr}</span>
-          <span className="font-mono text-[0.95rem] font-medium tabular text-foreground">{timeStr}</span>
+          {hideClock ? null : (
+            <>
+              <span className="hidden os-label sm:inline">{dateStr}</span>
+              <span className="font-mono text-[0.95rem] font-medium tabular text-foreground">{timeStr}</span>
+            </>
+          )}
           <ChevronDown className="size-3.5" aria-hidden />
         </button>
       </div>

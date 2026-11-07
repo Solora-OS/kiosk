@@ -53,6 +53,7 @@ import { calendarLinksRouter } from "./routes/calendar-links"
 import { seasonsRouter } from "./routes/seasons"
 import { summerRouter } from "./routes/summer"
 import { ensureCentralRegistration } from "./lib/central-registry"
+import { registerReusableInvites } from "./services/invite-relay"
 import { connectHubToCentral, isCentralConnected } from "./lib/central-socket-client"
 import { startMdnsAdvertisement, stopMdnsAdvertisement } from "./lib/mdns-advertise"
 
@@ -339,7 +340,9 @@ setBroadcaster(io)
 // Runs asynchronously — hub works fully offline if central is unreachable.
 ensureCentralRegistration()
   .then((hubJwt) => {
-    if (hubJwt) connectHubToCentral(hubJwt)
+    if (!hubJwt) return
+    connectHubToCentral(hubJwt)
+    registerReusableInvites()
   })
   .catch((err: unknown) => {
     console.warn("[central] Registration error:", (err as Error).message)

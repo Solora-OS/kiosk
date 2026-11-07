@@ -96,7 +96,7 @@ export function ActivityLog({ onClose }: { onClose: () => void }) {
           type="button"
           onClick={load}
           disabled={loading}
-          className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-muted-foreground hover:bg-muted disabled:opacity-50"
+          className="flex items-center gap-1.5 rounded-[16px] px-3 py-1.5 text-sm text-muted-foreground hover:bg-muted disabled:opacity-50"
         >
           <RefreshCw className={cn("size-3.5", loading && "animate-spin")} />
           Refresh
@@ -105,18 +105,18 @@ export function ActivityLog({ onClose }: { onClose: () => void }) {
 
       <div>
         {loading && entries.length === 0 ? (
-          <SkeletonRows rows={6} className="rounded-md border border-border px-4" />
+          <SkeletonRows rows={6} className="rounded-[14px] border border-border px-4" />
         ) : error ? (
           <div className="p-6 text-center text-sm text-destructive">{error}</div>
         ) : entries.length === 0 ? (
           <div className="py-8 text-center text-sm text-muted-foreground">No activity yet.</div>
         ) : (
-          <ul className="divide-y divide-border rounded-md border border-border">
+          <ul className="divide-y divide-border rounded-[12px] border border-border">
             {entries.map((e) => {
               const meta = ACTION_META[e.action] ?? { label: e.action, color: "text-foreground" }
               return (
                 <li key={e.id} className="flex items-start gap-3 px-4 py-3.5">
-                  <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-md bg-secondary text-muted-foreground">
+                  <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-[10px] bg-secondary text-muted-foreground">
                     <ResourceIcon type={e.resourceType} />
                   </span>
                   <div className="min-w-0 flex-1">

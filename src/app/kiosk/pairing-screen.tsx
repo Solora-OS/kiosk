@@ -65,8 +65,8 @@ export function PairingScreen() {
             "Go to Settings › Hub & wall display › Displays › Pair a display.",
             "Scan this code, or type the display code under it.",
           ].map((text, i) => (
-            <li key={i} className="flex items-baseline gap-5 border-t border-hairline pt-4">
-              <span className="font-display text-3xl leading-none text-season tabular">{i + 1}</span>
+            <li key={i} className="flex items-center gap-4">
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-secondary text-sm font-semibold tabular">{i + 1}</span>
               <span className="text-lg">{text}</span>
             </li>
           ))}
@@ -93,13 +93,23 @@ export function PairingScreen() {
               <div className="boot-line h-[2px] bg-hairline" />
             </div>
           ) : (
-            <img src={qrDataUrl} alt="Display code for pairing this screen" className="size-[19rem] rounded-sm bg-white p-3" />
+            <img src={qrDataUrl} alt="Display code for pairing this screen" className="size-[19rem] rounded-[20px] bg-white p-3" />
           )}
         </div>
 
-        <div className="text-center lg:landscape:text-right">
-          <p className="os-label mb-3">Display code</p>
-          <p className="font-mono text-4xl font-medium tracking-[0.35em] tabular">{state.pairingCode ? state.pairingCode.replace(/^(\d{3})(\d{3})$/, "$1 $2") : "··· ···"}</p>
+        <div className="flex flex-col items-center gap-3 lg:landscape:items-end">
+          <p className="os-label">Display code</p>
+          {/* One soft box per character, so it reads across the room and types without mistakes. */}
+          <div className="flex items-center gap-2">
+            {(state.pairingCode ?? "······").split("").map((ch, i) => (
+              <span key={i} className="flex items-center gap-2">
+                {i === 3 ? <span aria-hidden className="h-0.5 w-3 rounded-full bg-border" /> : null}
+                <span className="flex h-[4.5rem] w-14 items-center justify-center rounded-[16px] border border-hairline bg-card font-mono text-[2.2rem] font-medium tabular">
+                  {ch}
+                </span>
+              </span>
+            ))}
+          </div>
         </div>
       </div>
     </SystemScreen>

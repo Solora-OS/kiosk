@@ -61,6 +61,7 @@
     --color-season: var(--season);
     --color-season-ink: var(--season-ink);
     --color-season-soft: var(--season-soft);
+    --color-season-deep: var(--season-deep);
     --color-hairline: var(--hairline);
 
     /* Family member accents */
@@ -80,6 +81,9 @@
     --radius-4xl: calc(var(--radius) * 2.5);
 
     --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+    /* Motion: the same curves the phone uses */
+    --ease-emph: cubic-bezier(0.2, 0, 0, 1);
+    --ease-decel: cubic-bezier(0.05, 0.7, 0.1, 1);
 }
 
 :root {
@@ -118,6 +122,8 @@
     --season: var(--season-l);
     --season-ink: oklch(0.99 0 0);
     --season-soft: color-mix(in oklch, var(--season) 12%, transparent);
+    /* Season fill that holds white (or, in dark, dark) ink at 3:1: the sun button, today's date */
+    --season-deep: color-mix(in oklch, var(--season) 86%, black);
 
     --member-coral: oklch(0.66 0.15 25);
     --member-amber: oklch(0.74 0.12 75);
@@ -155,6 +161,7 @@
 
     --season: var(--season-d);
     --season-ink: oklch(0.15 0.01 var(--tint));
+    --season-deep: var(--season);
 
     --member-coral: oklch(0.72 0.14 25);
     --member-amber: oklch(0.8 0.12 78);
@@ -234,21 +241,22 @@
     color: var(--muted-foreground);
   }
 
-  /* Underline-only text field — used on setup / activation screens */
+  /* Text field: a soft box like the cards (same as the phone) */
   .os-field {
     width: 100%;
-    background: transparent;
-    border: 0;
-    border-bottom: 1px solid var(--input);
-    padding: 0.85rem 0 0.7rem;
-    font-size: 1.25rem;
+    min-height: 3.5rem;
+    background: var(--card);
+    border: 1px solid var(--hairline);
+    border-radius: 14px;
+    padding: 0.85rem 1.1rem;
+    font-size: 1.125rem;
     outline: none;
     transition: border-color 160ms var(--ease-out-quart);
   }
   .os-field::placeholder { color: color-mix(in oklch, var(--muted-foreground) 70%, transparent); }
-  .os-field:focus { border-bottom-color: var(--season); }
+  .os-field:focus { border-color: var(--foreground); }
 
-  /* Primary action: ink slab with a season-colored leading notch. */
+  /* Primary action: a full ink pill (same as the phone). */
   .os-button {
     position: relative;
     display: inline-flex;
@@ -256,24 +264,13 @@
     justify-content: center;
     gap: 0.6rem;
     min-height: 3.5rem;
-    padding: 0 1.75rem 0 2rem;
-    border-radius: var(--radius);
+    padding: 0 1.75rem;
+    border-radius: 999px;
     background: var(--primary);
     color: var(--primary-foreground);
     font-weight: 550;
     font-size: 1rem;
     transition: opacity 160ms, transform 160ms var(--ease-out-quart);
-  }
-  .os-button::before {
-    content: "";
-    position: absolute;
-    left: 0.85rem;
-    top: 50%;
-    width: 4px;
-    height: 4px;
-    border-radius: 999px;
-    background: var(--season);
-    transform: translateY(-50%);
   }
   .os-button:active { transform: scale(0.985); }
   .os-button:disabled { opacity: 0.4; pointer-events: none; }
@@ -283,8 +280,8 @@
     align-items: center;
     gap: 0.5rem;
     min-height: 3.5rem;
-    padding: 0 1.1rem;
-    border-radius: var(--radius);
+    padding: 0 1.25rem;
+    border-radius: 999px;
     color: var(--muted-foreground);
     font-weight: 500;
     transition: color 160ms, background-color 160ms;
@@ -322,7 +319,36 @@
   }
 }
 
+@layer components {
+  /* The one card shape: soft corners, a hairline, no shadow. */
+  .os-card {
+    background: var(--card);
+    border: 1px solid var(--hairline);
+    border-radius: 20px;
+  }
+}
+
 @layer utilities {
+  /* Rail: the tab you're on gets a season dot under its label. */
+  .tab-dot { transform: scale(0); opacity: 0; transition: transform 180ms var(--ease-emph), opacity 180ms var(--ease-emph); }
+  [aria-current="page"] > .tab-dot { transform: none; opacity: 1; }
+  .sun-press { transition: transform 350ms cubic-bezier(0.34, 1.4, 0.64, 1); }
+  .sun-press:active, .sun-press[data-held] { transform: scale(0.94); transition-duration: 120ms; }
+  .page-in { animation: page-in 200ms var(--ease-emph) both; }
+  @keyframes page-in { from { opacity: 0; transform: translateY(8px); } }
+  .pop-in { animation: pop-in 160ms var(--ease-emph) both; }
+  @keyframes pop-in { from { opacity: 0; transform: scale(0.6); } }
+  .bloom-item { animation: bloom-out 260ms var(--ease-decel) both; animation-delay: var(--d, 0ms); }
+  @keyframes bloom-out { from { opacity: 0; transform: translate(var(--from-x), var(--from-y)) scale(0.4); } }
+  .check-pop { animation: check-pop 220ms var(--ease-decel) both; }
+  @keyframes check-pop { from { opacity: 0; transform: scale(0.5); } }
+  @media (prefers-reduced-motion: reduce) {
+    .tab-dot, .sun-press { transition: opacity 120ms linear; }
+    .sun-press:active, .sun-press[data-held] { transform: none; }
+    .page-in, .pop-in, .bloom-item, .check-pop { animation: fade-in-only 120ms linear both; }
+    @keyframes fade-in-only { from { opacity: 0; } }
+  }
+
   .no-scrollbar {
     -ms-overflow-style: none;
     scrollbar-width: none;

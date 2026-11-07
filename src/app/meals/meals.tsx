@@ -1,17 +1,17 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { CalendarPlus, Plus } from "lucide-react"
+import { CalendarPlus, Trash2 } from "lucide-react"
 import type { Meal } from "@/lib/data"
 import { cn } from "@/lib/utils"
 import { MemberAvatar } from "@/components/ui/reusables/member-avatar"
-import { ActionRow } from "@/components/ui/reusables/action-row"
-import { BottomSheet, Field, inputClass } from "@/components/ui/reusables/bottom-sheet"
+import { BottomSheet, ChoiceChips, Field, inputClass } from "@/components/ui/reusables/bottom-sheet"
+import { HeaderSlot } from "@/components/ui/reusables/header-slot"
+import { HeaderAdd } from "@/components/ui/reusables/header-add"
 import { ConfirmDialog } from "@/components/ui/reusables/confirm-dialog"
 import { useHighlight, useStore } from "@/lib/store"
 import { MenuFieldsEditor, SpecialDays, WeekGroceries, emptyMenuFields, menuFieldsFrom, menuPayload, weekdayOf, type MenuFields } from "./holiday-menus"
 
-// Kept identical in kiosk/ and mobile/.
 
 const DAY_ABBR = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 const MEAL_TYPES = ["Breakfast", "Lunch", "Dinner", "Snack"]
@@ -37,8 +37,8 @@ function upcomingDays(): { abbr: string; date: Date; label: string }[] {
 }
 
 /**
- * The week's menu as one card per day, starting today. Tap a meal to edit it;
- * long-press (or swipe) for edit and delete; + on a day plans the next free meal.
+ * The week's menu as a strip of seven days, starting today. Tap a meal to
+ * change or delete it; tap an empty slot to plan one.
  */
 export function MealsView() {
   const { meals, members, getMember, can, addMeal, updateMeal, deleteMeal, addEvent } = useStore()
@@ -117,76 +117,72 @@ export function MealsView() {
 
   const deleting = deleteId ? meals.find((m) => m.id === deleteId) : null
 
+  const days = upcomingDays()
+
   return (
-    <div className="space-y-5 px-4 py-4">
+    <div className="flex flex-1 flex-col gap-4">
+      <HeaderSlot name="extras">
+        <WeekGroceries />
+      </HeaderSlot>
+      {canManage ? <HeaderAdd label="Plan a meal" onClick={() => openAdd(days[0].abbr)} /> : null}
       <SpecialDays onOpen={openEdit} />
 
-      <div className="flex flex-wrap items-center justify-between gap-x-4 px-1">
-        <p className="text-sm text-muted-foreground">
-          {weekly.length === 0 ? "Nothing planned yet" : `${weekly.length} ${weekly.length === 1 ? "meal" : "meals"} planned`}
-          {canManage ? " · hold a meal to change it" : ""}
-        </p>
-        <WeekGroceries />
-      </div>
-
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-        {upcomingDays().map(({ abbr, date, label }, i) => {
-          const items = MEAL_TYPES.flatMap((t) => weekly.filter((m) => m.day === abbr && m.type === t))
-          const full = MEAL_TYPES.every((t) => slotTaken(abbr, t))
+      {/* The week as a strip, starting today. Tonight is ringed; dinner names are set in serif. */}
+      <div className="grid min-h-[30rem] flex-1 grid-cols-7 gap-2.5">
+        {days.map(({ abbr, date, label }, i) => {
+          // Snacks only show when someone planned one.
+          const types = MEAL_TYPES.filter((t) => t !== "Snack" || weekly.some((m) => m.day === abbr && m.type === t))
           return (
-            <section key={abbr} className={cn("overflow-hidden rounded-lg bg-card", i === 0 && "ring-1 ring-season/50")}>
-              <header className="flex items-center gap-2 py-2 pl-4 pr-1.5">
-                <h2 className="font-display text-2xl leading-none">{label}</h2>
-                <span className="text-sm text-muted-foreground tabular">
-                  {date.toLocaleDateString(undefined, { month: "short", day: "numeric" })}
-                </span>
-                {canManage && !full ? (
-                  <button
-                    type="button"
-                    onClick={() => openAdd(abbr)}
-                    aria-label={`Plan a meal for ${label}`}
-                    className="ml-auto flex size-11 items-center justify-center rounded-md text-muted-foreground transition-colors active:bg-secondary hover:text-foreground"
-                  >
-                    <Plus className="size-5" />
-                  </button>
-                ) : <span className="h-11" />}
-              </header>
-
-              {items.length === 0 ? (
-                <button
-                  type="button"
-                  disabled={!canManage}
-                  onClick={() => openAdd(abbr)}
-                  className="block w-full px-4 pb-4 text-left text-sm text-muted-foreground"
-                >
-                  {canManage ? "Nothing planned — tap to add" : "Nothing planned"}
-                </button>
-              ) : (
-                <ul className="divide-y divide-hairline border-t border-hairline">
-                  {items.map((meal) => {
-                    const cook = meal.memberId ? getMember(meal.memberId) : null
-                    return (
-                      <li key={meal.id} ref={register(meal.id)}>
-                        <ActionRow
-                          rounded=""
-                          onEdit={canManage ? () => openEdit(meal) : undefined}
-                          onDelete={canManage ? () => setDeleteId(meal.id) : undefined}
-                        >
-                          <button
-                            type="button"
-                            onClick={() => openEdit(meal)}
-                            className="flex min-h-14 w-full items-center gap-3 bg-card px-4 py-2.5 text-left"
-                          >
-                            <span className="w-[4.75rem] shrink-0 text-xs font-medium text-muted-foreground">{meal.type}</span>
-                            <span className="min-w-0 flex-1 truncate text-[15px] font-medium">{meal.name}</span>
-                            {cook ? <MemberAvatar member={cook} size="sm" /> : null}
-                          </button>
-                        </ActionRow>
-                      </li>
-                    )
-                  })}
-                </ul>
+            <section
+              key={abbr}
+              className={cn(
+                "flex min-w-0 flex-col overflow-hidden rounded-[20px] border bg-card",
+                i === 0 ? "border-foreground shadow-[inset_0_0_0_0.5px_var(--foreground)]" : "border-hairline",
               )}
+            >
+              <header className="px-3 pb-2.5 pt-3">
+                <h2 className="truncate font-display text-[1.65rem] leading-none">{i === 0 ? "Tonight" : label}</h2>
+                <p className="os-label mt-1.5">{date.toLocaleDateString(undefined, { month: "short", day: "numeric" })}</p>
+              </header>
+              {types.map((t) => {
+                const meal = weekly.find((m) => m.day === abbr && m.type === t)
+                const cook = meal?.memberId ? getMember(meal.memberId) : null
+                const dinner = t === "Dinner"
+                return (
+                  <button
+                    key={t}
+                    ref={meal ? register(meal.id) : undefined}
+                    type="button"
+                    disabled={!canManage}
+                    onClick={() => {
+                      if (meal) openEdit(meal)
+                      else {
+                        openAdd(abbr)
+                        setForm((f) => ({ ...f, type: t }))
+                      }
+                    }}
+                    className={cn(
+                      "flex w-full min-w-0 flex-col items-start gap-1 border-t border-hairline px-3 py-2.5 text-left active:bg-secondary disabled:active:bg-transparent",
+                      dinner && "flex-1",
+                    )}
+                  >
+                    <span className="os-label !text-[0.62rem]">{t}</span>
+                    {meal ? (
+                      <span className={cn("line-clamp-3 min-w-0", dinner ? "font-display text-[1.45rem] leading-[1.05]" : "text-[0.9rem] leading-snug")}>
+                        {meal.name}
+                      </span>
+                    ) : (
+                      <span className="text-[0.82rem] text-muted-foreground/80">{canManage ? `+ Plan` : "—"}</span>
+                    )}
+                    {cook ? (
+                      <span className={cn("flex items-center gap-1.5 text-xs text-muted-foreground", dinner && "mt-auto pt-1")}>
+                        <MemberAvatar member={cook} size="sm" className="size-5 text-[0.6rem]" />
+                        {dinner ? `${cook.name} cooks` : cook.name}
+                      </span>
+                    ) : null}
+                  </button>
+                )
+              })}
             </section>
           )
         })}
@@ -198,11 +194,24 @@ export function MealsView() {
         title={editing ? "Edit meal" : "Plan a meal"}
         footer={
           <div className="flex gap-2">
+            {editing ? (
+              <button
+                type="button"
+                aria-label="Delete meal"
+                onClick={() => {
+                  setSheetOpen(false)
+                  setDeleteId(editing.id)
+                }}
+                className="flex size-14 shrink-0 items-center justify-center rounded-full bg-secondary text-destructive"
+              >
+                <Trash2 className="size-5" />
+              </button>
+            ) : null}
             {editing && !editing.date ? (
               <button
                 type="button"
                 onClick={() => addToCalendar(editing)}
-                className="flex items-center gap-2 rounded-md bg-secondary px-4 py-3 text-sm font-semibold"
+                className="flex items-center gap-2 rounded-full bg-secondary px-5 text-sm font-semibold"
               >
                 <CalendarPlus className="size-4" />
                 Add to calendar
@@ -211,7 +220,7 @@ export function MealsView() {
             <button
               type="button"
               onClick={save}
-              className="flex-1 rounded-md bg-primary py-3 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
+              className="os-button flex-1"
             >
               {editing ? "Save changes" : "Add meal"}
             </button>
@@ -229,35 +238,39 @@ export function MealsView() {
         </Field>
         <MenuFieldsEditor value={form.menu} onChange={(menu) => setForm((f) => ({ ...f, menu }))} />
 
-        <div className="flex gap-3">
-          {form.menu.onDate ? null : (
-            <Field label="Day">
-              <select value={form.day} onChange={(e) => setForm((f) => ({ ...f, day: e.target.value }))} className={inputClass}>
-                {DAY_ABBR.map((d) => <option key={d} value={d}>{d}</option>)}
-              </select>
-            </Field>
-          )}
-          <Field label="Meal">
-            <select value={form.type} onChange={(e) => setForm((f) => ({ ...f, type: e.target.value }))} className={inputClass}>
-              {MEAL_TYPES.map((t) => (
-                <option key={t} value={t}>
-                  {t}{!form.menu.onDate && slotTaken(form.day, t, editing?.id) ? " (replaces)" : ""}
-                </option>
-              ))}
-            </select>
-          </Field>
+        {form.menu.onDate ? null : (
+          <div>
+            <span className="os-label mb-2 block">Day</span>
+            <ChoiceChips value={form.day} onChange={(day) => setForm((f) => ({ ...f, day }))} options={DAY_ABBR.map((d) => ({ value: d, label: d }))} />
+          </div>
+        )}
+        <div>
+          <span className="os-label mb-2 block">Meal</span>
+          <ChoiceChips
+            value={form.type}
+            onChange={(type) => setForm((f) => ({ ...f, type }))}
+            options={MEAL_TYPES.map((t) => ({ value: t, label: t }))}
+          />
+          {!form.menu.onDate && slotTaken(form.day, form.type, editing?.id) ? (
+            <span className="mt-2 block text-xs text-muted-foreground">Replaces what&apos;s planned for {form.day} {form.type.toLowerCase()}.</span>
+          ) : null}
         </div>
 
-        <Field label="Cook">
-          <select value={form.memberId} onChange={(e) => setForm((f) => ({ ...f, memberId: e.target.value }))} className={inputClass}>
-            <option value="">No one assigned</option>
-            {members.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
-          </select>
-        </Field>
+        <div>
+          <span className="os-label mb-2 block">Cook</span>
+          <ChoiceChips
+            value={form.memberId}
+            onChange={(memberId) => setForm((f) => ({ ...f, memberId }))}
+            options={[
+              { value: "", label: "No one" },
+              ...members.filter((m) => m.id !== "family").map((m) => ({ value: m.id, label: m.name, lead: <MemberAvatar member={m} size="sm" /> })),
+            ]}
+          />
+        </div>
 
         {!editing && !form.menu.onDate ? (
           <div>
-            <span className="mb-2 block text-xs font-semibold text-muted-foreground">Also on</span>
+            <span className="os-label mb-2 block">Also on</span>
             <div className="flex flex-wrap gap-2">
               {DAY_ABBR.filter((d) => d !== form.day).map((d) => {
                 const on = form.repeatDays.includes(d)
@@ -270,8 +283,8 @@ export function MealsView() {
                       setForm((f) => ({ ...f, repeatDays: on ? f.repeatDays.filter((x) => x !== d) : [...f.repeatDays, d] }))
                     }
                     className={cn(
-                      "h-10 min-w-12 rounded-full border px-3 text-sm font-medium transition-colors",
-                      on ? "border-primary bg-primary text-primary-foreground" : "border-border text-muted-foreground",
+                      "h-11 min-w-12 rounded-full border px-4 text-sm font-medium transition-colors",
+                      on ? "border-transparent bg-foreground text-background" : "border-hairline bg-card text-foreground",
                     )}
                   >
                     {d}

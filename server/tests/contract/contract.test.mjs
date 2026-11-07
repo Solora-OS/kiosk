@@ -21,6 +21,7 @@ const CHAPTERS = [
   "05-central.mjs",
   "06-new-hub.mjs",
   "07-live-events.mjs",
+  "08-delete-account.mjs",
 ]
 const only = process.env.CONTRACT_CHAPTERS?.split(",").map((c) => c.trim().padStart(2, "0"))
 const picked = CHAPTERS.filter((c) => !only || only.includes(c.slice(0, 2)))

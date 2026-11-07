@@ -36,14 +36,14 @@ export const setAsleep = (asleep: boolean) => emit(asleep ? { asleep, open: fals
 
 function Tile({ title, children, className }: { title?: string; children: React.ReactNode; className?: string }) {
   return (
-    <section className={cn("flex flex-col gap-4 rounded-xl bg-card p-5", className)}>
+    <section className={cn("flex flex-col gap-4 rounded-[20px] border border-hairline bg-card p-4", className)}>
       {title ? <h3 className="text-sm font-semibold text-muted-foreground">{title}</h3> : null}
       {children}
     </section>
   )
 }
 
-/** A square quick toggle: icon, name, and a one-word state. Lit when on. */
+/** A quick toggle: a round icon that turns ink when on, the name, and a one-word state. */
 function Toggle({
   icon: Icon,
   label,
@@ -62,15 +62,14 @@ function Toggle({
       type="button"
       onClick={onClick}
       aria-pressed={on}
-      className={cn(
-        "flex h-28 flex-col justify-between rounded-xl p-4 text-left transition-colors active:scale-[0.98]",
-        on ? "bg-foreground text-background" : "bg-card text-foreground hover:bg-secondary",
-      )}
+      className="flex flex-col items-start gap-3 rounded-[20px] border border-hairline bg-card p-4 text-left transition-transform active:scale-[0.98]"
     >
-      <Icon className="size-6" />
-      <span className="min-w-0">
-        <span className="block truncate text-[0.95rem] font-semibold">{label}</span>
-        <span className={cn("block truncate text-sm", on ? "text-background/70" : "text-muted-foreground")}>{state}</span>
+      <span className={cn("flex size-11 items-center justify-center rounded-full transition-colors", on ? "bg-foreground text-background" : "bg-secondary text-foreground")}>
+        <Icon className="size-5" />
+      </span>
+      <span className="min-w-0 max-w-full">
+        <span className="block truncate text-[0.95rem] font-medium">{label}</span>
+        <span className="block truncate text-xs text-muted-foreground">{state}</span>
       </span>
     </button>
   )
@@ -83,7 +82,7 @@ function QuickToggles({ wifiName, onWifi, wifiOpen }: { wifiName: string | null;
     void getAudio().then((a) => setMute(a.muted))
   }, [])
   return (
-    <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+    <div className="grid grid-cols-4 gap-2.5">
       <Toggle icon={wifiName ? Wifi : WifiOff} label="Wi-Fi" state={wifiName ?? "Not connected"} on={wifiOpen} onClick={onWifi} />
       <Toggle
         icon={muted ? VolumeX : Volume2}
@@ -114,8 +113,8 @@ function FaderTile({ icon: Icon, label, value, children }: { icon: React.Compone
   return (
     <Tile>
       <div className="flex items-center gap-2.5">
-        <Icon className="size-5 text-muted-foreground" />
-        <span className="text-sm font-semibold text-muted-foreground">{label}</span>
+        <span className="flex size-8 items-center justify-center rounded-[10px] bg-secondary text-foreground"><Icon className="size-[1.05rem]" /></span>
+        <span className="text-[0.95rem]">{label}</span>
         <span className="ml-auto font-display text-3xl leading-none tabular">{value}</span>
       </div>
       {children}
@@ -164,7 +163,7 @@ function BrightnessTile() {
   return (
     <FaderTile icon={SunMedium} label="Brightness" value={level == null ? "—" : String(level)}>
       {loaded && level === null ? (
-        <p className="flex h-14 items-center rounded-md border border-dashed border-border px-4 text-sm text-muted-foreground">
+        <p className="flex h-14 items-center rounded-[14px] border border-dashed border-border px-4 text-sm text-muted-foreground">
           Set on the monitor itself.
         </p>
       ) : (
@@ -187,7 +186,7 @@ function LookTile() {
   const { theme, setTheme } = useTheme()
   const [seasonOpen, setSeasonOpen] = useState(false)
   return (
-    <Tile title="Look" className="md:col-span-2">
+    <Tile title="Look">
       <Segmented<Theme>
         value={theme}
         onChange={setTheme}
@@ -246,14 +245,14 @@ function WifiTile({ current, onCurrent }: { current: string | null; onCurrent: (
   }
 
   return (
-    <Tile className="md:col-span-2 animate-in fade-in slide-in-from-top-2 duration-200">
+    <Tile className="animate-in fade-in slide-in-from-top-2 duration-200">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-muted-foreground">Wi-Fi networks</h3>
         <button
           type="button"
           onClick={() => void scan()}
           aria-label="Rescan"
-          className="flex size-10 items-center justify-center rounded-md text-muted-foreground hover:bg-secondary"
+          className="flex size-10 items-center justify-center rounded-[12px] text-muted-foreground hover:bg-secondary"
         >
           <RefreshCw className={cn("size-4", scanning && "animate-spin")} />
         </button>
@@ -290,9 +289,9 @@ function WifiTile({ current, onCurrent }: { current: string | null; onCurrent: (
                     value={pwd}
                     onChange={(e) => setPwd(e.target.value)}
                     placeholder="Password"
-                    className="h-12 flex-1 rounded-md bg-secondary px-4 outline-none focus:ring-2 focus:ring-season/40"
+                    className="h-12 flex-1 rounded-[14px] border border-hairline bg-background px-4 outline-none focus:border-foreground"
                   />
-                  <button type="submit" disabled={busy || !pwd} className="h-12 rounded-md bg-foreground px-5 font-medium text-background disabled:opacity-40">
+                  <button type="submit" disabled={busy || !pwd} className="h-12 rounded-full bg-foreground px-5 font-medium text-background disabled:opacity-40">
                     {busy ? <WaveLoader size={16} /> : "Join"}
                   </button>
                 </form>
@@ -371,29 +370,24 @@ export function ControlCenter() {
         role="dialog"
         aria-label="Control center"
         className={cn(
-          "absolute inset-x-0 top-0 max-h-[92dvh] overflow-y-auto border-b border-border bg-popover transition-transform duration-300 ease-[var(--ease-out-quart)]",
-          open ? "translate-y-0" : "-translate-y-full",
+          // A card that drops from the status bar's right end, where you tapped.
+          "absolute right-3 top-12 max-h-[calc(100dvh-4rem)] w-[40rem] max-w-[calc(100vw-1.5rem)] origin-top-right overflow-y-auto rounded-[26px] border border-hairline bg-background p-4 shadow-[0_30px_70px_-20px_rgb(0_0_0/0.5)] transition-[transform,opacity] duration-300 ease-[var(--ease-out-quart)]",
+          open ? "scale-100 opacity-100" : "scale-95 opacity-0",
         )}
       >
-        <div className="mx-auto max-w-5xl px-8 pb-6 pt-5">
-          <div className="mb-5 flex items-center justify-between">
-            <p className="font-display text-2xl">Control</p>
-            <button
-              type="button"
-              onClick={closeControlCenter}
-              aria-label="Close"
-              className="flex size-12 items-center justify-center rounded-md text-muted-foreground hover:bg-secondary"
-            >
-              <X className="size-5" />
-            </button>
-          </div>
-
-          <ControlGrid />
+        <div className="mb-3 flex items-center justify-between pl-1">
+          <p className="font-display text-[2rem] leading-none">Control</p>
+          <button
+            type="button"
+            onClick={closeControlCenter}
+            aria-label="Close"
+            className="flex size-11 items-center justify-center rounded-full text-muted-foreground hover:bg-secondary"
+          >
+            <X className="size-5" />
+          </button>
         </div>
-        {/* Grab handle — tap to close */}
-        <button type="button" onClick={closeControlCenter} aria-label="Close" className="flex h-10 w-full items-center justify-center">
-          <span className="h-1 w-12 rounded-full bg-border" />
-        </button>
+
+        <ControlGrid />
       </div>
     </div>
   )
@@ -406,17 +400,13 @@ function ControlGrid() {
     void currentNetwork().then(setSsid).catch(() => {})
   }, [])
   return (
-    <div className="space-y-3">
+    <div className="space-y-2.5">
       <QuickToggles wifiName={ssid} wifiOpen={wifiOpen} onWifi={() => setWifiOpen((v) => !v)} />
-      {wifiOpen ? <div className="grid gap-3 md:grid-cols-2"><WifiTile current={ssid} onCurrent={setSsid} /></div> : null}
-      <div className="grid gap-3 md:grid-cols-2">
-        <BrightnessTile />
-        <VolumeTile />
-      </div>
-      <div className="grid gap-3 md:grid-cols-3">
-        <LookTile />
-        <PowerTile />
-      </div>
+      {wifiOpen ? <WifiTile current={ssid} onCurrent={setSsid} /> : null}
+      <BrightnessTile />
+      <VolumeTile />
+      <LookTile />
+      <PowerTile />
     </div>
   )
 }

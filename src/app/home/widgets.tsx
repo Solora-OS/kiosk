@@ -27,6 +27,7 @@ import { useClock24, usePhotoUrl } from "./widget-env"
 import { CountdownTiles } from "@/components/ui/reusables/countdown-tiles"
 import { MemberAvatar } from "@/components/ui/reusables/member-avatar"
 import { cn } from "@/lib/utils"
+import { IconTile } from "@/components/ui/reusables/icon-tile"
 
 export type WidgetProps = { widget: HomeWidget; editing: boolean; onConfig: (config: Record<string, unknown>) => void }
 
@@ -41,14 +42,18 @@ export type WidgetDef = {
   render: (p: WidgetProps) => ReactNode
 }
 
-/** The frame every widget sits in. */
+/**
+ * The frame every widget sits in: the phone's card (soft corners, a hairline)
+ * with the phone's card heading (a neutral icon tile and a plain label). No
+ * season color on the headings; the season is the sun and the decorations.
+ */
 function Tile({ title, icon: Icon, children, className }: { title?: string; icon?: LucideIcon; children: ReactNode; className?: string }) {
   return (
-    <div className={cn("flex h-full min-h-0 flex-col gap-3 overflow-hidden rounded-lg bg-card p-5", className)}>
+    <div className={cn("os-card flex h-full min-h-0 flex-col gap-3 overflow-hidden p-4", className)}>
       {title ? (
-        <p className="os-label flex items-center gap-1.5">
-          {Icon ? <Icon className="size-3.5 text-season" /> : null}
-          {title}
+        <p className="flex items-center gap-2.5 text-[0.85rem] font-semibold text-muted-foreground">
+          {Icon ? <IconTile icon={Icon} tone="gray" size="sm" /> : null}
+          <span className="truncate">{title}</span>
         </p>
       ) : null}
       <div className="min-h-0 flex-1">{children}</div>
@@ -126,7 +131,7 @@ function TodayWidget({ widget }: WidgetProps) {
           {list.slice(0, max).map((e) => (
             <li key={`${e.id}:${e.date}`} className="flex items-baseline gap-3">
               <span className="w-20 shrink-0 font-mono text-xs text-muted-foreground">
-                {!e.allDay && !e.endDate && e.start <= nowH ? <span className="font-semibold text-season">Now</span> : eventTimeLabel(e, today)}
+                {!e.allDay && !e.endDate && e.start <= nowH ? <span className="font-semibold text-foreground">Now</span> : eventTimeLabel(e, today)}
               </span>
               <span className="min-w-0 flex-1 truncate">{e.title}</span>
               <span className="flex -space-x-1.5">
@@ -154,7 +159,7 @@ function WeekWidget() {
     <Tile title="The week ahead" icon={CalendarDays}>
       <ul className="grid grid-cols-7 gap-2">
         {days.map(({ iso, d, items }, i) => (
-          <li key={iso} className={cn("min-w-0 rounded-md p-2", i === 0 && "bg-season/10")}>
+          <li key={iso} className={cn("min-w-0 rounded-[14px] p-2", i === 0 && "shadow-[inset_0_0_0_1.5px_var(--foreground)]")}>
             <p className="os-label">{d.toLocaleDateString(undefined, { weekday: "short" })}</p>
             <p className="font-display text-2xl leading-none tabular">{d.getDate()}</p>
             <div className="mt-1.5 space-y-0.5">
@@ -216,7 +221,7 @@ function ChoresWidget() {
                         title={c.title}
                         onClick={() => toggleChore(c.id)}
                         className={cn(
-                          "flex size-14 items-center justify-center rounded-lg transition-colors",
+                          "flex size-14 items-center justify-center rounded-2xl transition-colors",
                           isDone ? cn(memberBg[m.color], "text-white") : memberSoft[m.color],
                         )}
                       >
@@ -256,7 +261,7 @@ function PointsWidget() {
             <li key={m.id} className="flex items-center gap-2">
               <MemberAvatar member={m} size="sm" />
               <span className="min-w-0 flex-1 truncate">{m.name}</span>
-              {p!.streak > 0 ? <span className="flex items-center gap-0.5 text-xs text-muted-foreground"><Flame className="size-3 text-season" />{p!.streak}</span> : null}
+              {p!.streak > 0 ? <span className="flex items-center gap-0.5 text-xs text-muted-foreground"><Flame className="size-3" />{p!.streak}</span> : null}
               <span className="font-semibold tabular">{p!.balance}</span>
             </li>
           ))}
@@ -275,7 +280,7 @@ function CountdownWidget() {
   const { events } = useStore()
   return (
     <Tile title="Counting down" icon={Timer}>
-      {events.some((e) => e.countdown) ? <CountdownTiles events={events} size="lg" /> : <Empty>Mark an event &ldquo;Count down to this&rdquo; to see it here.</Empty>}
+      {events.some((e) => e.countdown) ? <CountdownTiles events={events} size="lg" bare className="-mx-4 h-full [&>*]:pb-0" /> : <Empty>Mark an event &ldquo;Count down to this&rdquo; to see it here.</Empty>}
     </Tile>
   )
 }
@@ -297,7 +302,7 @@ function DinnerWidget() {
       {dinner ? (
         <div>
           <p className="font-display text-3xl leading-tight">{dinner.name}</p>
-          {dinner.memberId ? <p className="mt-1 text-sm text-muted-foreground">Cooking: {getMember(dinner.memberId).name}</p> : null}
+          {dinner.memberId ? <p className="mt-1 text-sm text-muted-foreground">{getMember(dinner.memberId).name} is cooking</p> : null}
         </div>
       ) : (
         <Empty>No dinner planned yet.</Empty>
@@ -315,13 +320,18 @@ function ListWidget({ widget, editing, onConfig }: WidgetProps) {
   return (
     <Tile title={chosen?.title ?? "List"} icon={ListChecks}>
       {editing && lists.length > 1 ? (
-        <select
-          value={chosen?.id}
-          onChange={(e) => onConfig({ listId: e.target.value })}
-          className="mb-2 w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm"
-        >
-          {lists.map((l) => <option key={l.id} value={l.id}>{l.title}</option>)}
-        </select>
+        <div className="mb-2 flex flex-wrap gap-1.5">
+          {lists.map((l) => (
+            <button
+              key={l.id}
+              type="button"
+              onClick={() => onConfig({ listId: l.id })}
+              className={cn("h-9 rounded-full px-3 text-sm", l.id === chosen?.id ? "bg-foreground text-background" : "bg-secondary")}
+            >
+              {l.title}
+            </button>
+          ))}
+        </div>
       ) : null}
       {!chosen ? (
         <Empty>No lists yet.</Empty>
@@ -430,12 +440,12 @@ function WeatherWidget({ widget, editing, onConfig }: WidgetProps) {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder={place || "Your town"}
-              className="min-w-0 flex-1 rounded-md border border-border bg-background px-2 py-1.5 text-sm"
+              className="min-w-0 flex-1 rounded-[12px] border border-hairline bg-background px-3 py-2 text-sm"
             />
-            <button type="submit" className="rounded-md bg-secondary px-3 text-sm font-semibold">Set</button>
+            <button type="submit" className="rounded-full bg-primary px-4 text-sm font-semibold text-primary-foreground">Set</button>
           </form>
         ) : (
-          <Empty>Tap Edit to choose a town.</Empty>
+          <Empty>Tap Customize to choose a town.</Empty>
         )}
         {status ? <p className="mt-2 text-xs text-muted-foreground">{status}</p> : place ? <p className="mt-2 text-xs text-muted-foreground">Showing {place}</p> : null}
       </Tile>
@@ -452,7 +462,7 @@ function WeatherWidget({ widget, editing, onConfig }: WidgetProps) {
       <WeatherMotion code={forecast.code} />
       <div className={cn("flex h-full", wide ? "items-end gap-6" : "flex-col justify-end")}>
         <div className="min-w-0">
-          <now.icon className="size-9 text-season" strokeWidth={1.5} />
+          <now.icon className="size-9" strokeWidth={1.5} />
           <p className="mt-2 font-display text-5xl leading-none tabular">{forecast.temp}°</p>
           <p className="mt-1.5 truncate text-sm text-muted-foreground">
             {now.label} · {forecast.high}° / {forecast.low}°
@@ -492,10 +502,10 @@ function PhotoWidget() {
   const src = usePhotoUrl(photo)
   if (!photo) return <Tile title="Photos" icon={Images}><Empty>Add photos from the Solora app.</Empty></Tile>
   return (
-    <div className="relative h-full min-h-0 overflow-hidden rounded-lg bg-card">
+    <div className="relative h-full min-h-0 overflow-hidden rounded-[20px] border border-hairline bg-card">
       {src ? <img src={src} alt={photo.caption} className="absolute inset-0 size-full object-cover" /> : null}
       {photo.caption ? (
-        <p className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent px-4 pb-3 pt-8 text-sm text-white">{photo.caption}</p>
+        <p className="absolute bottom-3 left-3 max-w-[calc(100%-1.5rem)] truncate rounded-[12px] bg-card px-3 py-1.5 text-sm">{photo.caption}</p>
       ) : null}
     </div>
   )
@@ -504,13 +514,13 @@ function PhotoWidget() {
 function NoteWidget({ widget, editing, onConfig }: WidgetProps) {
   const text = typeof widget.config?.text === "string" ? widget.config.text : ""
   return (
-    <Tile title="Note" icon={StickyNote} className="bg-season/10">
+    <Tile title="Note" icon={StickyNote}>
       {editing ? (
         <textarea
           value={text}
           onChange={(e) => onConfig({ text: e.target.value.slice(0, 280) })}
           placeholder="Leave a note for the family"
-          className="size-full resize-none rounded-md border border-border bg-background p-2 text-lg"
+          className="size-full resize-none rounded-[14px] border border-hairline bg-background p-3 text-lg"
         />
       ) : (
         <p className="whitespace-pre-wrap font-display text-3xl leading-tight">{text || "Tap Customize to leave a note."}</p>
@@ -579,13 +589,14 @@ export function fitSizes(widgets: HomeWidget[]): HomeWidget[] {
 }
 
 export const DEFAULT_LAYOUT: HomeWidget[] = [
-  { id: "w-clock", type: "clock", size: "s" },
+  // The header already shows the time big, so the default wall has no clock tile.
+  { id: "w-today", type: "today", size: "l" },
   { id: "w-weather", type: "weather", size: "s" },
-  { id: "w-today", type: "today", size: "m" },
-  { id: "w-chores", type: "chores", size: "l" },
-  { id: "w-photo", type: "photo", size: "l" },
   { id: "w-dinner", type: "dinner", size: "s" },
-  { id: "w-points", type: "points", size: "s" },
+  { id: "w-countdown", type: "countdown", size: "m" },
+  { id: "w-chores", type: "chores", size: "full" },
   { id: "w-list", type: "list", size: "m" },
+  { id: "w-points", type: "points", size: "s" },
+  { id: "w-photo", type: "photo", size: "m" },
   { id: "w-week", type: "week", size: "full" },
 ]

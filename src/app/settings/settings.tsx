@@ -62,6 +62,8 @@ import { MemberAvatar } from "@/components/ui/reusables/member-avatar"
 import { PermissionPicker, defaultPermissions } from "@/components/ui/reusables/permission-picker"
 import { ConfirmDialog } from "@/components/ui/reusables/confirm-dialog"
 import { BottomSheet } from "@/components/ui/reusables/bottom-sheet"
+import { ActionRow, SettingsGroup, StatusPill } from "@/components/ui/reusables/settings-ui"
+import { IconTile } from "@/components/ui/reusables/icon-tile"
 import { QrCode } from "@/components/ui/reusables/qr-code"
 import { useStore } from "@/lib/store"
 import { useOptionalAuth } from "@/lib/auth"
@@ -112,82 +114,7 @@ import { centralSocket, getCentralToken } from "@/lib/central-socket"
 import { getLocalDeviceId, saveTimezone } from "@/lib/kiosk-session"
 
 
-function Toggle({
-  label,
-  description,
-  icon: Icon,
-  defaultOn = false,
-}: {
-  label: string
-  description?: string
-  icon: LucideIcon
-  defaultOn?: boolean
-}) {
-  const [on, setOn] = useState(defaultOn)
-  return (
-    <div className="flex items-center gap-3 px-4 py-4">
-      <span className="flex size-8 shrink-0 items-center justify-center text-muted-foreground">
-        <Icon className="size-4" />
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="block text-sm font-medium">{label}</span>
-        {description ? <span className="block text-xs text-muted-foreground">{description}</span> : null}
-      </span>
-      <button
-        type="button"
-        role="switch"
-        aria-checked={on}
-        aria-label={label}
-        onClick={() => setOn((v) => !v)}
-        className={cn(
-          "relative h-8 w-14 shrink-0 rounded-md transition-colors",
-          on ? "bg-foreground" : "bg-secondary shadow-[inset_0_0_0_1px_var(--border)]",
-        )}
-      >
-        <span
-          className={cn(
-            "absolute top-1 size-6 rounded-[5px] transition-all",
-            on ? "left-7 bg-season" : "left-1 bg-muted-foreground/60",
-          )}
-        />
-      </button>
-    </div>
-  )
-}
 
-function ActionRow({
-  label,
-  description,
-  icon: Icon,
-  onClick,
-  destructive = false,
-  trailing,
-}: {
-  label: string
-  description?: string
-  icon: LucideIcon
-  onClick?: () => void
-  destructive?: boolean
-  trailing?: React.ReactNode
-}) {
-  return (
-    <button type="button" onClick={onClick} className="flex w-full items-center gap-3 px-4 py-4 text-left transition-colors hover:bg-secondary/60">
-      <span
-        className={cn(
-          "flex size-8 shrink-0 items-center justify-center rounded-md",
-          destructive ? "text-destructive" : "text-muted-foreground",
-        )}
-      >
-        <Icon className="size-4" />
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className={cn("block text-sm font-medium", destructive && "text-destructive")}>{label}</span>
-        {description ? <span className="block text-xs text-muted-foreground">{description}</span> : null}
-      </span>
-      {trailing ?? <ChevronRight className={cn("size-4", destructive ? "text-destructive/60" : "text-muted-foreground")} />}
-    </button>
-  )
-}
 
 const permissionMeta: Record<PushPermission, { label: string; className: string }> = {
   granted: { label: "Enabled", className: "bg-member-green/15 text-member-green" },
@@ -245,14 +172,14 @@ function PushNotificationsSection() {
 
   return (
     <section>
-      <h2 className="os-label px-1 pb-4">Push Notifications</h2>
-      <div className="overflow-hidden rounded-md border border-hairline bg-card">
+      <h2 className="os-label px-1 pb-2.5">Push Notifications</h2>
+      <div className="overflow-hidden rounded-[20px] border border-hairline bg-card">
         <div className="flex items-center gap-3 px-4 py-4">
-          <span className="flex size-8 shrink-0 items-center justify-center text-muted-foreground">
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-[10px] bg-secondary text-foreground">
             <Bell className="size-4" />
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block text-sm font-medium">Device permission</span>
+            <span className="block text-[0.95rem]">Device permission</span>
             <span className="block text-xs text-muted-foreground">
               {supported ? "Allow alerts on this device" : "Not supported in this environment"}
             </span>
@@ -267,7 +194,7 @@ function PushNotificationsSection() {
             type="button"
             onClick={enable}
             disabled={!supported || permission === "granted"}
-            className="flex flex-1 items-center justify-center gap-2 rounded-md bg-primary py-2.5 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-40"
+            className="flex flex-1 items-center justify-center gap-2 rounded-full bg-primary py-2.5 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-40"
           >
             <ShieldCheck className="size-4" />
             {permission === "granted" ? "Allowed" : "Enable"}
@@ -276,7 +203,7 @@ function PushNotificationsSection() {
             type="button"
             onClick={test}
             disabled={!supported}
-            className="flex flex-1 items-center justify-center gap-2 rounded-md bg-secondary py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-secondary/70 disabled:opacity-40"
+            className="flex flex-1 items-center justify-center gap-2 rounded-full bg-secondary py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-secondary/70 disabled:opacity-40"
           >
             <Send className="size-4" />
             Send test
@@ -368,14 +295,14 @@ function CentralConnectionSection() {
 
   return (
     <section>
-      <h2 className="os-label px-1 pb-4">Cloud Connection</h2>
-      <div className="overflow-hidden rounded-md border border-hairline bg-card">
+      <h2 className="os-label px-1 pb-2.5">Cloud Connection</h2>
+      <div className="overflow-hidden rounded-[20px] border border-hairline bg-card">
         <div className="flex items-center gap-3 px-4 py-4">
-          <span className="flex size-8 shrink-0 items-center justify-center text-muted-foreground">
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-[10px] bg-secondary text-foreground">
             <Globe className="size-4" />
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block text-sm font-medium">Central server</span>
+            <span className="block text-[0.95rem]">Central server</span>
             <span className="block text-xs text-muted-foreground">
               {connected ? "Live data sync active" : hasToken ? "Token stored, socket offline" : "Not yet registered"}
             </span>
@@ -389,7 +316,7 @@ function CentralConnectionSection() {
             type="button"
             onClick={() => void reconnect()}
             disabled={busy || connected}
-            className="flex flex-1 items-center justify-center gap-2 rounded-md bg-primary py-2.5 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-40"
+            className="flex flex-1 items-center justify-center gap-2 rounded-full bg-primary py-2.5 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-40"
           >
             {busy ? <WaveLoader size={16} /> : <RefreshCw className="size-4" />}
             Reconnect
@@ -398,7 +325,7 @@ function CentralConnectionSection() {
             type="button"
             onClick={() => void reRegister()}
             disabled={busy}
-            className="flex flex-1 items-center justify-center gap-2 rounded-md bg-secondary py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-secondary/70 disabled:opacity-40"
+            className="flex flex-1 items-center justify-center gap-2 rounded-full bg-secondary py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-secondary/70 disabled:opacity-40"
           >
             {busy ? <WaveLoader size={16} /> : <RotateCcw className="size-4" />}
             Re-register
@@ -474,8 +401,8 @@ function HubActionsSection() {
 
   return (
     <section>
-      <h2 className="os-label px-1 pb-4">Hub Actions</h2>
-      <div className="divide-y divide-hairline overflow-hidden rounded-md border border-hairline bg-card">
+      <h2 className="os-label px-1 pb-2.5">Hub Actions</h2>
+      <div className="divide-y divide-hairline overflow-hidden rounded-[20px] border border-hairline bg-card">
         <ActionRow
           icon={ScrollText}
           label="Activity"
@@ -553,14 +480,14 @@ function Field({
 }) {
   return (
     <label className="block">
-      <span className="mb-1 block text-xs font-semibold text-muted-foreground">{label}</span>
+      <span className="os-label mb-2 block">{label}</span>
       {children}
     </label>
   )
 }
 
 const inputClass =
-  "w-full rounded-md border border-border bg-background px-3 py-2.5 text-sm outline-none transition-colors focus:border-primary"
+  "w-full min-h-[3.25rem] rounded-[14px] border border-hairline bg-card px-4 py-3 text-[1rem] outline-none transition-colors focus:border-foreground"
 
 type MemberDraft = {
   name: string
@@ -655,7 +582,7 @@ function MemberSheet({
           type="button"
           onClick={save}
           disabled={!draft.name.trim()}
-          className="w-full rounded-md bg-primary py-3 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-40"
+          className="w-full rounded-full bg-primary py-3 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-40"
         >
           {isEdit ? "Save changes" : "Add member"}
         </button>
@@ -683,7 +610,7 @@ function MemberSheet({
             />
           </Field>
           <Field label="Age">
-            <div className="flex items-center gap-2 rounded-md border border-border bg-secondary/40 px-3 py-2.5 text-sm">
+            <div className="flex items-center gap-2 rounded-[14px] border border-border bg-secondary/40 px-3 py-2.5 text-sm">
               <Cake className="size-4 text-muted-foreground" />
               <span>{age === null ? "—" : `${age} yrs`}</span>
             </div>
@@ -701,7 +628,7 @@ function MemberSheet({
                   onClick={() => pickRole(r)}
                   aria-pressed={active}
                   className={cn(
-                    "rounded-md py-2 text-xs font-semibold transition-colors",
+                    "rounded-[12px] py-2 text-xs font-semibold transition-colors",
                     active ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground hover:text-foreground",
                   )}
                 >
@@ -768,7 +695,7 @@ function MemberSheet({
           <button
             type="button"
             onClick={onInvite}
-            className="flex w-full items-center justify-center gap-2 rounded-md border border-border bg-card py-3 text-sm font-semibold text-foreground transition-colors hover:bg-secondary"
+            className="flex w-full items-center justify-center gap-2 rounded-[14px] border border-border bg-card py-3 text-sm font-semibold text-foreground transition-colors hover:bg-secondary"
           >
             <QrCodeIcon className="size-4 text-primary" />
             Invite to the app
@@ -777,12 +704,12 @@ function MemberSheet({
 
         {/* Permissions — admins implicitly have everything */}
         {draft.role === "admin" ? (
-          <div className="flex items-start gap-3 rounded-md border border-border/70 p-3">
-            <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+          <div className="flex items-start gap-3 rounded-[20px] border border-border/70 p-3">
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-[12px] bg-primary/10 text-primary">
               <ShieldCheck className="size-4" />
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block text-sm font-medium">Full access</span>
+              <span className="block text-[0.95rem]">Full access</span>
               <span className="block text-xs text-muted-foreground">
                 Admins can manage everything in the household.
               </span>
@@ -805,7 +732,7 @@ function MemberSheet({
           <button
             type="button"
             onClick={onDelete}
-            className="flex w-full items-center justify-center gap-2 rounded-md bg-destructive/10 py-3 text-sm font-semibold text-destructive transition-colors hover:bg-destructive/15"
+            className="flex w-full items-center justify-center gap-2 rounded-[12px] bg-destructive/10 py-3 text-sm font-semibold text-destructive transition-colors hover:bg-destructive/15"
           >
             <Trash2 className="size-4" />
             Remove member
@@ -899,11 +826,11 @@ function InviteSheet({
           <SkeletonBlock className="size-56 rounded-xl" label="Making an invite code" />
         ) : error ? (
           <div className="w-full space-y-3">
-            <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm font-medium text-destructive">{error}</p>
+            <p className="rounded-[12px] bg-destructive/10 px-3 py-2 text-sm font-medium text-destructive">{error}</p>
             <button
               type="button"
               onClick={generate}
-              className="flex w-full items-center justify-center gap-2 rounded-md border border-border py-3 text-sm font-semibold"
+              className="flex w-full items-center justify-center gap-2 rounded-[12px] border border-border py-3 text-sm font-semibold"
             >
               <RefreshCw className="size-4" />
               Try again
@@ -920,7 +847,7 @@ function InviteSheet({
             </p>
 
             {/* QR code */}
-            <div className="rounded-md border border-border bg-white p-3">
+            <div className="rounded-[20px] border border-border bg-white p-3">
               <QrCode value={payload} size={192} />
             </div>
 
@@ -932,7 +859,7 @@ function InviteSheet({
               <button
                 type="button"
                 onClick={copyCode}
-                className="mt-1.5 flex w-full items-center justify-center gap-2 rounded-md bg-secondary py-3 text-xl font-bold tracking-widest text-foreground transition-colors hover:bg-secondary/80"
+                className="mt-1.5 flex w-full items-center justify-center gap-2 rounded-full bg-secondary py-3 text-xl font-bold tracking-widest text-foreground transition-colors hover:bg-secondary/80"
               >
                 {invite.code}
                 {copied ? (
@@ -947,7 +874,7 @@ function InviteSheet({
             <button
               type="button"
               onClick={copyLink}
-              className="mt-2 flex w-full items-center justify-center gap-2 rounded-md border border-border py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-secondary"
+              className="mt-2 flex w-full items-center justify-center gap-2 rounded-[12px] border border-border py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-secondary"
             >
               {copiedLink ? (
                 <>
@@ -972,7 +899,7 @@ function InviteSheet({
                 type="button"
                 onClick={generate}
                 disabled={busy}
-                className="flex flex-1 items-center justify-center gap-2 rounded-md border border-border py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-secondary disabled:opacity-50"
+                className="flex flex-1 items-center justify-center gap-2 rounded-[12px] border border-border py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-secondary disabled:opacity-50"
               >
                 <RefreshCw className="size-4" />
                 New code
@@ -981,7 +908,7 @@ function InviteSheet({
                 type="button"
                 onClick={handleCancel}
                 disabled={cancelling}
-                className="flex flex-1 items-center justify-center gap-2 rounded-md bg-destructive/10 py-2.5 text-sm font-semibold text-destructive transition-colors hover:bg-destructive/15 disabled:opacity-50"
+                className="flex flex-1 items-center justify-center gap-2 rounded-[12px] bg-destructive/10 py-2.5 text-sm font-semibold text-destructive transition-colors hover:bg-destructive/15 disabled:opacity-50"
               >
                 {cancelling ? (
                   <WaveLoader size={16} />
@@ -1046,7 +973,7 @@ function MemberActionSheet({
     <BottomSheet open={open} onClose={onClose} title={member.name}>
       <div className="space-y-3">
         {/* Summary card */}
-        <div className="flex items-center gap-4 rounded-md bg-secondary/50 px-4 py-3">
+        <div className="flex items-center gap-4 rounded-[14px] bg-secondary/50 px-4 py-3">
           <MemberAvatar member={member} size="lg" />
           <div className="min-w-0 flex-1">
             <p className="truncate text-base font-semibold">{member.name}</p>
@@ -1066,9 +993,9 @@ function MemberActionSheet({
         <button
           type="button"
           onClick={onEdit}
-          className="flex w-full items-center gap-3 rounded-md bg-secondary/50 px-4 py-3.5 text-sm font-semibold text-foreground transition-colors hover:bg-secondary"
+          className="flex w-full items-center gap-3 rounded-[14px] bg-secondary/50 px-4 py-3.5 text-sm font-semibold text-foreground transition-colors hover:bg-secondary"
         >
-          <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-card">
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-[10px] bg-card">
             <User className="size-4 text-primary" />
           </span>
           Edit profile
@@ -1078,9 +1005,9 @@ function MemberActionSheet({
         <button
           type="button"
           onClick={onInvite}
-          className="flex w-full items-center gap-3 rounded-md bg-secondary/50 px-4 py-3.5 text-sm font-semibold text-foreground transition-colors hover:bg-secondary"
+          className="flex w-full items-center gap-3 rounded-[14px] bg-secondary/50 px-4 py-3.5 text-sm font-semibold text-foreground transition-colors hover:bg-secondary"
         >
-          <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-card">
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-[10px] bg-card">
             <QrCodeIcon className="size-4 text-primary" />
           </span>
           {member.pending ? "Resend invite" : "Invite to app"}
@@ -1090,9 +1017,9 @@ function MemberActionSheet({
         <button
           type="button"
           onClick={onDelete}
-          className="flex w-full items-center gap-3 rounded-md bg-destructive/8 px-4 py-3.5 text-sm font-semibold text-destructive transition-colors hover:bg-destructive/12"
+          className="flex w-full items-center gap-3 rounded-[12px] bg-destructive/8 px-4 py-3.5 text-sm font-semibold text-destructive transition-colors hover:bg-destructive/12"
         >
-          <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-destructive/10">
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-[12px] bg-destructive/10">
             <Trash2 className="size-4 text-destructive" />
           </span>
           Remove member
@@ -1200,7 +1127,7 @@ function FamilyMembersSection() {
       {/* Member grid */}
       {people.length === 0 ? (
         /* Empty state */
-        <div className="flex flex-col items-center gap-3 rounded-lg border-2 border-dashed border-border bg-card/50 py-12">
+        <div className="flex flex-col items-center gap-3 rounded-full border-2 border-dashed border-border bg-card/50 py-12">
           <span className="flex size-14 items-center justify-center rounded-full bg-secondary">
             <UserPlus className="size-6 text-muted-foreground" />
           </span>
@@ -1212,7 +1139,7 @@ function FamilyMembersSection() {
             <button
               type="button"
               onClick={() => { setEditTarget(null); setAddOpen(true) }}
-              className="mt-1 flex items-center gap-2 rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground"
+              className="mt-1 flex items-center gap-2 rounded-full bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground"
             >
               <UserPlus className="size-4" />
               Add first member
@@ -1229,7 +1156,7 @@ function FamilyMembersSection() {
                 type="button"
                 onClick={() => openAction(m)}
                 disabled={!canManageMembers}
-                className="group relative flex w-36 shrink-0 flex-col overflow-hidden rounded-md border border-hairline bg-card transition-transform active:scale-95 disabled:cursor-default"
+                className="group relative flex w-36 shrink-0 flex-col overflow-hidden rounded-[20px] border border-hairline bg-card transition-transform active:scale-95 disabled:cursor-default"
               >
                 {/* Color accent bar */}
                 <div className={cn("h-1.5 w-full", memberBg[m.color])} />
@@ -1259,7 +1186,7 @@ function FamilyMembersSection() {
             <button
               type="button"
               onClick={() => { setEditTarget(null); setAddOpen(true) }}
-              className="flex w-36 shrink-0 flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border bg-card/50 py-8 transition-colors hover:bg-card"
+              className="flex w-36 shrink-0 flex-col items-center justify-center gap-2 rounded-full border-2 border-dashed border-border bg-card/50 py-8 transition-colors hover:bg-card"
             >
               <span className="flex size-10 items-center justify-center rounded-full bg-secondary">
                 <UserPlus className="size-5 text-muted-foreground" />
@@ -1275,7 +1202,7 @@ function FamilyMembersSection() {
         <button
           type="button"
           onClick={() => { setQuickOpen(true); setQuickError(null) }}
-          className="flex w-full items-center justify-center gap-2 rounded-md border border-border bg-card py-3.5 text-sm font-semibold text-foreground transition-colors hover:bg-secondary"
+          className="flex w-full items-center justify-center gap-2 rounded-[14px] border border-border bg-card py-3.5 text-sm font-semibold text-foreground transition-colors hover:bg-secondary"
         >
           <QrCodeIcon className="size-4 text-primary" />
           Invite someone to join
@@ -1326,7 +1253,7 @@ function FamilyMembersSection() {
             type="button"
             onClick={submitQuickInvite}
             disabled={!quickName.trim() || quickBusy}
-            className="flex w-full items-center justify-center gap-2 rounded-md bg-primary py-3 text-sm font-semibold text-primary-foreground disabled:opacity-40"
+            className="flex w-full items-center justify-center gap-2 rounded-full bg-primary py-3 text-sm font-semibold text-primary-foreground disabled:opacity-40"
           >
             {quickBusy ? <WaveLoader size={16} /> : <QrCodeIcon className="size-4" />}
             Create &amp; get invite code
@@ -1353,7 +1280,7 @@ function FamilyMembersSection() {
                 const active = quickRole === r
                 return (
                   <button key={r} type="button" onClick={() => setQuickRole(r)} aria-pressed={active}
-                    className={cn("rounded-md py-2 text-xs font-semibold transition-colors",
+                    className={cn("rounded-[12px] py-2 text-xs font-semibold transition-colors",
                       active ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground hover:text-foreground")}
                   >
                     {roleLabels[r]}
@@ -1376,7 +1303,7 @@ function FamilyMembersSection() {
             </div>
           </Field>
           {quickError && (
-            <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm font-medium text-destructive">{quickError}</p>
+            <p className="rounded-[12px] bg-destructive/10 px-3 py-2 text-sm font-medium text-destructive">{quickError}</p>
           )}
         </div>
       </BottomSheet>
@@ -1433,7 +1360,7 @@ function FactoryResetDialog({ open, onClose }: { open: boolean; onClose: () => v
       {step === 1 ? (
         <div className="space-y-4">
           {/* Warning banner */}
-          <div className="flex items-start gap-3 rounded-md bg-destructive/10 p-4">
+          <div className="flex items-start gap-3 rounded-[12px] bg-destructive/10 p-4">
             <AlertTriangle className="mt-0.5 size-5 shrink-0 text-destructive" />
             <div className="min-w-0">
               <p className="text-sm font-semibold text-destructive">This cannot be undone</p>
@@ -1444,7 +1371,7 @@ function FactoryResetDialog({ open, onClose }: { open: boolean; onClose: () => v
           </div>
 
           {/* What gets deleted */}
-          <div className="divide-y divide-hairline overflow-hidden rounded-md border border-hairline">
+          <div className="divide-y divide-hairline overflow-hidden rounded-[12px] border border-hairline">
             {[
               { icon: User, label: "All family member profiles" },
               { icon: Lock, label: "Account & authentication data" },
@@ -1467,14 +1394,14 @@ function FactoryResetDialog({ open, onClose }: { open: boolean; onClose: () => v
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 rounded-md border border-border bg-card py-3 text-sm font-semibold text-foreground transition-colors hover:bg-secondary"
+              className="flex-1 rounded-[14px] border border-border bg-card py-3 text-sm font-semibold text-foreground transition-colors hover:bg-secondary"
             >
               Cancel
             </button>
             <button
               type="button"
               onClick={() => setStep(2)}
-              className="flex-1 rounded-md bg-destructive py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90"
+              className="flex-1 rounded-full bg-destructive py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90"
             >
               Continue
             </button>
@@ -1482,7 +1409,7 @@ function FactoryResetDialog({ open, onClose }: { open: boolean; onClose: () => v
         </div>
       ) : (
         <div className="space-y-4">
-          <div className="flex items-start gap-3 rounded-md bg-destructive/10 p-4">
+          <div className="flex items-start gap-3 rounded-[12px] bg-destructive/10 p-4">
             <AlertTriangle className="mt-0.5 size-5 shrink-0 text-destructive" />
             <p className="text-sm font-semibold text-destructive">
               All data will be permanently erased. This device will be reset to factory defaults.
@@ -1502,7 +1429,7 @@ function FactoryResetDialog({ open, onClose }: { open: boolean; onClose: () => v
               value={typed}
               onChange={(e) => setTyped(e.target.value)}
               placeholder="RESET"
-              className="w-full rounded-md border border-border bg-background px-3 py-3 text-sm font-mono tracking-wider outline-none transition-colors focus:border-destructive"
+              className="w-full rounded-[14px] border border-hairline bg-background px-3 py-3 text-sm font-mono tracking-wider outline-none transition-colors focus:border-destructive"
             />
           </div>
 
@@ -1511,7 +1438,7 @@ function FactoryResetDialog({ open, onClose }: { open: boolean; onClose: () => v
               type="button"
               onClick={() => setStep(1)}
               disabled={busy}
-              className="flex-1 rounded-md border border-border bg-card py-3 text-sm font-semibold text-foreground transition-colors hover:bg-secondary disabled:opacity-50"
+              className="flex-1 rounded-[14px] border border-border bg-card py-3 text-sm font-semibold text-foreground transition-colors hover:bg-secondary disabled:opacity-50"
             >
               Back
             </button>
@@ -1519,7 +1446,7 @@ function FactoryResetDialog({ open, onClose }: { open: boolean; onClose: () => v
               type="button"
               onClick={() => void handleReset()}
               disabled={!confirmed || busy}
-              className="flex flex-1 items-center justify-center gap-2 rounded-md bg-destructive py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-40"
+              className="flex flex-1 items-center justify-center gap-2 rounded-full bg-destructive py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-40"
             >
               {busy ? (
                 <>
@@ -1622,8 +1549,8 @@ function WifiSection() {
 
   return (
     <section>
-      <h2 className="os-label px-1 pb-4">WiFi</h2>
-      <div className="divide-y divide-hairline overflow-hidden rounded-md border border-hairline bg-card">
+      <h2 className="os-label px-1 pb-2.5">WiFi</h2>
+      <div className="divide-y divide-hairline overflow-hidden rounded-[20px] border border-hairline bg-card">
         <ActionRow
           icon={Wifi}
           label="Network"
@@ -1648,10 +1575,10 @@ function WifiSection() {
         </div>
 
         {connectError ? (
-          <p className="mb-3 rounded-md bg-destructive/10 px-3 py-2 text-xs font-medium text-destructive">{connectError}</p>
+          <p className="mb-3 rounded-[12px] bg-destructive/10 px-3 py-2 text-xs font-medium text-destructive">{connectError}</p>
         ) : null}
 
-        <ul className="max-h-[55vh] divide-y divide-hairline overflow-y-auto overscroll-contain rounded-md bg-background">
+        <ul className="max-h-[55vh] divide-y divide-hairline overflow-y-auto overscroll-contain rounded-[20px] bg-background">
           {scanning && networks.length === 0 ? (
             <li className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground">
               <WaveLoader size={16} />
@@ -1702,7 +1629,7 @@ function WifiSection() {
             type="button"
             onClick={() => passwordFor && void doConnect(passwordFor.ssid, password)}
             disabled={!password.trim() || !!connecting}
-            className="flex w-full items-center justify-center gap-2 rounded-md bg-primary py-3 text-sm font-semibold text-primary-foreground disabled:opacity-40"
+            className="flex w-full items-center justify-center gap-2 rounded-full bg-primary py-3 text-sm font-semibold text-primary-foreground disabled:opacity-40"
           >
             {connecting ? <WaveLoader size={16} /> : null}
             {connecting ? "Connecting…" : "Connect"}
@@ -1724,10 +1651,10 @@ function WifiSection() {
               }
             }}
             placeholder="Password"
-            className="w-full rounded-md border border-border bg-background px-3 py-3 text-sm outline-none transition-colors focus:border-primary"
+            className="w-full rounded-[14px] border border-hairline bg-background px-3 py-3 text-sm outline-none transition-colors focus:border-foreground"
           />
           {connectError ? (
-            <p className="rounded-md bg-destructive/10 px-3 py-2 text-xs font-medium text-destructive">{connectError}</p>
+            <p className="rounded-[12px] bg-destructive/10 px-3 py-2 text-xs font-medium text-destructive">{connectError}</p>
           ) : null}
         </div>
       </BottomSheet>
@@ -1949,10 +1876,10 @@ function LanguageRegionSection({ initialOrientation }: { initialOrientation?: st
 
   return (
     <section>
-      <h2 className="os-label px-1 pb-4">Language & Region</h2>
+      <h2 className="os-label px-1 pb-2.5">Language & Region</h2>
 
       {/* OS-level explanation banner */}
-      <div className="mb-3 flex items-start gap-3 rounded-md border border-hairline bg-card px-4 py-3">
+      <div className="mb-3 flex items-start gap-3 rounded-[14px] border border-hairline bg-card px-4 py-3">
         <Globe className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
         <p className="text-xs text-muted-foreground leading-relaxed">
           These settings change the <span className="font-semibold text-foreground">operating system language</span> via{" "}
@@ -1962,7 +1889,7 @@ function LanguageRegionSection({ initialOrientation }: { initialOrientation?: st
         </p>
       </div>
 
-      <div className="divide-y divide-hairline overflow-hidden rounded-md border border-hairline bg-card">
+      <div className="divide-y divide-hairline overflow-hidden rounded-[20px] border border-hairline bg-card">
         {/* Language */}
         <ActionRow
           icon={Globe}
@@ -2015,10 +1942,10 @@ function LanguageRegionSection({ initialOrientation }: { initialOrientation?: st
             placeholder="Search languages…"
             value={langSearch}
             onChange={(e) => setLangSearch(e.target.value)}
-            className="w-full rounded-md border border-border bg-background px-3 py-2.5 text-sm outline-none transition-colors focus:border-primary"
+            className="w-full rounded-[14px] border border-hairline bg-background px-3 py-2.5 text-sm outline-none transition-colors focus:border-foreground"
           />
         </div>
-        <ul className="max-h-[55vh] divide-y divide-hairline overflow-y-auto overscroll-contain rounded-md bg-background">
+        <ul className="max-h-[55vh] divide-y divide-hairline overflow-y-auto overscroll-contain rounded-[20px] bg-background">
           {filteredLangs.length === 0 ? (
             <li className="px-4 py-8 text-center text-sm text-muted-foreground">No languages match</li>
           ) : (
@@ -2032,7 +1959,7 @@ function LanguageRegionSection({ initialOrientation }: { initialOrientation?: st
                     className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-secondary/50"
                   >
                     <span className="min-w-0 flex-1">
-                      <span className="block text-sm font-medium">{lang.native}</span>
+                      <span className="block text-[0.95rem]">{lang.native}</span>
                       <span className="block text-xs text-muted-foreground">{lang.label}</span>
                     </span>
                     {active ? (
@@ -2061,10 +1988,10 @@ function LanguageRegionSection({ initialOrientation }: { initialOrientation?: st
             placeholder="Search timezones…"
             value={tzSearch}
             onChange={(e) => setTzSearch(e.target.value)}
-            className="w-full rounded-md border border-border bg-background px-3 py-2.5 text-sm outline-none transition-colors focus:border-primary"
+            className="w-full rounded-[14px] border border-hairline bg-background px-3 py-2.5 text-sm outline-none transition-colors focus:border-foreground"
           />
         </div>
-        <ul className="max-h-[55vh] divide-y divide-hairline overflow-y-auto overscroll-contain rounded-md bg-background">
+        <ul className="max-h-[55vh] divide-y divide-hairline overflow-y-auto overscroll-contain rounded-[20px] bg-background">
           {filteredTzs.length === 0 ? (
             <li className="px-4 py-8 text-center text-sm text-muted-foreground">No timezones match</li>
           ) : (
@@ -2078,7 +2005,7 @@ function LanguageRegionSection({ initialOrientation }: { initialOrientation?: st
                     className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-secondary/50"
                   >
                     <span className="min-w-0 flex-1">
-                      <span className="block text-sm font-medium">{entry.label}</span>
+                      <span className="block text-[0.95rem]">{entry.label}</span>
                       <span className="block text-xs font-mono text-muted-foreground">{entry.tz}</span>
                     </span>
                     {active ? (
@@ -2101,7 +2028,7 @@ function LanguageRegionSection({ initialOrientation }: { initialOrientation?: st
 
       {/* Orientation picker sheet */}
       <BottomSheet open={orientationSheetOpen} onClose={() => setOrientationSheetOpen(false)} title="Screen Orientation">
-        <ul className="divide-y divide-hairline overflow-hidden rounded-md bg-background">
+        <ul className="divide-y divide-hairline overflow-hidden rounded-[20px] bg-background">
           {ORIENTATION_OPTIONS.map((opt) => {
             const active = opt.value === currentOrientation
             return (
@@ -2113,7 +2040,7 @@ function LanguageRegionSection({ initialOrientation }: { initialOrientation?: st
                 >
                   <RotateCcw className="size-4 shrink-0 text-muted-foreground" />
                   <span className="min-w-0 flex-1">
-                    <span className="block text-sm font-medium">{opt.label}</span>
+                    <span className="block text-[0.95rem]">{opt.label}</span>
                     <span className="block text-xs text-muted-foreground">{opt.description}</span>
                   </span>
                   {active ? (
@@ -2163,14 +2090,14 @@ function SlideshowSection({ initialIdleMins }: { initialIdleMins: number | null 
 
   return (
     <section>
-      <h2 className="os-label px-1 pb-4">Slideshow</h2>
-      <div className="overflow-hidden rounded-md border border-hairline bg-card">
+      <h2 className="os-label px-1 pb-2.5">Slideshow</h2>
+      <div className="overflow-hidden rounded-[20px] border border-hairline bg-card">
         <div className="flex items-center gap-3 px-4 py-4">
-          <span className="flex size-8 shrink-0 items-center justify-center text-muted-foreground">
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-[10px] bg-secondary text-foreground">
             <Images className="size-4" />
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block text-sm font-medium">Photo slideshow</span>
+            <span className="block text-[0.95rem]">Photo slideshow</span>
             <span className="block text-xs text-muted-foreground">
               {current === null
                 ? "Disabled — tap any time to start manually"
@@ -2247,8 +2174,8 @@ function CalendarIntegrationSection() {
 
   return (
     <section>
-      <h2 className="os-label px-1 pb-4">Calendar Integration</h2>
-      <div className="divide-y divide-hairline overflow-hidden rounded-md border border-hairline bg-card">
+      <h2 className="os-label px-1 pb-2.5">Calendar Integration</h2>
+      <div className="divide-y divide-hairline overflow-hidden rounded-[20px] border border-hairline bg-card">
         <ActionRow
           icon={Globe}
           label="Map Google calendars"
@@ -2267,11 +2194,11 @@ function CalendarIntegrationSection() {
             onClick={copyIcs}
             className="flex w-full items-center gap-3 px-4 py-3 text-left"
           >
-            <span className="flex size-8 shrink-0 items-center justify-center text-muted-foreground">
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-[10px] bg-secondary text-foreground">
               <Link2Off className="size-4" />
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block text-sm font-medium">Hub calendar feed</span>
+              <span className="block text-[0.95rem]">Hub calendar feed</span>
               <span className="block truncate text-xs text-muted-foreground">{icsUrl}</span>
             </span>
             {icsCopied ? (
@@ -2339,33 +2266,20 @@ function readStoredCategory(): SettingsCategory {
   return "general"
 }
 
-function SettingsGroup({ title, tone, children }: { title: string; tone?: "destructive"; children: React.ReactNode }) {
-  return (
-    <section>
-      <h2 className={cn("os-label px-1 pb-4", tone === "destructive" && "!text-destructive")}>{title}</h2>
-      <div className="divide-y divide-hairline overflow-hidden rounded-md border border-hairline bg-card">{children}</div>
-    </section>
-  )
-}
 
 function DeviceIdentityCard() {
   const { state: kioskState } = useKiosk()
   return (
-    <section>
-      <h2 className="os-label px-1 pb-4">This Device</h2>
-      <div className="flex items-end gap-3 rounded-md border border-hairline bg-card px-5 py-6">
-        <div className="min-w-0 flex-1">
-          <p className="truncate font-display text-5xl leading-none">{kioskState.deviceName}</p>
-          <p className="mt-3 text-sm text-muted-foreground">
-            {kioskState.paired ? kioskState.householdName ?? "Connected household" : "Not connected to a household"}
-          </p>
-        </div>
-        <span className="os-label flex shrink-0 items-center gap-2">
-          <span className={cn("size-1.5 rounded-full", kioskState.paired ? "bg-season" : "bg-muted-foreground/50")} />
-          {kioskState.paired ? "Paired" : "Unpaired"}
-        </span>
+    <div className="flex items-center gap-4 rounded-[20px] border border-hairline bg-card px-5 py-4">
+      <IconTile icon={Tablet} tone="gray" size="lg" />
+      <div className="min-w-0 flex-1">
+        <p className="truncate font-display text-[2rem] leading-none">{kioskState.deviceName}</p>
+        <p className="mt-1.5 text-sm text-muted-foreground">
+          {kioskState.paired ? kioskState.householdName ?? "Connected household" : "Not connected to a household"}
+        </p>
       </div>
-    </section>
+      <StatusPill tone={kioskState.paired ? "good" : "idle"}>{kioskState.paired ? "Paired" : "Unpaired"}</StatusPill>
+    </div>
   )
 }
 
@@ -2545,22 +2459,21 @@ export function SettingsView() {
     general: kioskState.paired ? "Paired" : "Unpaired",
     family: peopleCount > 0 ? `${peopleCount}` : null,
     maintenance: pendingUpdate ? (
-      <span className="rounded-full bg-member-green/15 px-2 py-0.5 text-[0.7rem] font-semibold text-member-green">Update</span>
+      <StatusPill tone="good">Update</StatusPill>
     ) : null,
   }
 
   const meta = categoryMeta[category]
 
   return (
-    <div ref={contentRef} className="flex flex-col gap-8 py-2 md:flex-row md:items-start md:gap-10">
-      {/* Category rail — horizontal chips on narrow screens, sticky sidebar on wide ones */}
+    <div ref={contentRef} className="flex items-start gap-6">
+      {/* Categories as the phone's settings rows: a neutral tile, the name, a hint. One headline on the page: the header's. */}
       <nav
         aria-label="Settings categories"
-        className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:sticky md:top-0 md:mx-0 md:w-64 md:shrink-0 md:flex-col md:gap-1 md:overflow-visible md:px-0 md:pb-0"
+        className="sticky top-0 flex w-72 shrink-0 flex-col gap-0.5 rounded-[20px] border border-hairline bg-card p-1.5"
       >
         {categoryOrder.map((id) => {
           const item = categoryMeta[id]
-          const Icon = item.icon
           const selected = id === category
           const hint = hints[id]
           return (
@@ -2570,34 +2483,24 @@ export function SettingsView() {
               onClick={() => select(id)}
               aria-current={selected ? "page" : undefined}
               className={cn(
-                "flex shrink-0 items-center gap-3 rounded-md px-3.5 py-3 text-left text-sm transition-colors",
-                selected
-                  ? "bg-foreground text-background"
-                  : "text-muted-foreground hover:bg-secondary/70 hover:text-foreground active:bg-secondary",
-                id === "account" && "md:mt-4",
+                "flex min-h-[3.4rem] items-center gap-3 rounded-[14px] px-2.5 text-left text-[0.95rem] transition-colors",
+                selected ? "bg-secondary font-medium" : "active:bg-secondary",
+                id === "account" && "mt-2",
               )}
             >
-              <Icon className="size-[18px] shrink-0" strokeWidth={1.7} />
-              <span className="flex-1 font-medium whitespace-nowrap">{item.label}</span>
-              {hint ? (
-                <span className={cn("hidden text-xs md:inline", selected ? "text-background/70" : "text-muted-foreground")}>
-                  {hint}
-                </span>
-              ) : null}
+              <IconTile icon={item.icon} tone="gray" />
+              <span className="flex-1 whitespace-nowrap">{item.label}</span>
+              {hint ? <span className="text-xs font-normal text-muted-foreground">{hint}</span> : null}
             </button>
           )
         })}
-        <p className="os-label hidden px-3.5 pt-6 md:block">Solora OS{appVersion ? ` · v${appVersion}` : ""}</p>
+        <p className="os-label px-3 pb-2 pt-4">Solora OS{appVersion ? ` · v${appVersion}` : ""}</p>
       </nav>
 
       {/* Active category */}
-      <div className="min-w-0 flex-1 space-y-12 pb-10">
-        <header className="border-b border-hairline pb-6">
-          <h1 className="font-display text-5xl leading-none">{meta.label}</h1>
-          <p className="mt-3 text-sm text-muted-foreground">{meta.description}</p>
-        </header>
+      <div key={category} className="page-in min-w-0 flex-1 space-y-7 pb-10">
+        <p className="px-1 text-muted-foreground">{meta.description}</p>
         <CategoryContent category={category} />
-        <p className="os-label md:hidden">Solora OS{appVersion ? ` · v${appVersion}` : ""}</p>
       </div>
     </div>
   )

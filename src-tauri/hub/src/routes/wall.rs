@@ -246,3 +246,39 @@ pub async fn display(State(hub): State<Arc<Hub>>, user: User) -> Response {
         .collect();
     ok(json!({ "displays": displays }))
 }
+
+/// POST /hub/reset-data: delete every event, chore, list and meal (people,
+/// photos and connections stay). Phones remove what they're told was deleted,
+/// so each row gets its event.
+pub async fn reset_data(State(hub): State<Arc<Hub>>, user: User) -> Response {
+    let Some(household) = user.household().map(str::to_string).filter(|_| !user.is_kiosk()) else {
+        return error(403, "Reset the hub's data from a phone.");
+    };
+    if !manages(&hub, &user, "hub") {
+        return error(403, "Only admins and members with hub access can reset the hub's data.");
+    }
+    const TABLES: [(&str, &str); 4] = [("events", "events:deleted"), ("chores", "chores:deleted"), ("lists", "lists:deleted"), ("meals", "meals:deleted")];
+    let mut removed: Vec<(&str, &'static str, Vec<String>)> = Vec::new();
+    {
+        let mut db_ = hub.store.db();
+        let Ok(tx) = db_.transaction() else { return error(500, "Something went wrong.") };
+        for (table, event) in TABLES {
+            let ids = db::all(&tx, &format!("SELECT id FROM {table} WHERE household_id = ?"), p![household]).iter().map(|r| db::s(r, "id")).collect();
+            crate::try_run!(&tx, &format!("DELETE FROM {table} WHERE household_id = ?"), p![household]);
+            removed.push((table, event, ids));
+        }
+        crate::try_run!(&tx, "DELETE FROM chore_completions WHERE household_id = ?", p![household]);
+        if tx.commit().is_err() {
+            return error(500, "Something went wrong.");
+        }
+    }
+    log_activity(&hub, &user, "hub.reset_data", "hub", None, "", json!({}));
+    let mut counts = Map::new();
+    for (table, event, ids) in removed {
+        counts.insert(table.to_string(), json!(ids.len()));
+        for id in ids {
+            realtime::broadcast(&hub, &household, event, json!(id));
+        }
+    }
+    ok(Value::Object(counts))
+}

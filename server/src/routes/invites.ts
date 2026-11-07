@@ -83,8 +83,9 @@ router.post("/", requireAuth, (req: Request, res: Response) => {
   }
 
   // Drop stale invite for this member slot
-  const stale = db.prepare("SELECT code, token FROM invites WHERE member_id = ?").all(finalMemberId) as { code: string; token: string }[]
-  db.prepare("DELETE FROM invites WHERE member_id = ?").run(finalMemberId)
+  // A shared code only anchors on a member; it isn't that member's invite.
+  const stale = db.prepare("SELECT code, token FROM invites WHERE member_id = ? AND shared = 0").all(finalMemberId) as { code: string; token: string }[]
+  db.prepare("DELETE FROM invites WHERE member_id = ? AND shared = 0").run(finalMemberId)
   stale.forEach(unregisterRemoteInvite)
 
   const id = uuidv4()
@@ -244,7 +245,8 @@ router.get("/:tokenOrCode", (req: Request, res: Response) => {
   res.json({
     ...rowToInvite(row),
     householdName: row.household_name,
-    memberName: row.name,
+    // A shared code has no one person behind it; the app asks for their name.
+    memberName: row.shared === 1 ? "" : row.name,
   })
 })
 
@@ -288,6 +290,19 @@ router.post("/claim", async (req: Request, res: Response) => {
   const accountId = payload.sub
   const email = payload.email.toLowerCase()
   const householdId = invite.household_id as string
+  const shared = invite.shared === 1
+  const reusable = shared || invite.reusable === 1
+
+  // A standing code belongs to whoever claimed it first.
+  if (reusable && !shared) {
+    const holder = db
+      .prepare("SELECT u.account_id FROM members m JOIN users u ON u.id = m.user_id WHERE m.id = ?")
+      .get(invite.member_id) as { account_id: string | null } | undefined
+    if (holder && holder.account_id !== accountId) {
+      res.status(409).json({ error: "This code belongs to another account." })
+      return
+    }
+  }
 
   // Reuse the existing local user if this account is already provisioned
   // here (e.g. re-claiming an invite for a second member slot, or a retry).
@@ -314,6 +329,18 @@ router.post("/claim", async (req: Request, res: Response) => {
 
   const userId = existing?.id ?? uuidv4()
 
+  // A shared code gives each account its own member slot; claiming it again
+  // from the same account reconnects to that slot.
+  let memberId = invite.member_id as string
+  let newMember = false
+  if (shared) {
+    const mine = existing
+      ? (db.prepare("SELECT id FROM members WHERE user_id = ? AND household_id = ?").get(existing.id, householdId) as { id: string } | undefined)
+      : undefined
+    newMember = !mine
+    memberId = mine?.id ?? uuidv4()
+  }
+
   db.transaction(() => {
     if (legacy) {
       db.prepare("UPDATE users SET account_id = ?, password_hash = NULL WHERE id = ?").run(accountId, legacy.id)
@@ -323,15 +350,23 @@ router.post("/claim", async (req: Request, res: Response) => {
       ).run(userId, householdId, email, name.trim(), accountId)
     }
 
+    if (newMember) {
+      // Testers can use the family's areas but can't manage members or the hub.
+      db.prepare(
+        `INSERT INTO members (id, household_id, name, initial, color, role, permissions, pending)
+         VALUES (?, ?, ?, ?, ?, ?, ?, 0)`,
+      ).run(memberId, householdId, name.trim(), "", invite.color, invite.role, JSON.stringify(["calendar", "chores", "lists", "meals"]))
+    }
+
     // Claim the member slot
     db.prepare(
       "UPDATE members SET user_id = ?, name = ?, initial = ?, dob = ?, color = ?, account = ?, pending = 0 WHERE id = ?",
-    ).run(userId, name.trim(), name.trim().charAt(0).toUpperCase(), dob ?? null, color ?? invite.color, email, invite.member_id)
+    ).run(userId, name.trim(), name.trim().charAt(0).toUpperCase(), dob ?? null, color ?? invite.color, email, memberId)
 
     // Consume the invite
-    db.prepare("DELETE FROM invites WHERE id = ?").run(invite.id)
+    if (!reusable) db.prepare("DELETE FROM invites WHERE id = ?").run(invite.id)
   })()
-  unregisterRemoteInvite({ code: invite.code as string, token: invite.token as string })
+  if (!reusable) unregisterRemoteInvite({ code: invite.code as string, token: invite.token as string })
 
   const household = db
     .prepare("SELECT id, name FROM households WHERE id = ?")
@@ -342,7 +377,7 @@ router.post("/claim", async (req: Request, res: Response) => {
   const hubId = hubJwt ? (jwt.decode(hubJwt) as { sub?: string } | null)?.sub ?? null : null
 
   // Nobody is signed in yet: the person joining is the one who did it.
-  writeLog({ householdId, actorId: invite.member_id as string, action: "member.join", resourceType: "member", resourceId: invite.member_id as string, resourceName: name.trim() })
+  writeLog({ householdId, actorId: memberId, action: "member.join", resourceType: "member", resourceId: memberId, resourceName: name.trim() })
   res.status(201).json({
     user: { id: userId, email, name: name.trim() },
     household,

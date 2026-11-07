@@ -1,7 +1,6 @@
 /**
- * widget-env.ts — the few things the home widgets get differently on the wall
- * and on a phone. widgets.tsx is kept identical in kiosk/ and mobile/; each
- * app has its own copy of this file.
+ * widget-env.ts — the few things the home widgets read from the wall's own
+ * settings rather than from the household data.
  */
 
 import type { Photo } from "@/lib/data"

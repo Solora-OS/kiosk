@@ -96,8 +96,10 @@ if [[ $PUBLISH == 0 ]]; then
 fi
 
 echo "==> upload to github.com/$RELEASE_REPO (v$VERSION)"
+# In CI the Linux job may create the release at the same moment; whoever loses just uses it.
 gh release view "v$VERSION" --repo "$RELEASE_REPO" >/dev/null 2>&1 \
-  || gh release create "v$VERSION" --repo "$RELEASE_REPO" --title "v$VERSION" --notes "${NOTES:-}" >/dev/null
+  || gh release create "v$VERSION" --repo "$RELEASE_REPO" --title "v$VERSION" --notes "${NOTES:-}" >/dev/null 2>&1 \
+  || gh release view "v$VERSION" --repo "$RELEASE_REPO" >/dev/null
 # latest-android.json next to the APK is how the console finds this build
 # (Releases → New release lists it; central/src/lib/release-sources.ts).
 gh release upload "v$VERSION" "$OUT/$ASSET" "$OUT/latest-android.json" --repo "$RELEASE_REPO" --clobber

@@ -73,7 +73,7 @@ export function AppearanceSection() {
               <button
                 type="button"
                 onClick={() => fileRef.current?.click()}
-                className="flex h-10 flex-1 items-center justify-center gap-2 rounded-md bg-secondary text-sm font-medium"
+                className="flex h-10 flex-1 items-center justify-center gap-2 rounded-full bg-secondary text-sm font-medium"
               >
                 <Upload className="size-4" />
                 Import theme
@@ -81,7 +81,7 @@ export function AppearanceSection() {
               <button
                 type="button"
                 onClick={downloadTemplate}
-                className="flex h-10 items-center gap-2 rounded-md px-3 text-sm text-muted-foreground hover:bg-secondary hover:text-foreground"
+                className="flex h-10 items-center gap-2 rounded-[12px] px-3 text-sm text-muted-foreground hover:bg-secondary hover:text-foreground"
               >
                 <Download className="size-4" />
                 Template

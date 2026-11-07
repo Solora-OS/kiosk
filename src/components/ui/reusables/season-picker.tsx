@@ -32,7 +32,7 @@ export function PickerRow({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="flex min-h-14 w-full items-center gap-3 rounded-lg bg-secondary/60 px-4 py-3 text-left transition-colors hover:bg-secondary active:bg-secondary disabled:opacity-60"
+      className="flex min-h-14 w-full items-center gap-3 rounded-[16px] bg-secondary/60 px-4 py-3 text-left transition-colors hover:bg-secondary active:bg-secondary disabled:opacity-60"
     >
       <span className="flex-1 text-[15px] font-medium">{label}</span>
       {swatch ? <span className="size-3.5 shrink-0 rounded-full" style={{ background: swatch }} aria-hidden /> : null}
@@ -79,7 +79,7 @@ export function PickerDialog({
       >
         <div className="flex items-center justify-between border-b border-hairline py-1.5 pl-4 pr-1.5">
           <p className="text-[15px] font-semibold">{title}</p>
-          <button type="button" onClick={onClose} aria-label="Close" className="flex size-10 items-center justify-center rounded-md text-muted-foreground hover:bg-secondary">
+          <button type="button" onClick={onClose} aria-label="Close" className="flex size-10 items-center justify-center rounded-[12px] text-muted-foreground hover:bg-secondary">
             <X className="size-4" />
           </button>
         </div>
@@ -177,7 +177,7 @@ export function SeasonPicker({
                   type="button"
                   aria-label={`Remove ${s.name}`}
                   onClick={() => onRemove(s.id)}
-                  className="mr-2 flex size-10 items-center justify-center rounded-md text-muted-foreground hover:text-destructive"
+                  className="mr-2 flex size-10 items-center justify-center rounded-[12px] text-muted-foreground hover:text-destructive"
                 >
                   <X className="size-4" />
                 </button>

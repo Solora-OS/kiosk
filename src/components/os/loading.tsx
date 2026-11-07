@@ -49,7 +49,7 @@ const SHAPES: Record<string, (bar: Bar, wall: boolean) => ReactNode> = {
           <div className="flex items-center gap-4">{bar("h-10 w-56")}{bar("h-12 w-24 rounded-md")}<span className="flex-1" />{bar("h-12 w-24 rounded-md")}{bar("h-12 w-56 rounded-md")}</div>
           <div className="grid grid-cols-7 gap-2">
             {Array.from({ length: 35 }, (_, i) => (
-              <div key={i} className="flex h-28 flex-col gap-2 rounded-md bg-card p-2">{bar("h-3 w-6")}{i % 3 === 0 ? bar("h-5 w-full rounded") : null}{i % 5 === 1 ? bar("h-5 w-4/5 rounded") : null}</div>
+              <div key={i} className="flex h-28 flex-col gap-2 rounded-[14px] bg-card p-2">{bar("h-3 w-6")}{i % 3 === 0 ? bar("h-5 w-full rounded") : null}{i % 5 === 1 ? bar("h-5 w-4/5 rounded") : null}</div>
             ))}
           </div>
         </>
@@ -110,7 +110,7 @@ const SHAPES: Record<string, (bar: Bar, wall: boolean) => ReactNode> = {
 }
 
 function Card({ children, className, row }: { children: ReactNode; className?: string; row?: boolean }) {
-  return <div className={cn("flex gap-3 rounded-lg bg-card p-4", row ? "items-center" : "flex-col", className)}>{children}</div>
+  return <div className={cn("flex gap-3 rounded-[20px] bg-card p-4", row ? "items-center" : "flex-col", className)}>{children}</div>
 }
 
 function Row({ bar, lead, tail }: { bar: Bar; lead: string; tail?: string }) {
@@ -131,7 +131,7 @@ function Row({ bar, lead, tail }: { bar: Bar; lead: string; tail?: string }) {
  */
 export function TabLoading({ tab, wall = false, className }: { tab?: string; wall?: boolean; className?: string }) {
   let n = 0
-  const bar: Bar = (c) => <div className={cn("skel rounded-md", c)} style={{ "--d": `${(n++ % 20) * 40}ms` } as CSSProperties} />
+  const bar: Bar = (c) => <div className={cn("skel rounded-[12px]", c)} style={{ "--d": `${(n++ % 20) * 40}ms` } as CSSProperties} />
   const shape = SHAPES[tab ?? ""] ?? SHAPES.chores
 
   return (
@@ -151,7 +151,7 @@ export function TabLoading({ tab, wall = false, className }: { tab?: string; wal
  */
 export function SkeletonRows({ rows = 3, lead = "size-7 rounded-md", className }: { rows?: number; lead?: string; className?: string }) {
   let n = 0
-  const bar: Bar = (c) => <div className={cn("skel rounded-md", c)} style={{ "--d": `${(n++ % 20) * 40}ms` } as CSSProperties} />
+  const bar: Bar = (c) => <div className={cn("skel rounded-[12px]", c)} style={{ "--d": `${(n++ % 20) * 40}ms` } as CSSProperties} />
   return (
     <div role="status" aria-busy="true" className={cn("flex flex-col divide-y divide-hairline", className)}>
       <span className="sr-only">Loading</span>
@@ -162,5 +162,5 @@ export function SkeletonRows({ rows = 3, lead = "size-7 rounded-md", className }
 
 /** A block-shaped placeholder (a photo, a QR code) that shimmers like the rest. */
 export function SkeletonBlock({ className, label = "Loading" }: { className?: string; label?: string }) {
-  return <div role="img" aria-label={label} className={cn("skel rounded-md", className)} />
+  return <div role="img" aria-label={label} className={cn("skel rounded-[12px]", className)} />
 }

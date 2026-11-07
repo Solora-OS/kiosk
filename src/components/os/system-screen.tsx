@@ -23,7 +23,7 @@ export function SystemScreen({
     <main className="relative flex h-dvh flex-col overflow-hidden bg-background text-foreground">
       {statusBar ? <SystemStatusBar /> : null}
       <div aria-hidden className="paper-grid pointer-events-none absolute inset-0 opacity-70" />
-      <SeasonCorner className={cn("size-[26rem] opacity-40", statusBar && "top-12")} />
+      <SeasonCorner className={cn("size-[26rem] opacity-40", statusBar && "top-10")} />
 
       <div className={cn("relative z-10 flex min-h-0 flex-1 flex-col", className)}>{children}</div>
 

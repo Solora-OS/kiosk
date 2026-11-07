@@ -193,6 +193,14 @@ pub fn register_remote_invite(hub: &Arc<Hub>, code: &str, token: &str, expires_a
     }
 }
 
+/// Standing codes outlive any one registration at central: register them again at every boot.
+pub fn register_reusable_invites(hub: &Arc<Hub>) {
+    let rows = crate::db::all(&hub.store.db(), "SELECT code, token, expires_at FROM invites WHERE reusable = 1", crate::p![]);
+    for r in &rows {
+        register_remote_invite(hub, &crate::db::s(r, "code"), &crate::db::s(r, "token"), &crate::db::s(r, "expires_at"));
+    }
+}
+
 /// Stops routing a claimed or revoked invite. Fire and forget.
 pub fn unregister_remote_invite(hub: &Arc<Hub>, code: &str, token: &str) {
     for key in [code, token] {

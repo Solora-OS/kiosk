@@ -8,7 +8,7 @@ export function KioskStatusWidget() {
 
   if (!kiosk) {
     return (
-      <div className="space-y-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-4">
+      <div className="space-y-2 rounded-[20px] border border-amber-500/30 bg-amber-500/10 p-4">
         <p className="text-sm font-medium text-amber-700">No kiosk device registered</p>
         <p className="text-xs text-amber-600/80">
           The kiosk app needs to sign in and register with this household to appear here. 
@@ -33,7 +33,7 @@ export function KioskStatusWidget() {
   const isRecent = timeSinceUpdate < 60 // Within 60 seconds
 
   return (
-    <div className="space-y-3 rounded-lg border border-border/50 bg-card p-4">
+    <div className="space-y-3 rounded-[20px] border border-border/50 bg-card p-4">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold">{kiosk.device_name}</h3>
         <div
@@ -56,7 +56,7 @@ export function KioskStatusWidget() {
 
       <div className="grid grid-cols-2 gap-3">
         {/* WiFi Signal */}
-        <div className="flex items-center gap-2 rounded-md bg-muted/50 p-2">
+        <div className="flex items-center gap-2 rounded-[14px] bg-muted/50 p-2">
           <Wifi className="size-4 text-muted-foreground" />
           <div>
             <p className="text-xs text-muted-foreground">WiFi</p>
@@ -65,7 +65,7 @@ export function KioskStatusWidget() {
         </div>
 
         {/* Ping Latency */}
-        <div className="flex items-center gap-2 rounded-md bg-muted/50 p-2">
+        <div className="flex items-center gap-2 rounded-[14px] bg-muted/50 p-2">
           <Activity className="size-4 text-muted-foreground" />
           <div>
             <p className="text-xs text-muted-foreground">Ping</p>
@@ -75,7 +75,7 @@ export function KioskStatusWidget() {
 
         {/* Battery */}
         {kiosk.battery_percent !== null && kiosk.battery_percent !== undefined && (
-          <div className="flex items-center gap-2 rounded-md bg-muted/50 p-2">
+          <div className="flex items-center gap-2 rounded-[14px] bg-muted/50 p-2">
             <Battery className="size-4 text-muted-foreground" />
             <div>
               <p className="text-xs text-muted-foreground">Battery</p>
@@ -85,7 +85,7 @@ export function KioskStatusWidget() {
         )}
 
         {/* Last Update */}
-        <div className="flex items-center gap-2 rounded-md bg-muted/50 p-2">
+        <div className="flex items-center gap-2 rounded-[14px] bg-muted/50 p-2">
           <Clock className="size-4 text-muted-foreground" />
           <div>
             <p className="text-xs text-muted-foreground">Last seen</p>

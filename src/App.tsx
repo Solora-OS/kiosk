@@ -8,7 +8,6 @@ import { HomeView } from "./app/home/home"
 import { SettingsView } from "./app/settings/settings";
 import { PhotosView } from "./app/photos/photos";
 import { HeaderNav } from "./components/ui/reusables/header-nav";
-import { MemberChips } from "./components/ui/reusables/member-chips";
 import { StoreProvider, useStore, type TabKey } from "./lib/store";
 import { AuthProvider, useAuth } from "./lib/auth";
 import { AuthScreen } from "./app/auth/auth-screen";
@@ -42,8 +41,7 @@ function AppShell() {
       <SideNav active={tab} onChange={setTab} />
       
       <div className="flex flex-1 flex-col">
-        <HeaderNav title={head.title} subtitle={head.subtitle} />
-        {head.showMembers ? <MemberChips /> : null}
+        <HeaderNav title={head.title} caption={head.subtitle} showPeople={head.showMembers} />
 
         <main className="flex-1 overflow-auto">
           {loading && tab !== "settings" ? (

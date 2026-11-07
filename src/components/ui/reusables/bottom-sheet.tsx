@@ -90,20 +90,20 @@ export function BottomSheet({
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="relative z-10 flex h-full w-full max-w-md flex-col border-l border-border bg-popover"
+        className="relative z-10 flex h-full w-full max-w-[30rem] flex-col border-l border-hairline bg-background shadow-[-30px_0_60px_-30px_rgb(0_0_0/0.45)]"
         style={{
           transform: animating ? "translateX(0)" : "translateX(100%)",
           transition: "transform 320ms cubic-bezier(0.25, 1, 0.5, 1)",
         }}
       >
         {/* Header */}
-        <div className="flex shrink-0 items-end justify-between px-7 pb-5 pt-8">
-          <h2 className="font-display text-4xl leading-none">{title}</h2>
+        <div className="flex shrink-0 items-center justify-between px-7 pb-4 pt-6">
+          <h2 className="font-display text-[2rem] leading-none">{title}</h2>
           <button
             type="button"
             onClick={requestClose}
             aria-label="Close"
-            className="flex size-11 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+            className="flex size-11 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
           >
             <X className="size-5" />
           </button>
@@ -111,7 +111,7 @@ export function BottomSheet({
 
         {/* Scrollable body */}
         <div className="flex-1 overflow-y-auto overflow-x-hidden border-t border-hairline px-7 py-6">
-          <div className="space-y-6">{children}</div>
+          <div className="space-y-5">{children}</div>
         </div>
 
         {/* Footer */}
@@ -129,7 +129,7 @@ export function BottomSheet({
 export function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <label className="block">
-      <span className="os-label mb-1 block">
+      <span className="os-label mb-2 block">
         {label}
       </span>
       {children}
@@ -137,6 +137,41 @@ export function Field({ label, children }: { label: string; children: ReactNode 
   )
 }
 
-/** Underline field — matches .os-field on system screens, sized for sheets. */
+/** Soft box field — matches .os-field on system screens, sized for sheets. */
 export const inputClass =
-  "w-full border-0 border-b border-input bg-transparent px-0 py-2.5 text-base outline-none transition-colors focus:border-season"
+  "w-full min-h-[3.25rem] rounded-[14px] border border-hairline bg-card px-4 py-3 text-[1.05rem] outline-none transition-colors focus:border-foreground"
+
+/** A row of tappable choices, used in sheets instead of a native select (no popups on a wall). */
+export function ChoiceChips<T extends string | number>({
+  value,
+  options,
+  onChange,
+}: {
+  value: T
+  options: { value: T; label: ReactNode; lead?: ReactNode }[]
+  onChange: (v: T) => void
+}) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      {options.map((o) => {
+        const on = o.value === value
+        return (
+          <button
+            key={String(o.value)}
+            type="button"
+            aria-pressed={on}
+            onClick={() => onChange(o.value)}
+            className={cn(
+              "flex h-11 items-center gap-2 rounded-full border text-[0.95rem] font-medium transition-colors",
+              o.lead ? "pl-1.5 pr-4" : "px-4",
+              on ? "border-transparent bg-foreground text-background" : "border-hairline bg-card text-foreground",
+            )}
+          >
+            {o.lead}
+            {o.label}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
